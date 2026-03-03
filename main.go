@@ -1,5 +1,11 @@
 package main
 
+// Injected at build time via -ldflags "-X main.version=... -X main.commit=..."
+var (
+	version = "dev"
+	commit  = "unknown"
+)
+
 import (
 	"context"
 	"crypto/tls"
@@ -28,8 +34,8 @@ func main() {
 	if err != nil {
 		log.Fatalf("config: %v", err)
 	}
-	log.Printf("starting — domain=%s server_ip=%s scan_interval=%s",
-		cfg.Domain, cfg.ServerIP, cfg.ScanInterval)
+	log.Printf("starting version=%s commit=%s domain=%s server_ip=%s scan_interval=%s",
+		version, commit, cfg.Domain, cfg.ServerIP, cfg.ScanInterval)
 
 	// Persistent store.
 	st, err := store.New(cfg.DataDir)

@@ -1,0 +1,21 @@
+# Git
+.git
+.gitignore
+
+# GitHub Actions
+.github
+
+# Documentation
+README.md
+*.md
+
+# Local dev artifacts
+launchpad
+*.exe
+*.test
+
+# IDE / OS
+.DS_Store
+.idea
+.vscode
+*.swp
