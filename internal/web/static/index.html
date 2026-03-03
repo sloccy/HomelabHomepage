@@ -48,6 +48,16 @@
       <div id="status-grid" class="status-grid"></div>
     </section>
 
+    <!-- Scan Subnets -->
+    <section class="section">
+      <div class="section-header">
+        <h2 class="section-title">Scan Subnets</h2>
+        <button class="btn btn-primary" onclick="showAddSubnetModal()">+ Add Subnet</button>
+      </div>
+      <p class="section-desc">Subnets to scan for services (CIDR notation, e.g. <code>10.0.1.0/24</code>). If none are configured, the local /24 is auto-detected.</p>
+      <div id="subnets-list"></div>
+    </section>
+
     <!-- Assigned Services -->
     <section class="section">
       <div class="section-header">

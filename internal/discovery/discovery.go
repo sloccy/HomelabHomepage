@@ -88,7 +88,7 @@ func (d *Discoverer) Status() (scanning bool, last, next time.Time) {
 func (d *Discoverer) runScan(ctx context.Context) {
 	log.Println("discovery: starting network scan")
 	start := time.Now()
-	results := d.scanNetwork(ctx)
+	results := d.scanNetwork(ctx, d.store.GetScanSubnets())
 
 	var discovered []*store.DiscoveredService
 	for _, r := range results {

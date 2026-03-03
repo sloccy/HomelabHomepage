@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"io/fs"
 	"log"
+	"net"
 	"net/http"
 	"strings"
 	"time"
@@ -66,6 +67,10 @@ func (s *Server) routes() {
 
 	s.mux.HandleFunc("POST /api/scan", s.triggerScan)
 	s.mux.HandleFunc("GET /api/status", s.getStatus)
+
+	s.mux.HandleFunc("GET /api/scan/subnets", s.listScanSubnets)
+	s.mux.HandleFunc("POST /api/scan/subnets", s.addScanSubnet)
+	s.mux.HandleFunc("DELETE /api/scan/subnets", s.removeScanSubnet)
 
 	s.mux.HandleFunc("GET /api/ddns", s.listDDNS)
 	s.mux.HandleFunc("POST /api/ddns", s.addDDNS)
@@ -302,6 +307,50 @@ func (s *Server) getStatus(w http.ResponseWriter, r *http.Request) {
 		Domain:       s.cfg.Domain,
 		ServerIP:     s.cfg.ServerIP,
 	})
+}
+
+// ---- Scan subnets -----------------------------------------------------------
+
+func (s *Server) listScanSubnets(w http.ResponseWriter, r *http.Request) {
+	subnets := s.store.GetScanSubnets()
+	if subnets == nil {
+		subnets = []string{}
+	}
+	writeJSON(w, http.StatusOK, subnets)
+}
+
+func (s *Server) addScanSubnet(w http.ResponseWriter, r *http.Request) {
+	var req struct {
+		CIDR string `json:"cidr"`
+	}
+	if err := readJSON(r, &req); err != nil || req.CIDR == "" {
+		apiError(w, http.StatusBadRequest, "cidr is required")
+		return
+	}
+	if _, _, err := net.ParseCIDR(req.CIDR); err != nil {
+		apiError(w, http.StatusBadRequest, "invalid CIDR notation")
+		return
+	}
+	s.store.AddScanSubnet(req.CIDR)
+	if err := s.store.Save(); err != nil {
+		log.Printf("web: save: %v", err)
+	}
+	writeJSON(w, http.StatusCreated, map[string]string{"cidr": req.CIDR})
+}
+
+func (s *Server) removeScanSubnet(w http.ResponseWriter, r *http.Request) {
+	var req struct {
+		CIDR string `json:"cidr"`
+	}
+	if err := readJSON(r, &req); err != nil || req.CIDR == "" {
+		apiError(w, http.StatusBadRequest, "cidr is required")
+		return
+	}
+	s.store.RemoveScanSubnet(req.CIDR)
+	if err := s.store.Save(); err != nil {
+		log.Printf("web: save: %v", err)
+	}
+	w.WriteHeader(http.StatusNoContent)
 }
 
 // ---- DDNS -------------------------------------------------------------------

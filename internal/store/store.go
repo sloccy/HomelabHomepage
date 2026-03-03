@@ -36,11 +36,12 @@ type DiscoveredService struct {
 }
 
 type data struct {
-	Services    map[string]*Service    `json:"services"`
-	Discovered  []*DiscoveredService   `json:"discovered"`
-	DDNSDomains []string               `json:"ddns_domains"`
-	LastScan    time.Time              `json:"last_scan"`
-	PublicIP    string                 `json:"public_ip"`
+	Services     map[string]*Service   `json:"services"`
+	Discovered   []*DiscoveredService  `json:"discovered"`
+	DDNSDomains  []string              `json:"ddns_domains"`
+	ScanSubnets  []string              `json:"scan_subnets"`
+	LastScan     time.Time             `json:"last_scan"`
+	PublicIP     string                `json:"public_ip"`
 }
 
 // Store is a thread-safe, JSON-backed persistence layer.
@@ -60,6 +61,7 @@ func New(dataDir string) (*Store, error) {
 			Services:    make(map[string]*Service),
 			Discovered:  []*DiscoveredService{},
 			DDNSDomains: []string{},
+			ScanSubnets: []string{},
 		},
 	}
 	if err := s.load(); err != nil && !os.IsNotExist(err) {
@@ -286,6 +288,39 @@ func (s *Store) RemoveDDNSDomain(domain string) {
 		}
 	}
 	s.d.DDNSDomains = filtered
+}
+
+// ---- Scan subnets -----------------------------------------------------------
+
+func (s *Store) GetScanSubnets() []string {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	out := make([]string, len(s.d.ScanSubnets))
+	copy(out, s.d.ScanSubnets)
+	return out
+}
+
+func (s *Store) AddScanSubnet(cidr string) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	for _, c := range s.d.ScanSubnets {
+		if c == cidr {
+			return
+		}
+	}
+	s.d.ScanSubnets = append(s.d.ScanSubnets, cidr)
+}
+
+func (s *Store) RemoveScanSubnet(cidr string) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	filtered := s.d.ScanSubnets[:0]
+	for _, c := range s.d.ScanSubnets {
+		if c != cidr {
+			filtered = append(filtered, c)
+		}
+	}
+	s.d.ScanSubnets = filtered
 }
 
 // ---- Scan status / public IP ------------------------------------------------

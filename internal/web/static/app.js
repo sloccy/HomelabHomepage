@@ -98,7 +98,7 @@ function svcEmoji(svc) {
 // ── Manage view ───────────────────────────────────────────────────────────────
 
 async function loadManage() {
-  await Promise.all([loadStatus(), loadServices(), loadDiscovered(), loadDDNS()]);
+  await Promise.all([loadStatus(), loadScanSubnets(), loadServices(), loadDiscovered(), loadDDNS()]);
 }
 
 // ── Status ────────────────────────────────────────────────────────────────────
@@ -165,6 +165,66 @@ async function triggerScan() {
   } finally {
     btn.disabled = false;
     btn.textContent = '⟳ Scan Now';
+  }
+}
+
+// ── Scan Subnets ──────────────────────────────────────────────────────────────
+
+async function loadScanSubnets() {
+  const el = document.getElementById('subnets-list');
+  try {
+    const subnets = await api('GET', '/api/scan/subnets');
+    if (!subnets || subnets.length === 0) {
+      el.innerHTML = '<div class="empty-small">No subnets configured — local /24 will be auto-detected.</div>';
+      return;
+    }
+    el.innerHTML = subnets.map(cidr => `
+      <div class="ddns-item">
+        <div class="ddns-domain">${esc(cidr)}</div>
+        <button class="btn btn-ghost btn-sm" onclick="removeSubnet('${esc(cidr)}')">✕</button>
+      </div>`).join('');
+  } catch (e) {
+    el.innerHTML = `<p style="color:var(--danger);padding:1rem">${e.message}</p>`;
+  }
+}
+
+async function removeSubnet(cidr) {
+  if (!confirm(`Remove subnet "${cidr}" from scan list?`)) return;
+  try {
+    await api('DELETE', '/api/scan/subnets', { cidr });
+    toast(`Removed ${cidr}`);
+    loadScanSubnets();
+  } catch (e) {
+    toast(e.message, 'error');
+  }
+}
+
+function showAddSubnetModal() {
+  openModal(`
+    <h3>Add Scan Subnet</h3>
+    <p style="color:var(--muted);font-size:.875rem;margin-bottom:1.25rem">
+      Enter a subnet in CIDR notation. It will be included in every network scan.
+    </p>
+    <div class="form-group">
+      <label>Subnet (CIDR)</label>
+      <input id="m-cidr" type="text" placeholder="10.0.1.0/24">
+    </div>
+    <div class="form-actions">
+      <button class="btn btn-ghost" onclick="closeModal()">Cancel</button>
+      <button class="btn btn-primary" onclick="submitAddSubnet()">Add →</button>
+    </div>`);
+}
+
+async function submitAddSubnet() {
+  const cidr = document.getElementById('m-cidr').value.trim();
+  if (!cidr) { toast('CIDR is required', 'error'); return; }
+  try {
+    await api('POST', '/api/scan/subnets', { cidr });
+    closeModal();
+    toast(`Added ${cidr}`);
+    loadScanSubnets();
+  } catch (e) {
+    toast(e.message, 'error');
   }
 }
 

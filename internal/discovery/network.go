@@ -70,7 +70,8 @@ var (
 	reFaviconHref2 = regexp.MustCompile(`(?i)<link[^>]+href=["']([^"']+)["'][^>]+rel=["'][^"']*icon[^"']*["']`)
 )
 
-// getLocalSubnet returns the first non-loopback /24 subnet.
+// getLocalSubnet returns the first non-loopback /24 subnet derived from the
+// container's own interface. The /24 is forced regardless of actual prefix.
 func getLocalSubnet() (*net.IPNet, error) {
 	ifaces, err := net.Interfaces()
 	if err != nil {
@@ -101,19 +102,46 @@ func getLocalSubnet() (*net.IPNet, error) {
 	return nil, fmt.Errorf("no suitable network interface found")
 }
 
-// generateIPs returns all host IPs in the given /24 subnet.
+// generateIPs returns all host IPs (excluding network and broadcast) in subnet.
 func generateIPs(subnet *net.IPNet) []string {
 	var ips []string
-	base := subnet.IP.Mask(subnet.Mask)
-	for i := 1; i < 255; i++ {
-		ip := make(net.IP, 4)
-		copy(ip, base)
-		ip[3] = byte(i)
-		if subnet.Contains(ip) {
-			ips = append(ips, ip.String())
-		}
+	ip4 := subnet.IP.To4()
+	if ip4 == nil {
+		return nil
+	}
+	// Start at network address, then increment to first host.
+	cur := make(net.IP, 4)
+	copy(cur, ip4.Mask(subnet.Mask))
+	incrementIP(cur)
+
+	// Precompute broadcast.
+	bcast := broadcastIP(subnet)
+
+	for subnet.Contains(cur) && !cur.Equal(bcast) {
+		dst := make(net.IP, 4)
+		copy(dst, cur)
+		ips = append(ips, dst.String())
+		incrementIP(cur)
 	}
 	return ips
+}
+
+func incrementIP(ip net.IP) {
+	for i := len(ip) - 1; i >= 0; i-- {
+		ip[i]++
+		if ip[i] != 0 {
+			break
+		}
+	}
+}
+
+func broadcastIP(subnet *net.IPNet) net.IP {
+	ip4 := subnet.IP.To4()
+	bcast := make(net.IP, 4)
+	for i := range bcast {
+		bcast[i] = ip4[i] | ^subnet.Mask[i]
+	}
+	return bcast
 }
 
 type probeResult struct {
@@ -124,15 +152,44 @@ type probeResult struct {
 	icon  string
 }
 
-func (d *Discoverer) scanNetwork(ctx context.Context) []*probeResult {
-	subnet, err := getLocalSubnet()
-	if err != nil {
-		log.Printf("discovery: get subnet: %v", err)
-		return nil
+// scanNetwork scans the provided CIDR subnets. If cidrs is empty it falls back
+// to auto-detecting the local /24 subnet.
+func (d *Discoverer) scanNetwork(ctx context.Context, cidrs []string) []*probeResult {
+	var nets []*net.IPNet
+	if len(cidrs) == 0 {
+		subnet, err := getLocalSubnet()
+		if err != nil {
+			log.Printf("discovery: get subnet: %v", err)
+			return nil
+		}
+		nets = []*net.IPNet{subnet}
+	} else {
+		for _, cidr := range cidrs {
+			_, ipnet, err := net.ParseCIDR(cidr)
+			if err != nil {
+				log.Printf("discovery: invalid subnet %q: %v", cidr, err)
+				continue
+			}
+			nets = append(nets, ipnet)
+		}
+		if len(nets) == 0 {
+			return nil
+		}
 	}
-	log.Printf("discovery: scanning %s (%d ports per host)", subnet, len(scanPorts))
 
-	ips := generateIPs(subnet)
+	// Collect all unique host IPs across all subnets.
+	seen := make(map[string]bool)
+	var ips []string
+	for _, subnet := range nets {
+		hosts := generateIPs(subnet)
+		log.Printf("discovery: scanning %s — %d hosts × %d ports", subnet, len(hosts), len(scanPorts))
+		for _, ip := range hosts {
+			if !seen[ip] {
+				seen[ip] = true
+				ips = append(ips, ip)
+			}
+		}
+	}
 	type job struct {
 		ip   string
 		port int
