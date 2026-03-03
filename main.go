@@ -1,11 +1,5 @@
 package main
 
-// Injected at build time via -ldflags "-X main.version=... -X main.commit=..."
-var (
-	version = "dev"
-	commit  = "unknown"
-)
-
 import (
 	"context"
 	"crypto/tls"
@@ -24,6 +18,12 @@ import (
 	"launchpad/internal/proxy"
 	"launchpad/internal/store"
 	"launchpad/internal/web"
+)
+
+// Injected at build time via -ldflags "-X main.version=... -X main.commit=..."
+var (
+	version = "dev"
+	commit  = "unknown"
 )
 
 func main() {
