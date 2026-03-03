@@ -51,7 +51,19 @@ func (d *Discoverer) ScheduledScan(ctx context.Context) {
 		case <-ctx.Done():
 			return
 		case <-ticker.C:
-			d.runScan(ctx)
+			d.mu.Lock()
+			skip := d.scanning
+			if !skip {
+				d.scanning = true
+			}
+			d.mu.Unlock()
+
+			if skip {
+				log.Println("discovery: scheduled scan skipped — manual scan in progress")
+			} else {
+				d.runScan(ctx)
+			}
+
 			d.mu.Lock()
 			d.nextScan = time.Now().Add(d.cfg.ScanInterval)
 			d.mu.Unlock()
