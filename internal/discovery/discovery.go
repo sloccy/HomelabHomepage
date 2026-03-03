@@ -6,6 +6,7 @@ import (
 	"encoding/hex"
 	"fmt"
 	"log"
+	"strings"
 	"sync"
 	"time"
 
@@ -102,9 +103,12 @@ func (d *Discoverer) runScan(ctx context.Context) {
 	start := time.Now()
 
 	// Build assigned-targets set once (O(1) lookup per result).
+	// Store both the raw target and a trailing-slash-stripped form so either
+	// format matches regardless of how the target was originally saved.
 	assignedTargets := make(map[string]bool)
 	for _, svc := range d.store.GetAllServices() {
 		assignedTargets[svc.Target] = true
+		assignedTargets[strings.TrimRight(svc.Target, "/")] = true
 	}
 
 	// Clear old network entries so partial results are visible as they arrive.
