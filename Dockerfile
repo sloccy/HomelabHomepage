@@ -8,6 +8,9 @@ ARG BUILD_COMMIT=unknown
 
 WORKDIR /build
 
+# Create the data directory that will be copied to the final image with correct ownership.
+RUN mkdir -p /data
+
 # Restore modules before copying source to maximise layer cache reuse.
 COPY go.mod go.sum ./
 # --mount=type=cache keeps the module cache between BuildKit runs,
@@ -32,6 +35,10 @@ COPY --from=builder /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/
 
 # Binary.
 COPY --from=builder /build/atlas /atlas
+
+# Pre-create data directory owned by the nonroot user (UID 65532).
+# This ensures Docker initialises the named volume with correct ownership on first run.
+COPY --from=builder --chown=65532:65532 /data /data
 
 # OCI image labels (populated by docker/metadata-action in CI).
 ARG BUILD_VERSION=dev
