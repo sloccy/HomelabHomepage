@@ -304,7 +304,7 @@ func traefikPort(labels map[string]string) int {
 
 // bestPort picks the most useful published TCP port, preferring common web UI ports.
 func bestPort(ports []container.Port) int {
-	preferred := []uint16{80, 8080, 3000, 8000, 5000, 9000, 8096, 8123, 443, 8443}
+	preferred := []uint16{80, 8080, 3000, 5000, 9443, 9000, 8096, 8123, 443, 8443, 8000}
 	portSet := make(map[uint16]bool)
 	for _, p := range ports {
 		if p.Type == "tcp" && p.PublicPort > 0 {
