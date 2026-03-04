@@ -3,14 +3,18 @@ package web
 import (
 	"context"
 	"crypto/rand"
+	"crypto/tls"
 	"embed"
+	"encoding/base64"
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
+	"io"
 	"io/fs"
 	"log"
 	"net"
 	"net/http"
+	"net/url"
 	"strings"
 	"time"
 
@@ -19,6 +23,14 @@ import (
 	"atlas/internal/store"
 )
 
+// faviconClient is used to proxy favicon requests to internal services.
+var faviconClient = &http.Client{
+	Timeout: 5 * time.Second,
+	Transport: &http.Transport{
+		TLSClientConfig: &tls.Config{InsecureSkipVerify: true}, //nolint:gosec
+	},
+}
+
 //go:embed static
 var staticFiles embed.FS
 
@@ -26,6 +38,7 @@ var staticFiles embed.FS
 type Scanner interface {
 	ScanNow(ctx context.Context)
 	Status() (scanning bool, last, next time.Time)
+	ScanLog() []string
 }
 
 // Server serves the web GUI and REST API.
@@ -75,6 +88,10 @@ func (s *Server) routes() {
 	s.mux.HandleFunc("GET /api/ddns", s.listDDNS)
 	s.mux.HandleFunc("POST /api/ddns", s.addDDNS)
 	s.mux.HandleFunc("DELETE /api/ddns/{domain}", s.removeDDNS)
+
+	s.mux.HandleFunc("GET /api/favicon", s.getFavicon)
+	s.mux.HandleFunc("POST /api/services/{id}/icon", s.uploadServiceIcon)
+	s.mux.HandleFunc("DELETE /api/services/{id}/icon", s.clearServiceIcon)
 }
 
 // ---- Helpers ----------------------------------------------------------------
@@ -126,6 +143,7 @@ func (s *Server) createService(w http.ResponseWriter, r *http.Request) {
 	name := req.Name
 	source := "manual"
 	var containerID string
+	var discoveredIcon string
 
 	if req.DiscoveredID != "" {
 		disc := s.store.GetDiscoveredByID(req.DiscoveredID)
@@ -143,6 +161,7 @@ func (s *Server) createService(w http.ResponseWriter, r *http.Request) {
 		}
 		source = disc.Source
 		containerID = disc.ContainerID
+		discoveredIcon = disc.Icon
 	}
 
 	if target == "" {
@@ -158,6 +177,7 @@ func (s *Server) createService(w http.ResponseWriter, r *http.Request) {
 		Name:        name,
 		Subdomain:   req.Subdomain,
 		Target:      target,
+		Icon:        discoveredIcon,
 		Source:      source,
 		ContainerID: containerID,
 		CreatedAt:   time.Now(),
@@ -182,10 +202,10 @@ func (s *Server) createService(w http.ResponseWriter, r *http.Request) {
 }
 
 type updateServiceRequest struct {
-	Name      string `json:"name"`
-	Subdomain string `json:"subdomain"`
-	Target    string `json:"target"`
-	Icon      string `json:"icon"`
+	Name      string  `json:"name"`
+	Subdomain string  `json:"subdomain"`
+	Target    string  `json:"target"`
+	Icon      *string `json:"icon"` // nil = keep existing; "" = clear; non-empty = set
 }
 
 func (s *Server) updateService(w http.ResponseWriter, r *http.Request) {
@@ -210,12 +230,16 @@ func (s *Server) updateService(w http.ResponseWriter, r *http.Request) {
 	oldSub := svc.Subdomain
 	oldDNSID := svc.DNSRecordID
 
+	icon := svc.Icon
+	if req.Icon != nil {
+		icon = *req.Icon
+	}
 	updated := &store.Service{
 		ID:          svc.ID,
 		Name:        firstNonEmpty(req.Name, svc.Name),
 		Subdomain:   newSub,
 		Target:      firstNonEmpty(req.Target, svc.Target),
-		Icon:        firstNonEmpty(req.Icon, svc.Icon),
+		Icon:        icon,
 		Source:      svc.Source,
 		ContainerID: svc.ContainerID,
 		CreatedAt:   svc.CreatedAt,
@@ -290,13 +314,16 @@ type statusResponse struct {
 	PublicIP     string    `json:"public_ip"`
 	Domain       string    `json:"domain"`
 	ServerIP     string    `json:"server_ip"`
+	ScanLog      []string  `json:"scan_log,omitempty"`
 }
 
 func (s *Server) getStatus(w http.ResponseWriter, r *http.Request) {
 	var scanning bool
 	var last, next time.Time
+	var scanLog []string
 	if s.scanner != nil {
 		scanning, last, next = s.scanner.Status()
+		scanLog = s.scanner.ScanLog()
 	}
 	writeJSON(w, http.StatusOK, statusResponse{
 		Scanning:     scanning,
@@ -306,6 +333,7 @@ func (s *Server) getStatus(w http.ResponseWriter, r *http.Request) {
 		PublicIP:     s.store.GetPublicIP(),
 		Domain:       s.cfg.Domain,
 		ServerIP:     s.cfg.ServerIP,
+		ScanLog:      scanLog,
 	})
 }
 
@@ -399,6 +427,99 @@ func (s *Server) removeDDNS(w http.ResponseWriter, r *http.Request) {
 		log.Printf("web: save: %v", err)
 	}
 	w.WriteHeader(http.StatusNoContent)
+}
+
+// ---- Favicon proxy ----------------------------------------------------------
+
+// getFavicon proxies a favicon from an internal service target, avoiding
+// mixed-content and CORS issues in the browser.
+func (s *Server) getFavicon(w http.ResponseWriter, r *http.Request) {
+	rawURL := r.URL.Query().Get("url")
+	if rawURL == "" {
+		http.NotFound(w, r)
+		return
+	}
+	u, err := url.Parse(rawURL)
+	if err != nil || (u.Scheme != "http" && u.Scheme != "https") {
+		http.NotFound(w, r)
+		return
+	}
+	faviconURL := u.Scheme + "://" + u.Host + "/favicon.ico"
+	req, err := http.NewRequestWithContext(r.Context(), http.MethodGet, faviconURL, nil)
+	if err != nil {
+		http.NotFound(w, r)
+		return
+	}
+	resp, err := faviconClient.Do(req)
+	if err != nil || resp.StatusCode != http.StatusOK {
+		if resp != nil {
+			resp.Body.Close()
+		}
+		http.NotFound(w, r)
+		return
+	}
+	defer resp.Body.Close()
+	ct := resp.Header.Get("Content-Type")
+	if ct == "" {
+		ct = "image/x-icon"
+	}
+	w.Header().Set("Content-Type", ct)
+	w.Header().Set("Cache-Control", "public, max-age=3600")
+	_, _ = io.Copy(w, io.LimitReader(resp.Body, 64*1024))
+}
+
+// ---- Service icon -----------------------------------------------------------
+
+func (s *Server) uploadServiceIcon(w http.ResponseWriter, r *http.Request) {
+	id := r.PathValue("id")
+	svc := s.store.GetServiceByID(id)
+	if svc == nil {
+		apiError(w, http.StatusNotFound, "service not found")
+		return
+	}
+	r.Body = http.MaxBytesReader(w, r.Body, 512*1024)
+	if err := r.ParseMultipartForm(512 * 1024); err != nil {
+		apiError(w, http.StatusBadRequest, "file too large or invalid")
+		return
+	}
+	file, hdr, err := r.FormFile("icon")
+	if err != nil {
+		apiError(w, http.StatusBadRequest, "icon file required")
+		return
+	}
+	defer file.Close()
+	ct := hdr.Header.Get("Content-Type")
+	if ct == "" {
+		ct = "image/png"
+	}
+	data, err := io.ReadAll(io.LimitReader(file, 512*1024))
+	if err != nil || len(data) == 0 {
+		apiError(w, http.StatusBadRequest, "could not read file")
+		return
+	}
+	updated := *svc
+	updated.Icon = "data:" + ct + ";base64," + base64.StdEncoding.EncodeToString(data)
+	s.store.UpdateService(id, &updated)
+	if err := s.store.Save(); err != nil {
+		log.Printf("web: save: %v", err)
+	}
+	writeJSON(w, http.StatusOK, &updated)
+}
+
+func (s *Server) clearServiceIcon(w http.ResponseWriter, r *http.Request) {
+	id := r.PathValue("id")
+	svc := s.store.GetServiceByID(id)
+	if svc == nil {
+		apiError(w, http.StatusNotFound, "service not found")
+		return
+	}
+	updated := *svc
+	updated.Icon = ""
+	s.store.UpdateService(id, &updated)
+	if err := s.store.Save(); err != nil {
+		log.Printf("web: save: %v", err)
+	}
+	writeJSON(w, http.StatusOK, &updated)
 }
 
 // ---- Utilities --------------------------------------------------------------

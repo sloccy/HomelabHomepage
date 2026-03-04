@@ -25,6 +25,28 @@ type Discoverer struct {
 	scanning bool
 	lastScan time.Time
 	nextScan time.Time
+	logLines []string // recent scan log lines (capped at 30)
+}
+
+// logf writes to the standard logger and appends to the internal scan log buffer.
+func (d *Discoverer) logf(format string, args ...any) {
+	msg := fmt.Sprintf(format, args...)
+	log.Println(msg)
+	d.mu.Lock()
+	d.logLines = append(d.logLines, msg)
+	if len(d.logLines) > 30 {
+		d.logLines = d.logLines[len(d.logLines)-30:]
+	}
+	d.mu.Unlock()
+}
+
+// ScanLog returns a snapshot of recent scan log lines.
+func (d *Discoverer) ScanLog() []string {
+	d.mu.Lock()
+	defer d.mu.Unlock()
+	out := make([]string, len(d.logLines))
+	copy(out, d.logLines)
+	return out
 }
 
 func New(cfg *config.Config, st *store.Store, cfClient *cf.Client) *Discoverer {
@@ -99,7 +121,11 @@ func (d *Discoverer) Status() (scanning bool, last, next time.Time) {
 }
 
 func (d *Discoverer) runScan(ctx context.Context) {
-	log.Println("discovery: starting network scan")
+	d.mu.Lock()
+	d.logLines = nil
+	d.mu.Unlock()
+
+	d.logf("Starting network scan…")
 	start := time.Now()
 
 	// Build assigned-targets set once (O(1) lookup per result).
@@ -151,8 +177,8 @@ func (d *Discoverer) runScan(ctx context.Context) {
 	d.scanning = false
 	d.mu.Unlock()
 
-	log.Printf("discovery: scan complete in %s — found %d network services",
-		time.Since(start).Round(time.Second), count)
+	d.logf("Scan complete: %d services found in %s",
+		count, time.Since(start).Round(time.Second))
 }
 
 func newID() string {

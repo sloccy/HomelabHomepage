@@ -6,7 +6,6 @@ import (
 	"encoding/base64"
 	"fmt"
 	"io"
-	"log"
 	"net"
 	"net/http"
 	"net/url"
@@ -638,7 +637,7 @@ func (d *Discoverer) scanNetwork(ctx context.Context, cidrs []string) <-chan *pr
 			if len(cidrs) == 0 {
 				subnet, err := getLocalSubnet()
 				if err != nil {
-					log.Printf("discovery: get subnet: %v", err)
+					d.logf("Failed to detect local subnet: %v", err)
 					return
 				}
 				nets = []*net.IPNet{subnet}
@@ -646,7 +645,7 @@ func (d *Discoverer) scanNetwork(ctx context.Context, cidrs []string) <-chan *pr
 				for _, cidr := range cidrs {
 					_, ipnet, err := net.ParseCIDR(cidr)
 					if err != nil {
-						log.Printf("discovery: invalid subnet %q: %v", cidr, err)
+						d.logf("Invalid subnet %q: %v", cidr, err)
 						continue
 					}
 					nets = append(nets, ipnet)
@@ -660,7 +659,7 @@ func (d *Discoverer) scanNetwork(ctx context.Context, cidrs []string) <-chan *pr
 			var ips []string
 			for _, subnet := range nets {
 				hosts := generateIPs(subnet)
-				log.Printf("discovery: subnet %s — %d hosts", subnet, len(hosts))
+				d.logf("Subnet %s: %d hosts", subnet, len(hosts))
 				for _, ip := range hosts {
 					if !seen[ip] {
 						seen[ip] = true
@@ -679,20 +678,19 @@ func (d *Discoverer) scanNetwork(ctx context.Context, cidrs []string) <-chan *pr
 						alive = append(alive, ip)
 					}
 				}
-				log.Printf("discovery: arp: %d/%d hosts live — TCP sweep narrowed",
-					len(alive), len(ips))
+				d.logf("ARP sweep: %d/%d hosts alive", len(alive), len(ips))
 				ips = alive
 			}
 
-			log.Printf("discovery: TCP sweep — %d hosts × %d ports (%d pairs)",
-				len(ips), len(scanPorts), len(ips)*len(scanPorts))
+			d.logf("TCP sweep: %d hosts × %d ports", len(ips), len(scanPorts))
 			open := tcpSweep(ctx, ips, scanPorts)
-			log.Printf("discovery: TCP sweep done — %d open ports", len(open))
+			d.logf("TCP sweep complete: %d open ports found", len(open))
 
 			if len(open) == 0 || ctx.Err() != nil {
 				return
 			}
 
+			d.logf("HTTP probing %d open ports…", len(open))
 			jobs := make(chan openPort, len(open))
 			for _, op := range open {
 				jobs <- op

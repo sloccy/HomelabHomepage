@@ -363,6 +363,28 @@ tr:hover td { background: var(--surface2); }
   to   { transform: translateY(0);    opacity: 1; }
 }
 
+/* ── Scan log ───────────────────────────────────────────────────────────── */
+.scan-log {
+  padding: .75rem 1.5rem;
+  border-top: 1px solid var(--border);
+  font-family: monospace;
+  font-size: .75rem;
+  color: var(--muted);
+  max-height: 160px;
+  overflow-y: auto;
+  background: var(--bg);
+}
+.scan-log-line { line-height: 1.7; }
+.scan-log-line::before { content: '›  '; color: var(--accent); }
+
+/* ── Icon edit row ──────────────────────────────────────────────────────── */
+.icon-edit-row {
+  display: flex;
+  align-items: center;
+  gap: .75rem;
+  margin-top: .25rem;
+}
+
 /* ── Responsive ─────────────────────────────────────────────────────────── */
 @media (max-width: 600px) {
   .header { padding: .75rem 1rem; }

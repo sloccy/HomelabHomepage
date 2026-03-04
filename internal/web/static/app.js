@@ -71,9 +71,13 @@ async function loadHome() {
 
 function renderCard(svc, domain) {
   const url  = `https://${svc.subdomain}.${domain}`;
-  const icon = svc.icon
-    ? `<img class="card-icon" src="${esc(svc.icon)}" alt="" loading="lazy" onerror="this.style.display='none'">`
-    : `<div class="card-icon-placeholder">${svcEmoji(svc)}</div>`;
+  let icon;
+  if (svc.icon) {
+    icon = `<img class="card-icon" src="${esc(svc.icon)}" alt="" loading="lazy" onerror="this.style.display='none'">`;
+  } else {
+    const faviconSrc = `/api/favicon?url=${encodeURIComponent(svc.target)}`;
+    icon = `<img class="card-icon" src="${faviconSrc}" alt="" loading="lazy" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'"><div class="card-icon-placeholder" style="display:none">${svcEmoji(svc)}</div>`;
+  }
   return `
     <a class="service-card" href="${esc(url)}" target="_blank" rel="noopener">
       ${icon}
@@ -148,7 +152,18 @@ function renderStatus(s) {
       <div class="status-label">Server IP</div>
       <div class="status-value">${s.server_ip || '—'}</div>
     </div>`;
+
+  const logEl = document.getElementById('scan-log');
+  if (s.scanning && s.scan_log && s.scan_log.length > 0) {
+    logEl.style.display = '';
+    logEl.innerHTML = s.scan_log.map(line => `<div class="scan-log-line">${esc(line)}</div>`).join('');
+    logEl.scrollTop = logEl.scrollHeight;
+  } else if (!s.scanning) {
+    logEl.style.display = 'none';
+  }
 }
+
+let _scanPollTimer = null;
 
 async function triggerScan() {
   const btn = document.getElementById('scan-btn');
@@ -157,14 +172,30 @@ async function triggerScan() {
   try {
     await api('POST', '/api/scan');
     toast('Network scan started');
-    setTimeout(loadStatus, 1500);
-    setTimeout(loadStatus, 8000);
-    setTimeout(() => { loadStatus(); loadDiscovered(); }, 20000);
+    _pollScanStatus();
   } catch (e) {
     toast(e.message, 'error');
-  } finally {
     btn.disabled = false;
     btn.textContent = '⟳ Scan Now';
+  }
+}
+
+async function _pollScanStatus() {
+  clearTimeout(_scanPollTimer);
+  try {
+    const s = await api('GET', '/api/status');
+    statusData = s;
+    renderStatus(s);
+    if (s.scanning) {
+      _scanPollTimer = setTimeout(_pollScanStatus, 1500);
+    } else {
+      document.getElementById('scan-btn').disabled = false;
+      document.getElementById('scan-btn').textContent = '⟳ Scan Now';
+      loadDiscovered();
+    }
+  } catch (e) {
+    document.getElementById('scan-btn').disabled = false;
+    document.getElementById('scan-btn').textContent = '⟳ Scan Now';
   }
 }
 
@@ -260,9 +291,13 @@ async function loadServices() {
 
 function serviceRow(svc, domain) {
   const url  = `https://${svc.subdomain}.${domain}`;
-  const icon = svc.icon
-    ? `<img class="svc-icon" src="${esc(svc.icon)}" alt="" loading="lazy" onerror="this.style.display='none'">`
-    : `<span class="svc-icon-placeholder">${svcEmoji(svc)}</span>`;
+  let icon;
+  if (svc.icon) {
+    icon = `<img class="svc-icon" src="${esc(svc.icon)}" alt="" loading="lazy" onerror="this.style.display='none'">`;
+  } else {
+    const faviconSrc = `/api/favicon?url=${encodeURIComponent(svc.target)}`;
+    icon = `<img class="svc-icon" src="${faviconSrc}" alt="" loading="lazy" onerror="this.style.display='none';this.nextElementSibling.style.display='inline-flex'"><span class="svc-icon-placeholder" style="display:none">${svcEmoji(svc)}</span>`;
+  }
   const tag = `<span class="tag tag-${svc.source}">${svc.source}</span>`;
   return `
     <tr>
@@ -492,6 +527,14 @@ async function showEditModal(id) {
     toast(e.message, 'error');
     return;
   }
+
+  const iconPreview = svc.icon
+    ? `<img src="${esc(svc.icon)}" alt="" style="width:40px;height:40px;border-radius:6px;object-fit:contain">`
+    : `<span class="svc-icon-placeholder" style="width:40px;height:40px;font-size:1.25rem">${svcEmoji(svc)}</span>`;
+  const removeBtn = svc.icon
+    ? `<button class="btn btn-ghost btn-sm" onclick="_clearEditIcon('${esc(id)}')">Remove</button>`
+    : '';
+
   openModal(`
     <h3>Edit Service</h3>
     <div class="form-group">
@@ -507,6 +550,16 @@ async function showEditModal(id) {
       <label>Target URL</label>
       <input id="m-target" type="text" value="${esc(svc.target)}">
     </div>
+    <div class="form-group">
+      <label>Icon</label>
+      <div class="icon-edit-row">
+        <div id="m-icon-preview">${iconPreview}</div>
+        <label class="btn btn-ghost btn-sm" for="m-icon-file" style="cursor:pointer">Upload</label>
+        <input id="m-icon-file" type="file" accept="image/*" style="display:none" onchange="_previewIconFile(this)">
+        ${removeBtn}
+      </div>
+      <div class="input-hint">Upload a custom icon, or leave empty to use the service favicon.</div>
+    </div>
     <div class="form-actions">
       <button class="btn btn-ghost" onclick="closeModal()">Cancel</button>
       <button class="btn btn-primary" onclick="submitEdit('${esc(id)}')">Save →</button>
@@ -518,13 +571,48 @@ async function showEditModal(id) {
   });
 }
 
+function _previewIconFile(input) {
+  const file = input.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = e => {
+    document.getElementById('m-icon-preview').innerHTML =
+      `<img src="${e.target.result}" alt="" style="width:40px;height:40px;border-radius:6px;object-fit:contain">`;
+  };
+  reader.readAsDataURL(file);
+  input.dataset.pendingClear = '';
+}
+
+function _clearEditIcon(id) {
+  document.getElementById('m-icon-preview').innerHTML =
+    `<span class="svc-icon-placeholder" style="width:40px;height:40px;font-size:1.25rem">🖥️</span>`;
+  const f = document.getElementById('m-icon-file');
+  f.value = '';
+  f.dataset.pendingClear = 'yes';
+}
+
 async function submitEdit(id) {
   const name      = document.getElementById('m-name').value.trim();
   const subdomain = document.getElementById('m-sub').value.trim();
   const target    = document.getElementById('m-target').value.trim();
   if (!subdomain) { toast('Subdomain is required', 'error'); return; }
   try {
-    await api('PUT', `/api/services/${id}`, { name, subdomain, target });
+    const fileInput = document.getElementById('m-icon-file');
+    if (fileInput && fileInput.files[0]) {
+      const formData = new FormData();
+      formData.append('icon', fileInput.files[0]);
+      const res = await fetch(`/api/services/${id}/icon`, { method: 'POST', body: formData });
+      if (!res.ok) {
+        const d = await res.json().catch(() => ({}));
+        throw new Error(d.error || `HTTP ${res.status}`);
+      }
+      await api('PUT', `/api/services/${id}`, { name, subdomain, target });
+    } else if (fileInput && fileInput.dataset.pendingClear === 'yes') {
+      await api('DELETE', `/api/services/${id}/icon`);
+      await api('PUT', `/api/services/${id}`, { name, subdomain, target });
+    } else {
+      await api('PUT', `/api/services/${id}`, { name, subdomain, target });
+    }
     closeModal();
     toast('Service updated');
     loadServices();
