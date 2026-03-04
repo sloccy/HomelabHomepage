@@ -606,12 +606,25 @@ type probeResult struct {
 //     239.255.255.250:3702
 //
 // Results are streamed over the returned channel as they arrive.
-// Deduplication by IP:port happens in the store layer (UpsertNetworkDiscovered).
 func (d *Discoverer) scanNetwork(ctx context.Context, cidrs []string) <-chan *probeResult {
 	ch := make(chan *probeResult, 64)
 
 	go func() {
 		defer close(ch)
+
+		// probedPorts deduplicates HTTP probes across all concurrent discovery
+		// paths. If TCP sweep, mDNS, and SSDP all discover 10.0.0.5:80, it is
+		// only probed once. Different ports on the same IP are each probed.
+		var probedPorts sync.Map // key: "ip:port"
+		probeOnce := func(op openPort) {
+			key := fmt.Sprintf("%s:%d", op.ip, op.port)
+			if _, loaded := probedPorts.LoadOrStore(key, struct{}{}); loaded {
+				return
+			}
+			if r := probeHTTP(ctx, op.ip, op.port); r != nil {
+				ch <- r
+			}
+		}
 
 		var outerWg sync.WaitGroup
 
@@ -696,9 +709,7 @@ func (d *Discoverer) scanNetwork(ctx context.Context, cidrs []string) <-chan *pr
 						if ctx.Err() != nil {
 							return
 						}
-						if r := probeHTTP(ctx, op.ip, op.port); r != nil {
-							ch <- r
-						}
+						probeOnce(op)
 					}
 				}()
 			}
@@ -713,9 +724,7 @@ func (d *Discoverer) scanNetwork(ctx context.Context, cidrs []string) <-chan *pr
 				if ctx.Err() != nil {
 					return
 				}
-				if r := probeHTTP(ctx, op.ip, op.port); r != nil {
-					ch <- r
-				}
+				probeOnce(op)
 			}
 		}()
 
@@ -727,9 +736,7 @@ func (d *Discoverer) scanNetwork(ctx context.Context, cidrs []string) <-chan *pr
 				if ctx.Err() != nil {
 					return
 				}
-				if r := probeHTTP(ctx, op.ip, op.port); r != nil {
-					ch <- r
-				}
+				probeOnce(op)
 			}
 		}()
 
@@ -741,9 +748,7 @@ func (d *Discoverer) scanNetwork(ctx context.Context, cidrs []string) <-chan *pr
 				if ctx.Err() != nil {
 					return
 				}
-				if r := probeHTTP(ctx, op.ip, op.port); r != nil {
-					ch <- r
-				}
+				probeOnce(op)
 			}
 		}()
 
@@ -778,7 +783,12 @@ func probeHTTP(ctx context.Context, ip string, port int) *probeResult {
 
 	title := extractTitle(bodyStr)
 	if title == "" {
-		title = ip
+		// Try reverse DNS before falling back to the raw IP address.
+		if names, err := net.DefaultResolver.LookupAddr(ctx, ip); err == nil && len(names) > 0 {
+			title = strings.TrimSuffix(names[0], ".")
+		} else {
+			title = ip
+		}
 	}
 
 	// Stage 3: Fingerprint using headers + body + title.

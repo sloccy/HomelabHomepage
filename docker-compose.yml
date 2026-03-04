@@ -13,14 +13,14 @@ services:
     # Use host networking for mDNS and WS-Discovery multicast support.
     # Without this, mDNS (port 5353) and WS-Discovery (port 3702) are blocked
     # by Docker bridge NAT. Replace the 'ports' section below with this.
-    # network_mode: host
+    network_mode: host
 
     # Standard port mapping. Switch to 'network_mode: host' above for full
     # multicast support (mDNS + WS-Discovery). If using host networking,
     # remove this ports section entirely.
-    ports:
-      - "80:80"
-      - "443:443"
+    #ports:
+    #  - "80:80"
+    #  - "443:443"
 
     volumes:
       # Persistent data: config, certs, ACME account keys.
