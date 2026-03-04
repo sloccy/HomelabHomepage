@@ -1,6 +1,6 @@
 # syntax=docker/dockerfile:1
 # ── Stage 1: build ────────────────────────────────────────────────────────────
-FROM golang:1.22-bookworm AS builder
+FROM golang:1.24-bookworm AS builder
 
 # Build-time metadata (injected by CI via --build-arg).
 ARG BUILD_VERSION=dev
