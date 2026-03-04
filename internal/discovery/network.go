@@ -513,8 +513,7 @@ func tcpSweep(ctx context.Context, ips []string, ports []int) []openPort {
 
 // ── Subnet helpers ────────────────────────────────────────────────────────────
 
-// getLocalSubnet returns the first non-loopback /24 subnet derived from the
-// container's own interface. The /24 is forced regardless of actual prefix.
+// getLocalSubnet returns the subnet of the first non-loopback IPv4 interface.
 func getLocalSubnet() (*net.IPNet, error) {
 	ifaces, err := net.Interfaces()
 	if err != nil {
@@ -537,8 +536,11 @@ func getLocalSubnet() (*net.IPNet, error) {
 			if ip4 == nil || ip4.IsLoopback() {
 				continue
 			}
-			// Force a /24 scan.
-			_, subnet, _ := net.ParseCIDR(fmt.Sprintf("%s/24", ip4))
+			ones, bits := ipnet.Mask.Size()
+			if ones == 0 || bits != 32 {
+				continue // skip non-IPv4 or /0 masks
+			}
+			_, subnet, _ := net.ParseCIDR(fmt.Sprintf("%s/%d", ip4, ones))
 			return subnet, nil
 		}
 	}

@@ -142,8 +142,17 @@ func buildIfaceInfos() []ifaceInfo {
 }
 
 func findIfaceForIP(infos []ifaceInfo, target net.IP) *ifaceInfo {
+	// Exact subnet match.
 	for i := range infos {
 		if infos[i].ip.Mask(infos[i].mask).Equal(target.Mask(infos[i].mask)) {
+			return &infos[i]
+		}
+	}
+	// Fallback: same /24 — handles the case where the interface mask is narrower
+	// than the scan range (e.g. a /25 interface scanning an explicit /24 CIDR).
+	mask24 := net.CIDRMask(24, 32)
+	for i := range infos {
+		if infos[i].ip.Mask(mask24).Equal(target.Mask(mask24)) {
 			return &infos[i]
 		}
 	}
