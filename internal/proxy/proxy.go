@@ -79,6 +79,24 @@ func (h *Handler) proxySubdomain(w http.ResponseWriter, r *http.Request, sub str
 			req.Header.Set("X-Forwarded-Proto", scheme(r))
 		}
 	}
+	// Rewrite Location headers that point to the backend host back to the
+	// public-facing URL, preventing redirect loops (e.g. Proxmox VE).
+	rp.ModifyResponse = func(resp *http.Response) error {
+		loc := resp.Header.Get("Location")
+		if loc == "" {
+			return nil
+		}
+		locURL, err := url.Parse(loc)
+		if err != nil {
+			return nil
+		}
+		if locURL.Host == target.Host {
+			locURL.Scheme = scheme(r)
+			locURL.Host = r.Host
+			resp.Header.Set("Location", locURL.String())
+		}
+		return nil
+	}
 	rp.ServeHTTP(w, r)
 }
 
