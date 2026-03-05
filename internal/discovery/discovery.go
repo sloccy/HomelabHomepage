@@ -103,7 +103,7 @@ func (d *Discoverer) ScanNow(ctx context.Context) {
 	d.mu.Unlock()
 
 	go func() {
-		d.runScan(ctx)
+		d.runScan(context.Background())
 	}()
 }
 
