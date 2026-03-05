@@ -16,11 +16,21 @@ type Service struct {
 	Subdomain   string    `json:"subdomain"`
 	Target      string    `json:"target"` // e.g. http://10.0.0.5:8080
 	Icon        string    `json:"icon,omitempty"`
+	Category    string    `json:"category,omitempty"`
 	Order       int       `json:"order,omitempty"`
 	Source      string    `json:"source"` // "docker" | "network" | "manual"
 	ContainerID string    `json:"container_id,omitempty"`
 	DNSRecordID string    `json:"dns_record_id,omitempty"`
 	CreatedAt   time.Time `json:"created_at"`
+}
+
+// Bookmark is a plain external link shown on the homepage.
+type Bookmark struct {
+	ID       string `json:"id"`
+	Name     string `json:"name"`
+	URL      string `json:"url"`
+	Icon     string `json:"icon,omitempty"`
+	Category string `json:"category,omitempty"`
 }
 
 // IgnoredService is a discovered service the user has chosen to suppress.
@@ -47,10 +57,16 @@ type DiscoveredService struct {
 	DiscoveredAt  time.Time `json:"discovered_at"`
 }
 
+type Settings struct {
+	Background string `json:"background"` // CSS value: gradient or image URL
+}
+
 type data struct {
 	Services     map[string]*Service   `json:"services"`
 	Discovered   []*DiscoveredService  `json:"discovered"`
 	Ignored      []*IgnoredService     `json:"ignored"`
+	Bookmarks    []*Bookmark           `json:"bookmarks"`
+	Settings     Settings              `json:"settings"`
 	DDNSDomains  []string              `json:"ddns_domains"`
 	ScanSubnets  []string              `json:"scan_subnets"`
 	LastScan     time.Time             `json:"last_scan"`
@@ -74,6 +90,7 @@ func New(dataDir string) (*Store, error) {
 			Services:    make(map[string]*Service),
 			Discovered:  []*DiscoveredService{},
 			Ignored:     []*IgnoredService{},
+			Bookmarks:   []*Bookmark{},
 			DDNSDomains: []string{},
 			ScanSubnets: []string{},
 		},
@@ -452,6 +469,60 @@ func (s *Store) RemoveScanSubnet(cidr string) {
 		}
 	}
 	s.d.ScanSubnets = filtered
+}
+
+// ---- Bookmarks --------------------------------------------------------------
+
+func (s *Store) GetAllBookmarks() []*Bookmark {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	out := make([]*Bookmark, len(s.d.Bookmarks))
+	copy(out, s.d.Bookmarks)
+	return out
+}
+
+func (s *Store) AddBookmark(b *Bookmark) {
+	s.mu.Lock()
+	s.d.Bookmarks = append(s.d.Bookmarks, b)
+	s.mu.Unlock()
+}
+
+func (s *Store) UpdateBookmark(id string, updated *Bookmark) bool {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	for i, b := range s.d.Bookmarks {
+		if b.ID == id {
+			s.d.Bookmarks[i] = updated
+			return true
+		}
+	}
+	return false
+}
+
+func (s *Store) DeleteBookmark(id string) bool {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	for i, b := range s.d.Bookmarks {
+		if b.ID == id {
+			s.d.Bookmarks = append(s.d.Bookmarks[:i], s.d.Bookmarks[i+1:]...)
+			return true
+		}
+	}
+	return false
+}
+
+// ---- Settings ---------------------------------------------------------------
+
+func (s *Store) GetSettings() Settings {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	return s.d.Settings
+}
+
+func (s *Store) UpdateSettings(settings Settings) {
+	s.mu.Lock()
+	s.d.Settings = settings
+	s.mu.Unlock()
 }
 
 // ---- Scan status / public IP ------------------------------------------------

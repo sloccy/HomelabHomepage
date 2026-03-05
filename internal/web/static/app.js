@@ -11,11 +11,12 @@ function showView(view) {
   document.getElementById('view-home').style.display   = view === 'home'   ? '' : 'none';
   document.getElementById('view-manage').style.display = view === 'manage' ? '' : 'none';
   window.location.hash = view === 'home' ? '' : view;
-  if (view === 'home')   loadHome();
-  if (view === 'manage') loadManage();
+  if (view === 'home')   { loadHome(); startSysinfo(); startClock(); _initSearch(); }
+  if (view === 'manage') { stopSysinfo(); stopClock(); loadManage(); }
 }
 
 window.addEventListener('DOMContentLoaded', () => {
+  loadSettings();
   const hash = window.location.hash.replace('#', '');
   showView(hash === 'manage' ? 'manage' : 'home');
 });
@@ -47,7 +48,7 @@ function toast(msg, type = 'success') {
 // ── Home view ─────────────────────────────────────────────────────────────────
 
 async function loadHome() {
-  const grid  = document.getElementById('services-grid');
+  const root  = document.getElementById('services-grid');
   const empty = document.getElementById('home-empty');
   try {
     const [services, status, health] = await Promise.all([
@@ -58,17 +59,77 @@ async function loadHome() {
     statusData = status;
 
     if (!services || services.length === 0) {
-      grid.innerHTML  = '';
+      root.innerHTML  = '';
       empty.style.display = '';
       return;
     }
     empty.style.display = 'none';
     const sorted = services.sort((a, b) => (a.order ?? 0) - (b.order ?? 0) || a.name.localeCompare(b.name));
-    grid.innerHTML = sorted.map(svc => renderCard(svc, status.domain, health)).join('');
-    _initDrag(grid, sorted);
+    renderGroupedServices(root, sorted, status.domain, health);
+    loadBookmarksHome();
   } catch (e) {
-    grid.innerHTML = `<p style="color:var(--danger);padding:2rem">${e.message}</p>`;
+    root.innerHTML = `<p style="color:var(--danger);padding:2rem">${e.message}</p>`;
   }
+}
+
+function renderGroupedServices(root, sorted, domain, health) {
+  // Group by category; uncategorized services use empty string key.
+  const groups = new Map();
+  for (const svc of sorted) {
+    const key = svc.category || '';
+    if (!groups.has(key)) groups.set(key, []);
+    groups.get(key).push(svc);
+  }
+
+  // Render: uncategorized first (no header), then named groups alphabetically.
+  const namedKeys = [...groups.keys()].filter(k => k !== '').sort();
+  const orderedKeys = groups.has('') ? ['', ...namedKeys] : namedKeys;
+
+  root.innerHTML = '';
+  for (const key of orderedKeys) {
+    const svcs = groups.get(key);
+    const section = document.createElement('div');
+    section.className = 'category-group';
+    section.dataset.category = key;
+
+    if (key !== '') {
+      const collapsed = _isCategoryCollapsed(key);
+      section.innerHTML = `
+        <div class="category-header" onclick="_toggleCategory(this)" data-category="${esc(key)}">
+          <span class="category-arrow">${collapsed ? '▶' : '▼'}</span>
+          <span class="category-name">${esc(key)}</span>
+          <span class="category-count">${svcs.length}</span>
+        </div>`;
+      const grid = document.createElement('div');
+      grid.className = 'grid';
+      if (collapsed) grid.style.display = 'none';
+      grid.innerHTML = svcs.map(svc => renderCard(svc, domain, health)).join('');
+      section.appendChild(grid);
+      _initDrag(grid, svcs);
+    } else {
+      const grid = document.createElement('div');
+      grid.className = 'grid';
+      grid.innerHTML = svcs.map(svc => renderCard(svc, domain, health)).join('');
+      section.appendChild(grid);
+      _initDrag(grid, svcs);
+    }
+
+    root.appendChild(section);
+  }
+}
+
+function _isCategoryCollapsed(name) {
+  try { return localStorage.getItem('cat-collapsed:' + name) === '1'; } catch { return false; }
+}
+
+function _toggleCategory(header) {
+  const name = header.dataset.category;
+  const grid = header.nextElementSibling;
+  const arrow = header.querySelector('.category-arrow');
+  const collapsed = grid.style.display === 'none';
+  grid.style.display = collapsed ? '' : 'none';
+  arrow.textContent = collapsed ? '▼' : '▶';
+  try { localStorage.setItem('cat-collapsed:' + name, collapsed ? '' : '1'); } catch {}
 }
 
 function renderCard(svc, domain, health) {
@@ -82,7 +143,7 @@ function renderCard(svc, domain, health) {
   }
   const dot = health?.[svc.id] || '';
   return `
-    <a class="service-card" href="${esc(url)}" target="_blank" rel="noopener" draggable="true" data-id="${esc(svc.id)}">
+    <a class="service-card" href="${esc(url)}" target="_blank" rel="noopener" draggable="true" data-id="${esc(svc.id)}" data-name="${esc(svc.name)}" data-sub="${esc(svc.subdomain)}">
       <span class="health-dot ${dot}" title="${dot}"></span>
       ${icon}
       <div class="card-name">${esc(svc.name)}</div>
@@ -101,6 +162,97 @@ function svcEmoji(svc) {
   if (n.includes('git'))     return '📦';
   if (n.includes('vpn') || n.includes('wire')) return '🔒';
   return '🖥️';
+}
+
+// ── Search / filter ───────────────────────────────────────────────────────────
+
+function _initSearch() {
+  const input = document.getElementById('search-input');
+  if (!input) return;
+  input.addEventListener('input', _filterCards);
+}
+
+function _filterCards() {
+  const input = document.getElementById('search-input');
+  const q = (input ? input.value : '').toLowerCase().trim();
+  const root = document.getElementById('services-grid');
+  if (!root) return;
+
+  root.querySelectorAll('.service-card').forEach(card => {
+    const name = (card.dataset.name || '').toLowerCase();
+    const sub  = (card.dataset.sub  || '').toLowerCase();
+    card.style.display = (!q || name.includes(q) || sub.includes(q)) ? '' : 'none';
+  });
+
+  // Hide category headers whose entire grid is hidden.
+  root.querySelectorAll('.category-group').forEach(group => {
+    const header = group.querySelector('.category-header');
+    const grid   = group.querySelector('.grid');
+    if (!header || !grid) return;
+    const anyVisible = [...grid.querySelectorAll('.service-card')].some(c => c.style.display !== 'none');
+    group.style.display = anyVisible ? '' : 'none';
+  });
+}
+
+// ── Clock ─────────────────────────────────────────────────────────────────────
+
+let _clockTimer = null;
+
+function startClock() {
+  _updateClock();
+  _clockTimer = setInterval(_updateClock, 1000);
+}
+
+function stopClock() {
+  clearInterval(_clockTimer);
+  _clockTimer = null;
+}
+
+function _updateClock() {
+  const el = document.getElementById('header-clock');
+  if (!el) return;
+  const now = new Date();
+  const days = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+  const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  const pad = n => String(n).padStart(2, '0');
+  el.textContent = `${days[now.getDay()]} ${pad(now.getDate())} ${months[now.getMonth()]}  ${pad(now.getHours())}:${pad(now.getMinutes())}:${pad(now.getSeconds())}`;
+}
+
+// ── System stats bar ─────────────────────────────────────────────────────────
+
+let _sysinfoTimer = null;
+
+async function startSysinfo() {
+  await _fetchSysinfo();
+  _sysinfoTimer = setInterval(_fetchSysinfo, 5000);
+}
+
+function stopSysinfo() {
+  clearInterval(_sysinfoTimer);
+  _sysinfoTimer = null;
+}
+
+async function _fetchSysinfo() {
+  try {
+    const s = await api('GET', '/api/sysinfo');
+    const bar = document.getElementById('sysinfo-bar');
+    if (!bar) return;
+    bar.style.display = '';
+    bar.innerHTML = `
+      <span class="sysinfo-item"><span class="sysinfo-label">CPU</span>${s.cpu_percent.toFixed(1)}%</span>
+      <span class="sysinfo-sep">·</span>
+      <span class="sysinfo-item"><span class="sysinfo-label">RAM</span>${_fmtGB(s.mem_used_mb)} / ${_fmtGB(s.mem_total_mb)}</span>
+      <span class="sysinfo-sep">·</span>
+      <span class="sysinfo-item"><span class="sysinfo-label">Disk</span>${s.disk_used_gb} / ${s.disk_total_gb} GB</span>`;
+  } catch {
+    const bar = document.getElementById('sysinfo-bar');
+    if (bar) bar.style.display = 'none';
+  }
+}
+
+function _fmtGB(mb) {
+  const gb = mb / 1024;
+  return gb >= 1 ? gb.toFixed(1) + ' GB' : mb + ' MB';
 }
 
 // ── Drag-to-reorder ──────────────────────────────────────────────────────────
@@ -155,7 +307,7 @@ async function _saveOrder(grid) {
 // ── Manage view ───────────────────────────────────────────────────────────────
 
 async function loadManage() {
-  await Promise.all([loadStatus(), loadScanSubnets(), loadServices(), loadDiscovered(), loadDDNS(), loadIgnored()]);
+  await Promise.all([loadStatus(), loadScanSubnets(), loadServices(), loadBookmarks(), loadDiscovered(), loadDDNS(), loadIgnored(), loadSettings(), _refreshCategoryCache()]);
 }
 
 // ── Status ────────────────────────────────────────────────────────────────────
@@ -571,6 +723,11 @@ function showAssignModal(id, title) {
       <input id="m-sub" type="text" value="${esc(suggested)}" placeholder="myservice">
       <div class="input-hint">Will be available at <span id="sub-preview">${esc(suggested)}.${esc(statusData.domain || '')}</span></div>
     </div>
+    <div class="form-group">
+      <label>Category <span style="color:var(--muted);font-weight:400">(optional)</span></label>
+      <input id="m-category" type="text" list="category-list" placeholder="e.g. Media">
+      ${_categoryDatalist()}
+    </div>
     <div class="form-actions">
       <button class="btn btn-ghost" onclick="closeModal()">Cancel</button>
       <button class="btn btn-primary" onclick="submitAssign('${esc(id)}')">Assign →</button>
@@ -585,9 +742,10 @@ function showAssignModal(id, title) {
 async function submitAssign(discoveredID) {
   const name      = document.getElementById('m-name').value.trim();
   const subdomain = document.getElementById('m-sub').value.trim();
+  const category  = document.getElementById('m-category').value.trim();
   if (!subdomain) { toast('Subdomain is required', 'error'); return; }
   try {
-    await api('POST', '/api/services', { discovered_id: discoveredID, name, subdomain });
+    await api('POST', '/api/services', { discovered_id: discoveredID, name, subdomain, category });
     closeModal();
     toast(`Assigned ${subdomain}.${statusData.domain || ''}`);
     loadServices();
@@ -614,6 +772,11 @@ function showAddManualModal() {
       <label>Target URL</label>
       <input id="m-target" type="text" placeholder="http://10.0.0.5:32400">
     </div>
+    <div class="form-group">
+      <label>Category <span style="color:var(--muted);font-weight:400">(optional)</span></label>
+      <input id="m-category" type="text" list="category-list" placeholder="e.g. Media">
+      ${_categoryDatalist()}
+    </div>
     <div class="form-actions">
       <button class="btn btn-ghost" onclick="closeModal()">Cancel</button>
       <button class="btn btn-primary" onclick="submitAddManual()">Add →</button>
@@ -629,10 +792,11 @@ async function submitAddManual() {
   const name      = document.getElementById('m-name').value.trim();
   const subdomain = document.getElementById('m-sub').value.trim();
   const target    = document.getElementById('m-target').value.trim();
+  const category  = document.getElementById('m-category').value.trim();
   if (!subdomain) { toast('Subdomain is required', 'error'); return; }
   if (!target)    { toast('Target URL is required', 'error'); return; }
   try {
-    await api('POST', '/api/services', { name, subdomain, target });
+    await api('POST', '/api/services', { name, subdomain, target, category });
     closeModal();
     toast(`Added ${subdomain}.${statusData.domain || ''}`);
     loadServices();
@@ -674,6 +838,11 @@ async function showEditModal(id) {
     <div class="form-group">
       <label>Target URL</label>
       <input id="m-target" type="text" value="${esc(svc.target)}">
+    </div>
+    <div class="form-group">
+      <label>Category <span style="color:var(--muted);font-weight:400">(optional)</span></label>
+      <input id="m-category" type="text" list="category-list" value="${esc(svc.category || '')}" placeholder="e.g. Media">
+      ${_categoryDatalist()}
     </div>
     <div class="form-group">
       <label>Icon</label>
@@ -738,6 +907,7 @@ async function submitEdit(id) {
   const name      = document.getElementById('m-name').value.trim();
   const subdomain = document.getElementById('m-sub').value.trim();
   const target    = document.getElementById('m-target').value.trim();
+  const category  = document.getElementById('m-category').value.trim();
   if (!subdomain) { toast('Subdomain is required', 'error'); return; }
   try {
     const fileInput = document.getElementById('m-icon-file');
@@ -749,12 +919,12 @@ async function submitEdit(id) {
         const d = await res.json().catch(() => ({}));
         throw new Error(d.error || `HTTP ${res.status}`);
       }
-      await api('PUT', `/api/services/${id}`, { name, subdomain, target });
+      await api('PUT', `/api/services/${id}`, { name, subdomain, target, category });
     } else if (fileInput && fileInput.dataset.pendingClear === 'yes') {
       await api('DELETE', `/api/services/${id}/icon`);
-      await api('PUT', `/api/services/${id}`, { name, subdomain, target });
+      await api('PUT', `/api/services/${id}`, { name, subdomain, target, category });
     } else {
-      await api('PUT', `/api/services/${id}`, { name, subdomain, target });
+      await api('PUT', `/api/services/${id}`, { name, subdomain, target, category });
     }
     closeModal();
     toast('Service updated');
@@ -795,6 +965,250 @@ async function submitAddDDNS() {
   }
 }
 
+// ── Settings / background ─────────────────────────────────────────────────────
+
+async function loadSettings() {
+  try {
+    const s = await api('GET', '/api/settings');
+    _applyBackground(s.background || '');
+    const input = document.getElementById('bg-input');
+    if (input) input.value = s.background || '';
+  } catch {}
+}
+
+function _applyBackground(value) {
+  document.body.style.background = value || '';
+}
+
+function _setBgPreset(value) {
+  const input = document.getElementById('bg-input');
+  if (input) input.value = value;
+}
+
+async function saveBackground(override) {
+  const value = override !== undefined ? override : (document.getElementById('bg-input')?.value.trim() || '');
+  try {
+    await api('PUT', '/api/settings', { background: value });
+    _applyBackground(value);
+    if (override === '') {
+      const input = document.getElementById('bg-input');
+      if (input) input.value = '';
+    }
+    toast('Background saved');
+  } catch (e) {
+    toast(e.message, 'error');
+  }
+}
+
+// ── Bookmarks ─────────────────────────────────────────────────────────────────
+
+async function loadBookmarksHome() {
+  const container = document.getElementById('bookmarks-home');
+  const grid      = document.getElementById('bookmarks-grid');
+  if (!container || !grid) return;
+  try {
+    const bms = await api('GET', '/api/bookmarks');
+    if (!bms || bms.length === 0) {
+      container.style.display = 'none';
+      return;
+    }
+    container.style.display = '';
+
+    // Group by category like services.
+    const groups = new Map();
+    for (const bm of bms) {
+      const key = bm.category || '';
+      if (!groups.has(key)) groups.set(key, []);
+      groups.get(key).push(bm);
+    }
+    const namedKeys = [...groups.keys()].filter(k => k !== '').sort();
+    const orderedKeys = groups.has('') ? ['', ...namedKeys] : namedKeys;
+
+    grid.innerHTML = '';
+    for (const key of orderedKeys) {
+      const section = document.createElement('div');
+      section.className = 'category-group';
+      if (key !== '') {
+        const collapsed = _isCategoryCollapsed('bm:' + key);
+        section.innerHTML = `
+          <div class="category-header" onclick="_toggleCategory(this)" data-category="bm:${esc(key)}">
+            <span class="category-arrow">${collapsed ? '▶' : '▼'}</span>
+            <span class="category-name">${esc(key)}</span>
+            <span class="category-count">${groups.get(key).length}</span>
+          </div>`;
+        const inner = document.createElement('div');
+        inner.className = 'grid';
+        if (collapsed) inner.style.display = 'none';
+        inner.innerHTML = groups.get(key).map(bm => renderBookmarkCard(bm)).join('');
+        section.appendChild(inner);
+      } else {
+        const inner = document.createElement('div');
+        inner.className = 'grid';
+        inner.innerHTML = groups.get(key).map(bm => renderBookmarkCard(bm)).join('');
+        section.appendChild(inner);
+      }
+      grid.appendChild(section);
+    }
+  } catch {
+    container.style.display = 'none';
+  }
+}
+
+function renderBookmarkCard(bm) {
+  const icon = bm.icon
+    ? `<img class="card-icon" src="${esc(bm.icon)}" alt="" loading="lazy" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'"><div class="card-icon-placeholder" style="display:none">🔗</div>`
+    : `<div class="card-icon-placeholder">🔗</div>`;
+  return `
+    <a class="service-card" href="${esc(bm.url)}" target="_blank" rel="noopener" data-name="${esc(bm.name)}" data-sub="">
+      ${icon}
+      <div class="card-name">${esc(bm.name)}</div>
+      <div class="card-url">${esc(bm.url)}</div>
+    </a>`;
+}
+
+async function loadBookmarks() {
+  const el = document.getElementById('bookmarks-list');
+  if (!el) return;
+  try {
+    const bms = await api('GET', '/api/bookmarks');
+    if (!bms || bms.length === 0) {
+      el.innerHTML = '<div class="empty-small">No bookmarks yet.</div>';
+      return;
+    }
+    el.innerHTML = `
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Name</th><th>URL</th><th>Category</th><th>Actions</th></tr></thead>
+          <tbody>${bms.map(bm => bookmarkRow(bm)).join('')}</tbody>
+        </table>
+      </div>`;
+  } catch (e) {
+    el.innerHTML = `<p style="color:var(--danger);padding:1rem">${e.message}</p>`;
+  }
+}
+
+function bookmarkRow(bm) {
+  return `
+    <tr>
+      <td><strong>${esc(bm.name)}</strong></td>
+      <td><a href="${esc(bm.url)}" target="_blank" rel="noopener" style="font-size:.85rem">${esc(bm.url)}</a></td>
+      <td>${bm.category ? `<span class="tag tag-manual">${esc(bm.category)}</span>` : '<span style="color:var(--muted)">—</span>'}</td>
+      <td>
+        <div class="actions">
+          <button class="btn btn-ghost btn-sm" onclick="showEditBookmarkModal('${esc(bm.id)}')">✏ Edit</button>
+          <button class="btn btn-danger btn-sm" onclick="deleteBookmark('${esc(bm.id)}','${esc(bm.name)}')">✕</button>
+        </div>
+      </td>
+    </tr>`;
+}
+
+function showAddBookmarkModal() {
+  openModal(`
+    <h3>Add Bookmark</h3>
+    <div class="form-group">
+      <label>Name</label>
+      <input id="m-name" type="text" placeholder="GitHub">
+    </div>
+    <div class="form-group">
+      <label>URL</label>
+      <input id="m-bm-url" type="url" placeholder="https://github.com">
+    </div>
+    <div class="form-group">
+      <label>Category <span style="color:var(--muted);font-weight:400">(optional)</span></label>
+      <input id="m-category" type="text" list="category-list" placeholder="e.g. Tools">
+      ${_categoryDatalist()}
+    </div>
+    <div class="form-actions">
+      <button class="btn btn-ghost" onclick="closeModal()">Cancel</button>
+      <button class="btn btn-primary" onclick="submitAddBookmark()">Add →</button>
+    </div>`);
+}
+
+async function submitAddBookmark() {
+  const name     = document.getElementById('m-name').value.trim();
+  const url      = document.getElementById('m-bm-url').value.trim();
+  const category = document.getElementById('m-category').value.trim();
+  if (!url) { toast('URL is required', 'error'); return; }
+  try {
+    await api('POST', '/api/bookmarks', { name, url, category });
+    closeModal();
+    toast('Bookmark added');
+    loadBookmarks();
+    loadBookmarksHome();
+  } catch (e) {
+    toast(e.message, 'error');
+  }
+}
+
+async function showEditBookmarkModal(id) {
+  const bms = await api('GET', '/api/bookmarks').catch(() => []);
+  const bm  = (bms || []).find(b => b.id === id);
+  if (!bm) { toast('Bookmark not found', 'error'); return; }
+  openModal(`
+    <h3>Edit Bookmark</h3>
+    <div class="form-group">
+      <label>Name</label>
+      <input id="m-name" type="text" value="${esc(bm.name)}">
+    </div>
+    <div class="form-group">
+      <label>URL</label>
+      <input id="m-bm-url" type="url" value="${esc(bm.url)}">
+    </div>
+    <div class="form-group">
+      <label>Category <span style="color:var(--muted);font-weight:400">(optional)</span></label>
+      <input id="m-category" type="text" list="category-list" value="${esc(bm.category || '')}" placeholder="e.g. Tools">
+      ${_categoryDatalist()}
+    </div>
+    <div class="form-actions">
+      <button class="btn btn-ghost" onclick="closeModal()">Cancel</button>
+      <button class="btn btn-primary" onclick="submitEditBookmark('${esc(id)}')">Save →</button>
+    </div>`);
+}
+
+async function submitEditBookmark(id) {
+  const name     = document.getElementById('m-name').value.trim();
+  const url      = document.getElementById('m-bm-url').value.trim();
+  const category = document.getElementById('m-category').value.trim();
+  if (!url) { toast('URL is required', 'error'); return; }
+  try {
+    await api('PUT', `/api/bookmarks/${id}`, { name, url, category });
+    closeModal();
+    toast('Bookmark updated');
+    loadBookmarks();
+    loadBookmarksHome();
+  } catch (e) {
+    toast(e.message, 'error');
+  }
+}
+
+async function deleteBookmark(id, name) {
+  if (!confirm(`Remove bookmark "${name}"?`)) return;
+  try {
+    await api('DELETE', `/api/bookmarks/${id}`);
+    toast(`Removed ${name}`);
+    loadBookmarks();
+    loadBookmarksHome();
+  } catch (e) {
+    toast(e.message, 'error');
+  }
+}
+
+// ── Category helpers ──────────────────────────────────────────────────────────
+
+let _cachedCategories = [];
+
+function _categoryDatalist() {
+  return `<datalist id="category-list">${_cachedCategories.map(c => `<option value="${esc(c)}">`).join('')}</datalist>`;
+}
+
+async function _refreshCategoryCache() {
+  try {
+    const services = await api('GET', '/api/services');
+    const cats = new Set((services || []).map(s => s.category).filter(Boolean));
+    _cachedCategories = [...cats].sort();
+  } catch {}
+}
+
 // ── Utilities ─────────────────────────────────────────────────────────────────
 
 function esc(str) {
@@ -832,7 +1246,45 @@ function relativeTime(date) {
   return future ? `in ${label}` : `${label} ago`;
 }
 
-// Keyboard: Escape closes modal
+// ── Keyboard shortcuts ────────────────────────────────────────────────────────
+
 document.addEventListener('keydown', e => {
-  if (e.key === 'Escape') closeModal();
+  // Ignore when typing in an input/textarea.
+  const tag = document.activeElement.tagName;
+  const inInput = tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT';
+
+  if (e.key === 'Escape') {
+    const modal = document.getElementById('modal-backdrop');
+    if (modal && modal.style.display !== 'none') {
+      closeModal();
+      return;
+    }
+    const search = document.getElementById('search-input');
+    if (search && search.value) {
+      search.value = '';
+      _filterCards();
+      search.blur();
+      return;
+    }
+    return;
+  }
+
+  if (inInput) return;
+
+  // '/' focuses search bar.
+  if (e.key === '/' && currentView === 'home') {
+    e.preventDefault();
+    document.getElementById('search-input')?.focus();
+    return;
+  }
+
+  // 1–9 opens the Nth visible service card.
+  if (currentView === 'home' && e.key >= '1' && e.key <= '9') {
+    const n = parseInt(e.key, 10);
+    const cards = [...document.querySelectorAll('#services-grid .service-card')]
+      .filter(c => c.style.display !== 'none');
+    if (cards[n - 1]) {
+      cards[n - 1].click();
+    }
+  }
 });

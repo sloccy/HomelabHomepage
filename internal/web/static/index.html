@@ -16,9 +16,18 @@
       <img src="/logo.png" class="logo-img" alt="Lantern">
       <span class="logo-text">Lantern</span>
     </div>
-    <button class="btn btn-ghost" onclick="showView('manage')">⚙ Manage</button>
+    <input id="search-input" class="search-input" type="search" placeholder="Search… ( / )">
+    <div class="header-right">
+      <span id="header-clock" class="header-clock"></span>
+      <button class="btn btn-ghost" onclick="showView('manage')">⚙ Manage</button>
+    </div>
   </header>
-  <main id="services-grid" class="grid"></main>
+  <div id="sysinfo-bar" class="sysinfo-bar" style="display:none"></div>
+  <main id="services-grid" class="grid-root"></main>
+  <div id="bookmarks-home" class="grid-root bookmarks-home" style="display:none">
+    <div class="bookmarks-divider">Bookmarks</div>
+    <div id="bookmarks-grid" class="grid-root"></div>
+  </div>
   <div id="home-empty" class="empty-state" style="display:none">
     <img src="/logo.png" class="logo-img-lg" alt="Lantern">
     <h2>Welcome to Lantern</h2>
@@ -69,6 +78,16 @@
       <div id="services-list"></div>
     </section>
 
+    <!-- Bookmarks -->
+    <section class="section">
+      <div class="section-header">
+        <h2 class="section-title">Bookmarks</h2>
+        <button class="btn btn-primary" onclick="showAddBookmarkModal()">+ Add Bookmark</button>
+      </div>
+      <p class="section-desc">External links shown on the home view. No proxy or DNS — just shortcuts.</p>
+      <div id="bookmarks-list"></div>
+    </section>
+
     <!-- Discovered -->
     <section class="section">
       <div class="section-header">
@@ -90,6 +109,29 @@
       </div>
       <p class="section-desc">These IP:port pairs are permanently suppressed from discovery results. Un-ignore to allow them to reappear.</p>
       <div id="ignored-list"></div>
+    </section>
+
+    <!-- Appearance -->
+    <section class="section">
+      <div class="section-header">
+        <h2 class="section-title">Appearance</h2>
+      </div>
+      <p class="section-desc">Customize the home view background. Accepts any CSS <code>background</code> value — gradients, colors, or image URLs.</p>
+      <div class="form-group" style="max-width:480px">
+        <label>Background</label>
+        <input id="bg-input" type="text" placeholder="e.g. linear-gradient(135deg, #0f0f1a, #1a0f2e)">
+        <div class="input-hint">
+          Presets:
+          <button class="btn btn-ghost btn-sm" style="margin:.25rem" onclick="_setBgPreset('linear-gradient(135deg, #0a0a0a 0%, #0f0f1a 50%, #0a0a0a 100%)')">Default</button>
+          <button class="btn btn-ghost btn-sm" style="margin:.25rem" onclick="_setBgPreset('linear-gradient(135deg, #0d1117 0%, #161b22 100%)')">Dark Blue</button>
+          <button class="btn btn-ghost btn-sm" style="margin:.25rem" onclick="_setBgPreset('linear-gradient(135deg, #0a0a0a 0%, #1a0a0a 100%)')">Dark Red</button>
+          <button class="btn btn-ghost btn-sm" style="margin:.25rem" onclick="_setBgPreset('linear-gradient(135deg, #0a0f0a 0%, #0a1a0a 100%)')">Dark Green</button>
+        </div>
+      </div>
+      <div class="form-actions" style="margin-top:.75rem">
+        <button class="btn btn-primary" onclick="saveBackground()">Save Background</button>
+        <button class="btn btn-ghost" onclick="saveBackground('')">Reset to Default</button>
+      </div>
     </section>
 
     <!-- Dynamic DNS -->

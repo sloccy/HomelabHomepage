@@ -50,6 +50,32 @@ a:hover { text-decoration: underline; }
 }
 .logo-img    { height: 1.75rem; width: auto; object-fit: contain; }
 .logo-img-lg { height: 5rem;   width: auto; object-fit: contain; }
+.header-right {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+.search-input {
+  flex: 1;
+  max-width: 320px;
+  padding: .4rem .75rem;
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  color: var(--text);
+  font-size: .875rem;
+  outline: none;
+  transition: border-color .15s;
+}
+.search-input:focus { border-color: var(--accent); }
+.search-input::placeholder { color: var(--muted); }
+.header-clock {
+  font-size: .8rem;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  letter-spacing: .03em;
+}
 .badge {
   background: var(--accent);
   color: #fff;
@@ -84,12 +110,83 @@ a:hover { text-decoration: underline; }
 .btn-danger:hover:not(:disabled)   { background: #dc2626; }
 .btn-sm { padding: .3rem .65rem; font-size: .8rem; }
 
+/* ── Sysinfo bar ────────────────────────────────────────────────────────── */
+.sysinfo-bar {
+  display: flex;
+  align-items: center;
+  gap: .6rem;
+  padding: .4rem 2rem;
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+  font-size: .78rem;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+.sysinfo-label {
+  font-weight: 600;
+  color: var(--text);
+  margin-right: .3rem;
+}
+.sysinfo-sep { opacity: .35; }
+
 /* ── Homepage Grid ─────────────────────────────────────────────────────── */
+.grid-root {
+  padding: 1rem 2rem 2rem;
+}
 .grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
   gap: 1.25rem;
-  padding: 2rem;
+  padding: .5rem 0 1rem;
+}
+
+/* ── Bookmarks home section ─────────────────────────────────────────────── */
+.bookmarks-home { border-top: 1px solid var(--border); padding-top: .5rem; }
+.bookmarks-divider {
+  font-size: .75rem;
+  font-weight: 600;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+  color: var(--muted);
+  padding: .5rem .25rem .25rem;
+}
+
+/* ── Category groups ────────────────────────────────────────────────────── */
+.category-group + .category-group {
+  margin-top: .5rem;
+}
+.category-header {
+  display: flex;
+  align-items: center;
+  gap: .6rem;
+  padding: .5rem .25rem;
+  cursor: pointer;
+  user-select: none;
+  border-bottom: 1px solid var(--border);
+  margin-bottom: .25rem;
+}
+.category-header:hover .category-name { color: var(--accent); }
+.category-arrow {
+  font-size: .65rem;
+  color: var(--muted);
+  width: .75rem;
+  text-align: center;
+}
+.category-name {
+  font-size: .8rem;
+  font-weight: 600;
+  letter-spacing: .06em;
+  text-transform: uppercase;
+  color: var(--muted);
+  transition: color .15s;
+}
+.category-count {
+  font-size: .7rem;
+  color: var(--muted);
+  background: var(--surface2);
+  border-radius: 999px;
+  padding: .1em .5em;
+  margin-left: auto;
 }
 
 .service-card {

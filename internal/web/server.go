@@ -25,6 +25,7 @@ import (
 	"lantern/internal/config"
 	"lantern/internal/discovery"
 	"lantern/internal/store"
+	"lantern/internal/sysinfo"
 )
 
 // faviconClient is used to proxy favicon requests to internal services.
@@ -115,6 +116,15 @@ func (s *Server) routes() {
 	s.mux.HandleFunc("DELETE /api/ignored/{id}", s.unignoreService)
 
 	s.mux.HandleFunc("GET /api/health", s.getHealth)
+	s.mux.HandleFunc("GET /api/sysinfo", s.getSysinfo)
+
+	s.mux.HandleFunc("GET /api/bookmarks", s.listBookmarks)
+	s.mux.HandleFunc("POST /api/bookmarks", s.createBookmark)
+	s.mux.HandleFunc("PUT /api/bookmarks/{id}", s.updateBookmark)
+	s.mux.HandleFunc("DELETE /api/bookmarks/{id}", s.deleteBookmark)
+
+	s.mux.HandleFunc("GET /api/settings", s.getSettings)
+	s.mux.HandleFunc("PUT /api/settings", s.updateSettings)
 }
 
 // ---- Health checker ---------------------------------------------------------
@@ -202,6 +212,7 @@ type createServiceRequest struct {
 	Name         string `json:"name"`
 	Subdomain    string `json:"subdomain"`
 	Target       string `json:"target"` // required if not from discovered
+	Category     string `json:"category"`
 }
 
 func (s *Server) createService(w http.ResponseWriter, r *http.Request) {
@@ -259,6 +270,7 @@ func (s *Server) createService(w http.ResponseWriter, r *http.Request) {
 		Subdomain:   req.Subdomain,
 		Target:      target,
 		Icon:        discoveredIcon,
+		Category:    req.Category,
 		Source:      source,
 		ContainerID: containerID,
 		CreatedAt:   time.Now(),
@@ -305,6 +317,7 @@ type updateServiceRequest struct {
 	Name      string  `json:"name"`
 	Subdomain string  `json:"subdomain"`
 	Target    string  `json:"target"`
+	Category  string  `json:"category"`
 	Icon      *string `json:"icon"` // nil = keep existing; "" = clear; non-empty = set
 }
 
@@ -340,6 +353,7 @@ func (s *Server) updateService(w http.ResponseWriter, r *http.Request) {
 		Subdomain:   newSub,
 		Target:      firstNonEmpty(req.Target, svc.Target),
 		Icon:        icon,
+		Category:    req.Category,
 		Source:      svc.Source,
 		ContainerID: svc.ContainerID,
 		CreatedAt:   svc.CreatedAt,
@@ -711,6 +725,119 @@ func (s *Server) unignoreService(w http.ResponseWriter, r *http.Request) {
 		log.Printf("web: save: %v", err)
 	}
 	w.WriteHeader(http.StatusNoContent)
+}
+
+// ---- Bookmarks --------------------------------------------------------------
+
+func (s *Server) listBookmarks(w http.ResponseWriter, r *http.Request) {
+	bms := s.store.GetAllBookmarks()
+	if bms == nil {
+		bms = []*store.Bookmark{}
+	}
+	writeJSON(w, http.StatusOK, bms)
+}
+
+func (s *Server) createBookmark(w http.ResponseWriter, r *http.Request) {
+	var req struct {
+		Name     string `json:"name"`
+		URL      string `json:"url"`
+		Icon     string `json:"icon"`
+		Category string `json:"category"`
+	}
+	if err := readJSON(r, &req); err != nil {
+		apiError(w, http.StatusBadRequest, "invalid JSON")
+		return
+	}
+	if req.URL == "" {
+		apiError(w, http.StatusBadRequest, "url is required")
+		return
+	}
+	if req.Name == "" {
+		req.Name = req.URL
+	}
+	bm := &store.Bookmark{
+		ID:       newID(),
+		Name:     req.Name,
+		URL:      req.URL,
+		Icon:     req.Icon,
+		Category: req.Category,
+	}
+	s.store.AddBookmark(bm)
+	if err := s.store.Save(); err != nil {
+		log.Printf("web: save: %v", err)
+	}
+	writeJSON(w, http.StatusCreated, bm)
+}
+
+func (s *Server) updateBookmark(w http.ResponseWriter, r *http.Request) {
+	id := r.PathValue("id")
+	var req struct {
+		Name     string `json:"name"`
+		URL      string `json:"url"`
+		Icon     string `json:"icon"`
+		Category string `json:"category"`
+	}
+	if err := readJSON(r, &req); err != nil {
+		apiError(w, http.StatusBadRequest, "invalid JSON")
+		return
+	}
+	updated := &store.Bookmark{
+		ID:       id,
+		Name:     req.Name,
+		URL:      req.URL,
+		Icon:     req.Icon,
+		Category: req.Category,
+	}
+	if !s.store.UpdateBookmark(id, updated) {
+		apiError(w, http.StatusNotFound, "bookmark not found")
+		return
+	}
+	if err := s.store.Save(); err != nil {
+		log.Printf("web: save: %v", err)
+	}
+	writeJSON(w, http.StatusOK, updated)
+}
+
+func (s *Server) deleteBookmark(w http.ResponseWriter, r *http.Request) {
+	id := r.PathValue("id")
+	if !s.store.DeleteBookmark(id) {
+		apiError(w, http.StatusNotFound, "bookmark not found")
+		return
+	}
+	if err := s.store.Save(); err != nil {
+		log.Printf("web: save: %v", err)
+	}
+	w.WriteHeader(http.StatusNoContent)
+}
+
+// ---- Settings ---------------------------------------------------------------
+
+func (s *Server) getSettings(w http.ResponseWriter, r *http.Request) {
+	writeJSON(w, http.StatusOK, s.store.GetSettings())
+}
+
+func (s *Server) updateSettings(w http.ResponseWriter, r *http.Request) {
+	var req store.Settings
+	if err := readJSON(r, &req); err != nil {
+		apiError(w, http.StatusBadRequest, "invalid JSON")
+		return
+	}
+	s.store.UpdateSettings(req)
+	if err := s.store.Save(); err != nil {
+		log.Printf("web: save: %v", err)
+	}
+	writeJSON(w, http.StatusOK, s.store.GetSettings())
+}
+
+// ---- Sysinfo ----------------------------------------------------------------
+
+func (s *Server) getSysinfo(w http.ResponseWriter, r *http.Request) {
+	stats, err := sysinfo.Get()
+	if err != nil {
+		apiError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+	writeJSON(w, http.StatusOK, stats)
 }
 
 // ---- Utilities --------------------------------------------------------------
