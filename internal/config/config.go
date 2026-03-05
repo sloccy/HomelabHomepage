@@ -27,7 +27,7 @@ func Load() (*Config, error) {
 	}
 
 	cfg := &Config{
-		Domain:       getEnv("DOMAIN", "sloccy.com"),
+		Domain:       getEnv("DOMAIN", ""),
 		CFAPIToken:   os.Getenv("CF_API_TOKEN"),
 		CFZoneID:     os.Getenv("CF_ZONE_ID"),
 		ServerIP:     os.Getenv("SERVER_IP"),

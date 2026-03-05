@@ -10,14 +10,14 @@ import (
 	"syscall"
 	"time"
 
-	"atlas/internal/certs"
-	"atlas/internal/cf"
-	"atlas/internal/config"
-	"atlas/internal/ddns"
-	"atlas/internal/discovery"
-	"atlas/internal/proxy"
-	"atlas/internal/store"
-	"atlas/internal/web"
+	"lantern/internal/certs"
+	"lantern/internal/cf"
+	"lantern/internal/config"
+	"lantern/internal/ddns"
+	"lantern/internal/discovery"
+	"lantern/internal/proxy"
+	"lantern/internal/store"
+	"lantern/internal/web"
 )
 
 // Injected at build time via -ldflags "-X main.version=... -X main.commit=..."
@@ -29,7 +29,7 @@ var (
 func main() {
 	// Healthcheck subcommand for container health probes.
 	// Distroless images have no shell or wget, so the binary handles its own check.
-	// Usage: /atlas healthcheck
+	// Usage: /lantern healthcheck
 	if len(os.Args) > 1 && os.Args[1] == "healthcheck" {
 		resp, err := http.Get("http://127.0.0.1/healthz")
 		if err != nil || resp.StatusCode != http.StatusOK {
@@ -40,7 +40,7 @@ func main() {
 	}
 
 	log.SetFlags(log.LstdFlags | log.Lmsgprefix)
-	log.SetPrefix("[atlas] ")
+	log.SetPrefix("[lantern] ")
 
 	cfg, err := config.Load()
 	if err != nil {

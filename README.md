@@ -1,4 +1,4 @@
-# Atlas
+# Lantern
 
 A self-contained Go reverse proxy, service discovery tool, and homelab homepage. Runs as a single Docker container.
 
@@ -9,7 +9,7 @@ A self-contained Go reverse proxy, service discovery tool, and homelab homepage.
 Set your values in the `environment` section:
 
 ```yaml
-DOMAIN: sloccy.com          # Your root domain
+DOMAIN: yourdomain.com          # Your root domain
 CF_API_TOKEN: "your-token"  # Cloudflare API token (Zone:DNS:Edit)
 CF_ZONE_ID: "your-zone-id"  # Cloudflare Zone ID
 SERVER_IP: "10.0.0.5"       # Local IP for DNS A records
@@ -22,7 +22,7 @@ SCAN_INTERVAL: "24h"        # Network scan interval (Go duration)
 docker compose up -d --build
 ```
 
-The Atlas GUI will be available at `https://atlas.sloccy.com`.
+The Lantern GUI will be available at `https://lantern.yourdomain.com`.
 
 ---
 
@@ -41,7 +41,7 @@ The Atlas GUI will be available at `https://atlas.sloccy.com`.
 
 | Variable | Default | Description |
 |----------|---------|-------------|
-| `DOMAIN` | `sloccy.com` | Root domain for wildcard cert and DNS |
+| `DOMAIN` | `yourdomain.com` | Root domain for wildcard cert and DNS |
 | `CF_API_TOKEN` | — | Cloudflare API token with Zone:DNS:Edit permission |
 | `CF_ZONE_ID` | — | Cloudflare Zone ID |
 | `SERVER_IP` | — | Local IP used for subdomain DNS A records |
@@ -66,7 +66,7 @@ The Atlas GUI will be available at `https://atlas.sloccy.com`.
 
 ```bash
 go mod tidy
-go build -o atlas .
+go build -o lantern .
 ```
 
 Requires Go 1.22+.
@@ -89,38 +89,38 @@ Requires Go 1.22+.
 
 ## Docker Labels
 
-Add labels to any container to control how Atlas discovers it:
+Add labels to any container to control how Lantern discovers it:
 
 ```yaml
 services:
   plex:
     image: plexinc/pms-docker
     labels:
-      atlas.name: "Plex Media Server"
-      atlas.subdomain: "plex"
-      atlas.port: "32400"        # non-standard port
-      # atlas.scheme: "https"    # optional, auto-detected for 443/8443/9443
-      # atlas.url: "http://10.0.0.5:32400"  # fully explicit target
-      # atlas.enable: "false"    # opt out entirely
+      lantern.name: "Plex Media Server"
+      lantern.subdomain: "plex"
+      lantern.port: "32400"        # non-standard port
+      # lantern.scheme: "https"    # optional, auto-detected for 443/8443/9443
+      # lantern.url: "http://10.0.0.5:32400"  # fully explicit target
+      # lantern.enable: "false"    # opt out entirely
 
   sonarr:
     image: linuxserver/sonarr
     labels:
-      atlas.port: "8989"
+      lantern.port: "8989"
 ```
 
 **Label priority (highest → lowest):**
-1. `atlas.url` — explicit target, skips all other port logic
-2. `atlas.port` — use this port on SERVER_IP
+1. `lantern.url` — explicit target, skips all other port logic
+2. `lantern.port` — use this port on SERVER_IP
 3. `traefik.http.services.<n>.loadbalancer.server.port` — Traefik compatibility
 4. Published port fallback (any published TCP port)
 
 **Traefik label compatibility** — if your containers already have Traefik labels,
-Atlas reads them automatically:
+Lantern reads them automatically:
 
 ```yaml
 labels:
-  traefik.http.routers.sonarr.rule: "Host(`sonarr.sloccy.com`)"
+  traefik.http.routers.sonarr.rule: "Host(`sonarr.yourdomain.com`)"
   traefik.http.services.sonarr.loadbalancer.server.port: "8989"
 ```
 

@@ -1,4 +1,4 @@
-/* ── Atlas frontend ──────────────────────────────────────────────────────── */
+/* ── Lantern frontend ────────────────────────────────────────────────────── */
 'use strict';
 
 let currentView = 'home';
@@ -769,7 +769,7 @@ function showAddDDNSModal() {
     </p>
     <div class="form-group">
       <label>Domain</label>
-      <input id="m-domain" type="text" placeholder="home.sloccy.com">
+      <input id="m-domain" type="text" placeholder="home.example.com">
     </div>
     <div class="form-actions">
       <button class="btn btn-ghost" onclick="closeModal()">Cancel</button>

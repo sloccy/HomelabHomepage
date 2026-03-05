@@ -1,4 +1,4 @@
-module atlas
+module lantern
 
 go 1.24.0
 

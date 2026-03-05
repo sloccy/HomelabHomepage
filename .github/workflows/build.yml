@@ -67,10 +67,10 @@ jobs:
             type=semver,pattern={{major}}.{{minor}}
             type=sha,prefix=sha-,format=short
           labels: |
-            org.opencontainers.image.title=Atlas
+            org.opencontainers.image.title=Lantern
             org.opencontainers.image.description=Homelab reverse proxy, service discovery & homepage
             org.opencontainers.image.licenses=MIT
-            org.opencontainers.image.source=https://github.com/sloccy/HomelabHomepage
+            org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}
 
       # ── 5. Build & push ───────────────────────────────────────────────────
       - name: Build and push

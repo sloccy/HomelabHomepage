@@ -8,9 +8,9 @@ import (
 	"strings"
 	"time"
 
-	"atlas/internal/cf"
-	"atlas/internal/config"
-	"atlas/internal/store"
+	"lantern/internal/cf"
+	"lantern/internal/config"
+	"lantern/internal/store"
 )
 
 const ipifyURL = "https://api.ipify.org"

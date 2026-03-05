@@ -9,8 +9,8 @@ import (
 	"strings"
 	"time"
 
-	"atlas/internal/config"
-	"atlas/internal/store"
+	"lantern/internal/config"
+	"lantern/internal/store"
 )
 
 var insecureTransport = &http.Transport{
@@ -38,10 +38,10 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 
 	suffix := "." + h.cfg.Domain
-	atlasHost := "atlas" + suffix
+	lanternHost := "lantern" + suffix
 
 	switch {
-	case host == atlasHost || host == h.cfg.Domain || host == "":
+	case host == lanternHost || host == h.cfg.Domain || host == "":
 		h.webHandler.ServeHTTP(w, r)
 		return
 	case strings.HasSuffix(host, suffix):
@@ -132,7 +132,7 @@ const errorHTML = `<!DOCTYPE html>
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>%s — Atlas</title>
+<title>%s — Lantern</title>
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
 body{background:#0f0f1a;color:#e2e8f0;font-family:system-ui,sans-serif;display:flex;align-items:center;justify-content:center;min-height:100vh;padding:2rem}
@@ -151,7 +151,7 @@ a{color:#7c3aed;text-decoration:none}a:hover{text-decoration:underline}
   <div class="icon">🚫</div>
   <h1>%s</h1>
   <p>%s</p>
-  <div class="back"><a class="btn" href="https://atlas.%s">← Back to Atlas</a></div>
+  <div class="back"><a class="btn" href="https://atlas.%s">← Back to Lantern</a></div>
 </div>
 </body>
 </html>`

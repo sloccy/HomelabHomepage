@@ -13,7 +13,7 @@ import (
 	"github.com/docker/docker/api/types/filters"
 	dockerclient "github.com/docker/docker/client"
 
-	"atlas/internal/store"
+	"lantern/internal/store"
 )
 
 // DockerWatch connects to the Docker socket and watches for container start/stop events.
@@ -22,16 +22,16 @@ import (
 //
 // Label reference (set on the container):
 //
-//	atlas.enable=false          — opt this container out entirely
-//	atlas.name=Plex             — display name override
-//	atlas.subdomain=plex        — subdomain override (default: container name)
-//	atlas.port=32400            — port to use instead of the published port
-//	atlas.scheme=https          — force https for the backend target
-//	atlas.url=http://10.0.0.5:32400 — fully explicit target (overrides all above)
+//	lantern.enable=false          — opt this container out entirely
+//	lantern.name=Plex             — display name override
+//	lantern.subdomain=plex        — subdomain override (default: container name)
+//	lantern.port=32400            — port to use instead of the published port
+//	lantern.scheme=https          — force https for the backend target
+//	lantern.url=http://10.0.0.5:32400 — fully explicit target (overrides all above)
 //
 // Traefik v2/v3 labels are also understood as a fallback:
 //
-//	traefik.http.routers.<name>.rule=Host(`plex.sloccy.com`)
+//	traefik.http.routers.<name>.rule=Host(`plex.example.com`)
 //	traefik.http.services.<name>.loadbalancer.server.port=32400
 func (d *Discoverer) DockerWatch(ctx context.Context) {
 	cli, err := dockerclient.NewClientWithOpts(
@@ -116,11 +116,11 @@ type containerInfo struct {
 // upsertContainerWithLabels resolves a container's configuration from Docker labels,
 // then creates or updates the service entry.
 func (d *Discoverer) upsertContainerWithLabels(ctx context.Context, id, name string, ports []container.Port, labels map[string]string) {
-	if name == "" || name == "atlas" {
+	if name == "" || name == "lantern" {
 		return
 	}
-	// atlas.enable=false → opt out.
-	if labels["atlas.enable"] == "false" {
+	// lantern.enable=false → opt out.
+	if labels["lantern.enable"] == "false" {
 		return
 	}
 	// Skip if already tracked.
@@ -167,7 +167,7 @@ func (d *Discoverer) upsertContainerWithLabels(ctx context.Context, id, name str
 
 // resolveContainer determines the display name, subdomain and target URL for a container
 // by checking labels in priority order:
-//  1. atlas.* labels
+//  1. lantern.* labels
 //  2. Traefik v2/v3 labels
 //  3. Published ports (bestPort heuristic)
 func (d *Discoverer) resolveContainer(name string, ports []container.Port, labels map[string]string) *containerInfo {
@@ -177,29 +177,29 @@ func (d *Discoverer) resolveContainer(name string, ports []container.Port, label
 	}
 
 	// Display name override.
-	if n := labels["atlas.name"]; n != "" {
+	if n := labels["lantern.name"]; n != "" {
 		info.name = n
 	}
 
 	// Explicit target URL — takes full precedence over port logic.
-	if u := labels["atlas.url"]; u != "" {
+	if u := labels["lantern.url"]; u != "" {
 		info.target = u
-		if s := labels["atlas.subdomain"]; s != "" {
+		if s := labels["lantern.subdomain"]; s != "" {
 			info.subdomain = sanitiseSubdomain(s)
 		}
 		return info
 	}
 
-	// Subdomain: atlas label > traefik rule > container name.
-	if s := labels["atlas.subdomain"]; s != "" {
+	// Subdomain: lantern label > traefik rule > container name.
+	if s := labels["lantern.subdomain"]; s != "" {
 		info.subdomain = sanitiseSubdomain(s)
 	} else if sub := traefikSubdomain(labels, d.cfg.Domain); sub != "" {
 		info.subdomain = sub
 	}
 
-	// Port: atlas.port > traefik service port > bestPort(published).
+	// Port: lantern.port > traefik service port > bestPort(published).
 	port := 0
-	if p := labels["atlas.port"]; p != "" {
+	if p := labels["lantern.port"]; p != "" {
 		fmt.Sscanf(p, "%d", &port)
 	}
 	if port == 0 {
@@ -214,7 +214,7 @@ func (d *Discoverer) resolveContainer(name string, ports []container.Port, label
 
 	// Scheme: explicit label > port heuristic.
 	scheme := "http"
-	if s := labels["atlas.scheme"]; s == "https" || s == "http" {
+	if s := labels["lantern.scheme"]; s == "https" || s == "http" {
 		scheme = s
 	} else if port == 443 || port == 8443 || port == 9443 {
 		scheme = "https"

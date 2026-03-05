@@ -1,7 +1,7 @@
 services:
-  atlas:
+  lantern:
     build: .
-    container_name: atlas
+    container_name: lantern
     restart: unless-stopped
 
     # Raw socket access for ARP pre-sweep (faster network scanning) and mDNS/WS-Discovery multicast.
@@ -29,13 +29,13 @@ services:
 
     volumes:
       # Persistent data: config, certs, ACME account keys.
-      - atlas_data:/data
+      - lantern_data:/data
       # Docker socket for container discovery.
       - /var/run/docker.sock:/var/run/docker.sock:ro
 
     environment:
-      # Your root domain. Wildcard cert will cover *.sloccy.com
-      DOMAIN: sloccy.com
+      # Your root domain. Wildcard cert will cover *.yourdomain.com
+      DOMAIN: ""
 
       # Cloudflare API token with Zone:DNS:Edit permission for your zone.
       CF_API_TOKEN: ""
@@ -44,7 +44,7 @@ services:
       CF_ZONE_ID: ""
 
       # Local IP of this server — used for DNS A records.
-      SERVER_IP: "10.0.0.5"
+      SERVER_IP: ""
 
       # Data directory inside the container (maps to the volume above).
       DATA_DIR: /data
@@ -55,5 +55,5 @@ services:
 
 
 volumes:
-  atlas_data:
+  lantern_data:
     driver: local

@@ -10,9 +10,9 @@ import (
 	"sync"
 	"time"
 
-	"atlas/internal/cf"
-	"atlas/internal/config"
-	"atlas/internal/store"
+	"lantern/internal/cf"
+	"lantern/internal/config"
+	"lantern/internal/store"
 )
 
 // Discoverer orchestrates both network scanning and Docker watching.

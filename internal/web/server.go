@@ -20,10 +20,10 @@ import (
 	"strings"
 	"time"
 
-	"atlas/internal/cf"
-	"atlas/internal/config"
-	"atlas/internal/discovery"
-	"atlas/internal/store"
+	"lantern/internal/cf"
+	"lantern/internal/config"
+	"lantern/internal/discovery"
+	"lantern/internal/store"
 )
 
 // faviconClient is used to proxy favicon requests to internal services.
