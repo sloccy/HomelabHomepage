@@ -1,18 +1,18 @@
 /* ── Variables ─────────────────────────────────────────────────────────── */
 :root {
-  --bg:        #0f0f1a;
-  --surface:   #1a1a2e;
-  --surface2:  #22223b;
-  --border:    #2d2d4e;
-  --accent:    #7c3aed;
-  --accent-h:  #6d28d9;
-  --text:      #e2e8f0;
-  --muted:     #94a3b8;
+  --bg:        #0a0a0a;
+  --surface:   #141414;
+  --surface2:  #1e1e1e;
+  --border:    #2a2a2a;
+  --accent:    #c9a227;
+  --accent-h:  #b08a1a;
+  --text:      #e8e0d0;
+  --muted:     #8a8070;
   --success:   #10b981;
   --danger:    #ef4444;
   --warn:      #f59e0b;
   --radius:    10px;
-  --shadow:    0 4px 24px rgba(0,0,0,.4);
+  --shadow:    0 4px 24px rgba(0,0,0,.6);
 }
 
 /* ── Reset ─────────────────────────────────────────────────────────────── */
@@ -48,7 +48,8 @@ a:hover { text-decoration: underline; }
   font-weight: 700;
   letter-spacing: -.02em;
 }
-.logo-icon { font-size: 1.4rem; }
+.logo-img    { height: 1.75rem; width: auto; object-fit: contain; }
+.logo-img-lg { height: 5rem;   width: auto; object-fit: contain; }
 .badge {
   background: var(--accent);
   color: #fff;
@@ -126,7 +127,7 @@ a:hover { text-decoration: underline; }
 .service-card:hover {
   border-color: var(--accent);
   transform: translateY(-3px);
-  box-shadow: 0 8px 32px rgba(124,58,237,.18);
+  box-shadow: 0 8px 32px rgba(201,162,39,.2);
   text-decoration: none;
 }
 .card-icon {

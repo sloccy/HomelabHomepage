@@ -4,6 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Lantern</title>
+  <link rel="icon" type="image/png" href="/logo.png">
   <link rel="stylesheet" href="/style.css">
 </head>
 <body>
@@ -12,14 +13,14 @@
 <div id="view-home" class="view">
   <header class="header">
     <div class="logo">
-      <span class="logo-icon">🚀</span>
+      <img src="/logo.png" class="logo-img" alt="Lantern">
       <span class="logo-text">Lantern</span>
     </div>
     <button class="btn btn-ghost" onclick="showView('manage')">⚙ Manage</button>
   </header>
   <main id="services-grid" class="grid"></main>
   <div id="home-empty" class="empty-state" style="display:none">
-    <div class="empty-icon">🚀</div>
+    <img src="/logo.png" class="logo-img-lg" alt="Lantern">
     <h2>Welcome to Lantern</h2>
     <p>No services assigned yet. Add services from the manage view.</p>
     <button class="btn btn-primary" onclick="showView('manage')">Get Started →</button>
@@ -30,7 +31,7 @@
 <div id="view-manage" class="view" style="display:none">
   <header class="header">
     <div class="logo">
-      <span class="logo-icon">🚀</span>
+      <img src="/logo.png" class="logo-img" alt="Lantern">
       <span class="logo-text">Lantern</span>
       <span class="badge">Manage</span>
     </div>
