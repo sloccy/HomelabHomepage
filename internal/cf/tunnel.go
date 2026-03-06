@@ -35,6 +35,11 @@ func (c *Client) AddTunnelRoute(ctx context.Context, hostname, backend string) (
 	}); err != nil {
 		return "", fmt.Errorf("add tunnel route %s: %w", hostname, err)
 	}
+	// Remove any pre-existing DNS record with this hostname before creating the CNAME.
+	// Handles stale A record IDs in the store, pre-existing manual records, etc.
+	if existingID, _, _ := c.FindRecord(ctx, hostname); existingID != "" {
+		_ = c.DeleteRecord(ctx, existingID) // best-effort; proceed even if this fails
+	}
 	cnameID, err = c.createCNAME(ctx, hostname)
 	if err != nil {
 		return "", fmt.Errorf("create CNAME for %s: %w", hostname, err)
