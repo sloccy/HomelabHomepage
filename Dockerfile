@@ -1,6 +1,6 @@
 # syntax=docker/dockerfile:1
 # ── Stage 1: build ────────────────────────────────────────────────────────────
-FROM golang:1.24-trixie AS builder
+FROM golang:1.25-trixie AS builder
 
 # Build-time metadata (injected by CI via --build-arg).
 ARG BUILD_VERSION=dev
