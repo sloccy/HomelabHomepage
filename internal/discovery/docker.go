@@ -151,10 +151,18 @@ func (d *Discoverer) upsertContainerWithLabels(ctx context.Context, id, name str
 		return
 	}
 
-	// Subdomain collision with a docker service whose ContainerName differs
-	// (e.g. user manually set the same subdomain on two containers).
-	// Fall through to discovered for manual resolution.
+	// Subdomain collision: if the existing service is docker-sourced, reattach
+	// (handles pre-fix records with no ContainerName set, and renamed containers).
+	// Only send to discovered if it's a manual/network service with the same subdomain.
 	if existing := d.store.GetServiceBySubdomain(info.subdomain); existing != nil {
+		if existing.Source == "docker" {
+			existing.ContainerID = id
+			existing.ContainerName = name // backfill for pre-fix records
+			existing.Target = info.target
+			_ = d.store.Save()
+			log.Printf("discovery: reattached %q → %s (%s)", name, existing.Subdomain, id)
+			return
+		}
 		d.addDockerDiscovered(id, info.name, info.target)
 		return
 	}
