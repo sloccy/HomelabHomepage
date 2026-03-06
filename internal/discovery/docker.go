@@ -102,7 +102,7 @@ func (d *Discoverer) handleDockerEvent(ctx context.Context, cli *dockerclient.Cl
 		}
 
 	case "die", "stop", "destroy", "kill":
-		d.removeContainer(ctx, msg.Actor.ID)
+		d.detachContainer(ctx, msg.Actor.ID)
 	}
 }
 
@@ -111,6 +111,15 @@ type containerInfo struct {
 	name      string
 	subdomain string
 	target    string
+}
+
+// detachContainer clears the ContainerID from a service (preserving user
+// customisations) and removes any discovered entry for that container.
+// It does NOT delete the service — the entry stays on the homepage as offline.
+func (d *Discoverer) detachContainer(ctx context.Context, id string) {
+	d.store.ClearContainerID(id)
+	d.store.RemoveDiscoveredByContainerID(id)
+	_ = d.store.Save()
 }
 
 // upsertContainerWithLabels resolves a container's configuration from Docker labels,
@@ -123,7 +132,7 @@ func (d *Discoverer) upsertContainerWithLabels(ctx context.Context, id, name str
 	if labels["lantern.enable"] == "false" {
 		return
 	}
-	// Skip if already tracked.
+	// Skip if already tracked by this exact container ID.
 	if d.store.GetServiceByContainerID(id) != nil {
 		return
 	}
@@ -133,20 +142,32 @@ func (d *Discoverer) upsertContainerWithLabels(ctx context.Context, id, name str
 		return // no usable port/target
 	}
 
-	// Subdomain collision → send to discovered for manual assignment.
+	// Reattach: same container name as an existing docker service (e.g. restart/recreate).
+	if existing := d.store.GetServiceByContainerName(name); existing != nil {
+		existing.ContainerID = id
+		existing.Target = info.target
+		_ = d.store.Save()
+		log.Printf("discovery: reattached %q → %s (%s)", name, existing.Subdomain, id)
+		return
+	}
+
+	// Subdomain collision with a docker service whose ContainerName differs
+	// (e.g. user manually set the same subdomain on two containers).
+	// Fall through to discovered for manual resolution.
 	if existing := d.store.GetServiceBySubdomain(info.subdomain); existing != nil {
 		d.addDockerDiscovered(id, info.name, info.target)
 		return
 	}
 
 	svc := &store.Service{
-		ID:          newID(),
-		Name:        info.name,
-		Subdomain:   info.subdomain,
-		Target:      info.target,
-		Source:      "docker",
-		ContainerID: id,
-		CreatedAt:   time.Now(),
+		ID:            newID(),
+		Name:          info.name,
+		Subdomain:     info.subdomain,
+		Target:        info.target,
+		Source:        "docker",
+		ContainerID:   id,
+		ContainerName: name,
+		CreatedAt:     time.Now(),
 	}
 
 	hostname := info.subdomain + "." + d.cfg.Domain

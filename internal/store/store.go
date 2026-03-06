@@ -20,6 +20,7 @@ type Service struct {
 	Order       int       `json:"order,omitempty"`
 	Source         string    `json:"source"` // "docker" | "network" | "manual"
 	ContainerID    string    `json:"container_id,omitempty"`
+	ContainerName  string    `json:"container_name,omitempty"`
 	DNSRecordID    string    `json:"dns_record_id,omitempty"`
 	TunnelRouteID  string    `json:"tunnel_route_id,omitempty"` // hostname routed via CF tunnel
 	CreatedAt      time.Time `json:"created_at"`
@@ -169,6 +170,30 @@ func (s *Store) GetServiceByContainerID(cid string) *Service {
 		}
 	}
 	return nil
+}
+
+func (s *Store) GetServiceByContainerName(name string) *Service {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	for _, svc := range s.d.Services {
+		if svc.Source == "docker" && svc.ContainerName == name {
+			return svc
+		}
+	}
+	return nil
+}
+
+// ClearContainerID detaches a running container from its service entry without
+// deleting the service. This preserves user customisations across restarts.
+func (s *Store) ClearContainerID(cid string) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	for _, svc := range s.d.Services {
+		if svc.ContainerID == cid {
+			svc.ContainerID = ""
+			return
+		}
+	}
 }
 
 func (s *Store) AddService(svc *Service) {
