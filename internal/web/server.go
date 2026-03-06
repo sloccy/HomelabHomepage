@@ -159,6 +159,9 @@ func (s *Server) checkHealth() {
 	var mu sync.Mutex
 	var wg sync.WaitGroup
 	for _, svc := range services {
+		if svc.SkipHealth {
+			continue
+		}
 		wg.Add(1)
 		go func(id, target string) {
 			defer wg.Done()
@@ -333,12 +336,13 @@ func (s *Server) createService(w http.ResponseWriter, r *http.Request) {
 }
 
 type updateServiceRequest struct {
-	Name      string  `json:"name"`
-	Subdomain string  `json:"subdomain"`
-	Target    string  `json:"target"`
-	Category  string  `json:"category"`
-	Icon      *string `json:"icon"`    // nil = keep existing; "" = clear; non-empty = set
-	Tunnel    *bool   `json:"tunnel"`  // nil = keep existing; true/false = enable/disable
+	Name       string  `json:"name"`
+	Subdomain  string  `json:"subdomain"`
+	Target     string  `json:"target"`
+	Category   string  `json:"category"`
+	Icon       *string `json:"icon"`        // nil = keep existing; "" = clear; non-empty = set
+	Tunnel     *bool   `json:"tunnel"`      // nil = keep existing; true/false = enable/disable
+	SkipHealth *bool   `json:"skip_health"` // nil = keep existing; true/false = skip health check
 }
 
 func (s *Server) updateService(w http.ResponseWriter, r *http.Request) {
@@ -368,6 +372,10 @@ func (s *Server) updateService(w http.ResponseWriter, r *http.Request) {
 	if req.Icon != nil {
 		icon = *req.Icon
 	}
+	skipHealth := svc.SkipHealth
+	if req.SkipHealth != nil {
+		skipHealth = *req.SkipHealth
+	}
 	newTarget := firstNonEmpty(req.Target, svc.Target)
 	updated := &store.Service{
 		ID:          svc.ID,
@@ -378,6 +386,7 @@ func (s *Server) updateService(w http.ResponseWriter, r *http.Request) {
 		Category:    req.Category,
 		Source:      svc.Source,
 		ContainerID: svc.ContainerID,
+		SkipHealth:  skipHealth,
 		CreatedAt:   svc.CreatedAt,
 	}
 

@@ -949,6 +949,10 @@ async function showEditModal(id) {
       <div class="input-hint">Upload a custom icon, pull from the service, or leave empty to use the live favicon proxy.</div>
     </div>
     ${_tunnelToggle(!!svc.tunnel_route_id)}
+    <div class="form-group" style="flex-direction:row;align-items:center;gap:.75rem;margin-bottom:.5rem">
+      <input id="m-skip-health" type="checkbox" ${svc.skip_health ? 'checked' : ''}>
+      <label for="m-skip-health" style="margin:0">Skip health check</label>
+    </div>
     <div class="form-actions">
       <button class="btn btn-ghost" onclick="closeModal()">Cancel</button>
       <button class="btn btn-primary" onclick="submitEdit('${esc(id)}')">Save →</button>
@@ -1002,12 +1006,13 @@ async function submitEdit(id) {
   const subdomain = document.getElementById('m-sub').value.trim();
   const target    = document.getElementById('m-target').value.trim();
   const category  = document.getElementById('m-category').value.trim();
-  const tunnelEl  = document.getElementById('m-tunnel');
-  const tunnel    = tunnelEl ? tunnelEl.checked : undefined;
+  const tunnelEl    = document.getElementById('m-tunnel');
+  const tunnel      = tunnelEl ? tunnelEl.checked : undefined;
+  const skipHealth  = document.getElementById('m-skip-health')?.checked ?? false;
   if (!subdomain) { toast('Subdomain is required', 'error'); return; }
   const body = tunnel !== undefined
-    ? { name, subdomain, target, category, tunnel }
-    : { name, subdomain, target, category };
+    ? { name, subdomain, target, category, tunnel, skip_health: skipHealth }
+    : { name, subdomain, target, category, skip_health: skipHealth };
   try {
     const fileInput = document.getElementById('m-icon-file');
     if (fileInput && fileInput.files[0]) {

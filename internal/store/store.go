@@ -23,6 +23,7 @@ type Service struct {
 	ContainerName  string    `json:"container_name,omitempty"`
 	DNSRecordID    string    `json:"dns_record_id,omitempty"`
 	TunnelRouteID  string    `json:"tunnel_route_id,omitempty"` // hostname routed via CF tunnel
+	SkipHealth     bool      `json:"skip_health,omitempty"`
 	CreatedAt      time.Time `json:"created_at"`
 }
 
