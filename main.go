@@ -78,10 +78,6 @@ func main() {
 	if err != nil {
 		log.Fatalf("certs: %v", err)
 	}
-	if err := certMgr.EnsureCert(); err != nil {
-		log.Printf("certs: initial cert failed: %v", err)
-	}
-	go certMgr.RenewLoop()
 
 	// Web server (serves GUI + REST API).
 	webSrv := web.New(cfg, st, cfClient)
@@ -113,6 +109,8 @@ func main() {
 	go ddnsMgr.Run(ctx)
 
 	// HTTP → HTTPS redirect (with /healthz for container health checks).
+	// Start this before cert provisioning so the healthcheck responds immediately
+	// on first deploy, even while EnsureCert() is blocked on DNS-01 propagation.
 	httpMux := http.NewServeMux()
 	httpMux.HandleFunc("/healthz", func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
@@ -127,6 +125,18 @@ func main() {
 		Handler:           httpMux,
 		ReadHeaderTimeout: 10 * time.Second,
 	}
+	go func() {
+		log.Println("HTTP  listening on :80")
+		if err := httpSrv.ListenAndServe(); err != http.ErrServerClosed {
+			log.Printf("HTTP server error: %v", err)
+		}
+	}()
+
+	// Provision TLS certificate (may take 60-120s on first run via Let's Encrypt).
+	if err := certMgr.EnsureCert(); err != nil {
+		log.Printf("certs: initial cert failed: %v", err)
+	}
+	go certMgr.RenewLoop()
 
 	// HTTPS server.
 	tlsCfg := &tls.Config{
@@ -141,13 +151,6 @@ func main() {
 		WriteTimeout:      0, // streaming responses
 		IdleTimeout:       120 * time.Second,
 	}
-
-	go func() {
-		log.Println("HTTP  listening on :80")
-		if err := httpSrv.ListenAndServe(); err != http.ErrServerClosed {
-			log.Printf("HTTP server error: %v", err)
-		}
-	}()
 	go func() {
 		log.Println("HTTPS listening on :443")
 		if err := httpsSrv.ListenAndServeTLS("", ""); err != http.ErrServerClosed {
