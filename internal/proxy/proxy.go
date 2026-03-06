@@ -151,7 +151,7 @@ a{color:#7c3aed;text-decoration:none}a:hover{text-decoration:underline}
   <div class="icon">🚫</div>
   <h1>%s</h1>
   <p>%s</p>
-  <div class="back"><a class="btn" href="https://atlas.%s">← Back to Lantern</a></div>
+  <div class="back"><a class="btn" href="https://lantern.%s">← Back to Lantern</a></div>
 </div>
 </body>
 </html>`
