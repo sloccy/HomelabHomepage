@@ -384,6 +384,7 @@ func (s *Server) updateService(w http.ResponseWriter, r *http.Request) {
 		Target:      newTarget,
 		Icon:        icon,
 		Category:    req.Category,
+		Order:       svc.Order,
 		Source:      svc.Source,
 		ContainerID: svc.ContainerID,
 		SkipHealth:  skipHealth,

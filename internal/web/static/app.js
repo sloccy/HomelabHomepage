@@ -949,7 +949,7 @@ async function showEditModal(id) {
       <div class="input-hint">Upload a custom icon, pull from the service, or leave empty to use the live favicon proxy.</div>
     </div>
     ${_tunnelToggle(!!svc.tunnel_route_id)}
-    <div class="form-group" style="flex-direction:row;align-items:center;gap:.75rem;margin-bottom:.5rem">
+    <div class="form-group" style="display:flex;flex-direction:row;align-items:center;gap:.75rem;margin-bottom:.5rem">
       <input id="m-skip-health" type="checkbox" ${svc.skip_health ? 'checked' : ''}>
       <label for="m-skip-health" style="margin:0">Skip health check</label>
     </div>
