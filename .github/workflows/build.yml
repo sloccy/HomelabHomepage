@@ -27,7 +27,7 @@ jobs:
 
       # ── 2. Go — resolve deps and generate go.sum ──────────────────────────
       - name: Set up Go
-        uses: actions/setup-go@v5
+        uses: actions/setup-go@v6
         with:
           go-version-file: "go.mod"
           cache: true   # caches $GOPATH/pkg/mod between runs
