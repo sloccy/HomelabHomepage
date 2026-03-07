@@ -387,17 +387,18 @@ func (s *Server) updateService(w http.ResponseWriter, r *http.Request) {
 	}
 	newTarget := firstNonEmpty(req.Target, svc.Target)
 	updated := &store.Service{
-		ID:          svc.ID,
-		Name:        firstNonEmpty(req.Name, svc.Name),
-		Subdomain:   newSub,
-		Target:      newTarget,
-		Icon:        icon,
-		Category:    req.Category,
-		Order:       svc.Order,
-		Source:      svc.Source,
-		ContainerID: svc.ContainerID,
-		SkipHealth:  skipHealth,
-		CreatedAt:   svc.CreatedAt,
+		ID:            svc.ID,
+		Name:          firstNonEmpty(req.Name, svc.Name),
+		Subdomain:     newSub,
+		Target:        newTarget,
+		Icon:          icon,
+		Category:      req.Category,
+		Order:         svc.Order,
+		Source:        svc.Source,
+		ContainerID:   svc.ContainerID,
+		ContainerName: svc.ContainerName,
+		SkipHealth:    skipHealth,
+		CreatedAt:     svc.CreatedAt,
 	}
 
 	// Determine whether the caller wants tunnel on/off (nil = keep current state).
