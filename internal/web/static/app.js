@@ -1125,9 +1125,13 @@ async function loadBookmarksHome() {
 }
 
 function renderBookmarkCard(bm) {
-  const icon = bm.icon
-    ? `<img class="card-icon" src="${esc(bm.icon)}" alt="" loading="lazy" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'"><div class="card-icon-placeholder" style="display:none">🔗</div>`
-    : `<div class="card-icon-placeholder">🔗</div>`;
+  let icon;
+  if (bm.icon) {
+    icon = `<img class="card-icon" src="${esc(bm.icon)}" alt="" loading="lazy" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'"><div class="card-icon-placeholder" style="display:none">🔗</div>`;
+  } else {
+    const faviconSrc = `/api/favicon?url=${encodeURIComponent(bm.url)}`;
+    icon = `<img class="card-icon" src="${faviconSrc}" alt="" loading="lazy" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'"><div class="card-icon-placeholder" style="display:none">🔗</div>`;
+  }
   return `
     <a class="service-card" href="${esc(bm.url)}" target="_blank" rel="noopener" data-name="${esc(bm.name)}" data-sub="">
       ${icon}
