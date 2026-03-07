@@ -12,6 +12,7 @@
       "matchManagers": ["dockerfile", "github-actions", "gomod"],
       "matchUpdateTypes": ["major"],
       "automerge": false,
+      "dependencyDashboardApproval": false,
       "labels": ["major-update"]
     }
   ]
