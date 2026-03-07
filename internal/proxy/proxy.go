@@ -73,6 +73,7 @@ func (h *Handler) proxySubdomain(w http.ResponseWriter, r *http.Request, sub str
 	origDirector := rp.Director
 	rp.Director = func(req *http.Request) {
 		origDirector(req)
+		req.Host = target.Host
 		req.Header.Set("X-Forwarded-Host", r.Host)
 		req.Header.Set("X-Real-IP", realIP(r))
 		if req.Header.Get("X-Forwarded-Proto") == "" {
