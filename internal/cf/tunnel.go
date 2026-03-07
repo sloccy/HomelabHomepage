@@ -3,9 +3,23 @@ package cf
 import (
 	"context"
 	"fmt"
-
-	"github.com/cloudflare/cloudflare-go"
+	"net/http"
 )
+
+// ingressRule is a single tunnel ingress entry.
+type ingressRule struct {
+	Hostname string `json:"hostname"`
+	Service  string `json:"service"`
+}
+
+// tunnelConfig holds the full tunnel ingress configuration.
+type tunnelConfig struct {
+	Ingress []ingressRule `json:"ingress"`
+}
+
+type tunnelConfigResult struct {
+	Config tunnelConfig `json:"config"`
+}
 
 // tunnelEnabled reports whether tunnel management is fully configured.
 func (c *Client) tunnelEnabled() bool {
@@ -30,8 +44,8 @@ func (c *Client) AddTunnelRoute(ctx context.Context, hostname, backend string) (
 	if !c.tunnelEnabled() {
 		return "", nil
 	}
-	if err := c.modifyIngress(ctx, func(rules []cloudflare.UnvalidatedIngressRule) []cloudflare.UnvalidatedIngressRule {
-		return append(rules, cloudflare.UnvalidatedIngressRule{Hostname: hostname, Service: backend})
+	if err := c.modifyIngress(ctx, func(rules []ingressRule) []ingressRule {
+		return append(rules, ingressRule{Hostname: hostname, Service: backend})
 	}); err != nil {
 		return "", fmt.Errorf("add tunnel route %s: %w", hostname, err)
 	}
@@ -53,8 +67,8 @@ func (c *Client) RemoveTunnelRoute(ctx context.Context, hostname, cnameID string
 	if !c.tunnelEnabled() {
 		return nil
 	}
-	if err := c.modifyIngress(ctx, func(rules []cloudflare.UnvalidatedIngressRule) []cloudflare.UnvalidatedIngressRule {
-		var filtered []cloudflare.UnvalidatedIngressRule
+	if err := c.modifyIngress(ctx, func(rules []ingressRule) []ingressRule {
+		var filtered []ingressRule
 		for _, r := range rules {
 			if r.Hostname != hostname {
 				filtered = append(filtered, r)
@@ -79,14 +93,14 @@ func (c *Client) ReplaceTunnelRoute(ctx context.Context, oldHostname, newHostnam
 	if !c.tunnelEnabled() {
 		return "", nil
 	}
-	if err := c.modifyIngress(ctx, func(rules []cloudflare.UnvalidatedIngressRule) []cloudflare.UnvalidatedIngressRule {
-		var filtered []cloudflare.UnvalidatedIngressRule
+	if err := c.modifyIngress(ctx, func(rules []ingressRule) []ingressRule {
+		var filtered []ingressRule
 		for _, r := range rules {
 			if r.Hostname != oldHostname {
 				filtered = append(filtered, r)
 			}
 		}
-		return append(filtered, cloudflare.UnvalidatedIngressRule{Hostname: newHostname, Service: backend})
+		return append(filtered, ingressRule{Hostname: newHostname, Service: backend})
 	}); err != nil {
 		return "", fmt.Errorf("replace tunnel route %s→%s: %w", oldHostname, newHostname, err)
 	}
@@ -105,19 +119,21 @@ func (c *Client) ReplaceTunnelRoute(ctx context.Context, oldHostname, newHostnam
 
 // modifyIngress applies fn to the current tunnel ingress rules while holding
 // the tunnel mutex, always ensuring the catch-all rule is last.
-func (c *Client) modifyIngress(ctx context.Context, fn func([]cloudflare.UnvalidatedIngressRule) []cloudflare.UnvalidatedIngressRule) error {
+func (c *Client) modifyIngress(ctx context.Context, fn func([]ingressRule) []ingressRule) error {
 	c.tunnelMu.Lock()
 	defer c.tunnelMu.Unlock()
 
-	rc := cloudflare.AccountIdentifier(c.accountID)
-	result, err := c.api.GetTunnelConfiguration(ctx, rc, c.tunnelID)
-	if err != nil {
+	var result tunnelConfigResult
+	if err := c.cfDo(ctx, http.MethodGet,
+		"/accounts/"+c.accountID+"/cfd_tunnel/"+c.tunnelID+"/configurations",
+		nil, &result,
+	); err != nil {
 		return fmt.Errorf("get tunnel config: %w", err)
 	}
 
 	// Separate named rules from the catch-all (Hostname == "").
-	var named []cloudflare.UnvalidatedIngressRule
-	var catchAll *cloudflare.UnvalidatedIngressRule
+	var named []ingressRule
+	var catchAll *ingressRule
 	for i, r := range result.Config.Ingress {
 		if r.Hostname == "" {
 			catchAll = &result.Config.Ingress[i]
@@ -132,14 +148,17 @@ func (c *Client) modifyIngress(ctx context.Context, fn func([]cloudflare.Unvalid
 	if catchAll != nil {
 		named = append(named, *catchAll)
 	} else {
-		named = append(named, cloudflare.UnvalidatedIngressRule{Service: "http_status:404"})
+		named = append(named, ingressRule{Service: "http_status:404"})
 	}
 
-	_, err = c.api.UpdateTunnelConfiguration(ctx, rc, cloudflare.TunnelConfigurationParams{
-		TunnelID: c.tunnelID,
-		Config:   cloudflare.TunnelConfiguration{Ingress: named},
-	})
-	return err
+	type updateParams struct {
+		Config tunnelConfig `json:"config"`
+	}
+	return c.cfDo(ctx, http.MethodPut,
+		"/accounts/"+c.accountID+"/cfd_tunnel/"+c.tunnelID+"/configurations",
+		updateParams{Config: tunnelConfig{Ingress: named}},
+		nil,
+	)
 }
 
 // createCNAME creates a proxied CNAME record pointing to the tunnel endpoint.
@@ -147,14 +166,18 @@ func (c *Client) createCNAME(ctx context.Context, hostname string) (string, erro
 	if c.noop || c.zoneID == "" {
 		return "", nil
 	}
-	proxied := true
-	rec, err := c.api.CreateDNSRecord(ctx, cloudflare.ZoneIdentifier(c.zoneID), cloudflare.CreateDNSRecordParams{
-		Type:    "CNAME",
-		Name:    hostname,
-		Content: c.tunnelID + ".cfargotunnel.com",
-		TTL:     1, // automatic TTL for proxied records
-		Proxied: &proxied,
-	})
+	var rec dnsRecord
+	err := c.cfDo(ctx, http.MethodPost,
+		"/zones/"+c.zoneID+"/dns_records",
+		createDNSParams{
+			Type:    "CNAME",
+			Name:    hostname,
+			Content: c.tunnelID + ".cfargotunnel.com",
+			TTL:     1, // automatic TTL for proxied records
+			Proxied: true,
+		},
+		&rec,
+	)
 	if err != nil {
 		return "", fmt.Errorf("create CNAME %s: %w", hostname, err)
 	}
