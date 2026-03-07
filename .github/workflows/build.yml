@@ -23,7 +23,7 @@ jobs:
     steps:
       # ── 1. Source ─────────────────────────────────────────────────────────
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       # ── 2. Go — resolve deps and generate go.sum ──────────────────────────
       - name: Set up Go
