@@ -232,7 +232,8 @@ type createServiceRequest struct {
 	Subdomain    string `json:"subdomain"`
 	Target       string `json:"target"` // required if not from discovered
 	Category     string `json:"category"`
-	Tunnel       bool   `json:"tunnel"` // route via CF tunnel instead of A record
+	Tunnel       bool   `json:"tunnel"`       // route via CF tunnel instead of A record
+	DirectOnly   bool   `json:"direct_only"`  // no subdomain/DNS; link directly to target
 }
 
 func (s *Server) createService(w http.ResponseWriter, r *http.Request) {
@@ -242,19 +243,22 @@ func (s *Server) createService(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	req.Subdomain = sanitiseSubdomain(req.Subdomain)
-	if req.Subdomain == "" {
-		apiError(w, http.StatusBadRequest, "subdomain is required")
-		return
-	}
-	if s.store.GetServiceBySubdomain(req.Subdomain) != nil {
-		apiError(w, http.StatusConflict, "subdomain already assigned")
-		return
+	if !req.DirectOnly {
+		if req.Subdomain == "" {
+			apiError(w, http.StatusBadRequest, "subdomain is required")
+			return
+		}
+		if s.store.GetServiceBySubdomain(req.Subdomain) != nil {
+			apiError(w, http.StatusConflict, "subdomain already assigned")
+			return
+		}
 	}
 
 	target := req.Target
 	name := req.Name
 	source := "manual"
 	var containerID string
+	var containerName string
 	var discoveredIcon string
 
 	if req.DiscoveredID != "" {
@@ -273,6 +277,7 @@ func (s *Server) createService(w http.ResponseWriter, r *http.Request) {
 		}
 		source = disc.Source
 		containerID = disc.ContainerID
+		containerName = disc.ContainerName
 		discoveredIcon = disc.Icon
 	}
 
@@ -284,34 +289,45 @@ func (s *Server) createService(w http.ResponseWriter, r *http.Request) {
 		name = req.Subdomain
 	}
 
+	svcID := newID()
+	subdomain := req.Subdomain
+	if req.DirectOnly {
+		subdomain = "_direct_" + svcID
+	}
+
 	svc := &store.Service{
-		ID:          newID(),
-		Name:        name,
-		Subdomain:   req.Subdomain,
-		Target:      target,
-		Icon:        discoveredIcon,
-		Category:    req.Category,
-		Source:      source,
-		ContainerID: containerID,
-		CreatedAt:   time.Now(),
+		ID:            svcID,
+		Name:          name,
+		Subdomain:     subdomain,
+		Target:        target,
+		Icon:          discoveredIcon,
+		Category:      req.Category,
+		Source:        source,
+		ContainerID:   containerID,
+		ContainerName: containerName,
+		DirectOnly:    req.DirectOnly,
+		CreatedAt:     time.Now(),
 	}
 
 	// Create tunnel route or DNS A record based on per-service choice.
-	hostname := req.Subdomain + "." + s.cfg.Domain
-	if req.Tunnel && s.cf.TunnelEnabled() {
-		cnameID, err := s.cf.AddTunnelRoute(r.Context(), hostname, svc.Target)
-		if err != nil {
-			log.Printf("web: add tunnel route %s: %v", req.Subdomain, err)
-		} else {
-			svc.DNSRecordID = cnameID
-			svc.TunnelRouteID = hostname
-		}
-	} else if s.cfg.ServerIP != "" {
-		dnsID, err := s.cf.CreateRecord(r.Context(), hostname, s.cfg.ServerIP)
-		if err != nil {
-			log.Printf("web: create DNS %s: %v", req.Subdomain, err)
-		} else {
-			svc.DNSRecordID = dnsID
+	// Skip entirely for direct-only services.
+	if !req.DirectOnly {
+		hostname := subdomain + "." + s.cfg.Domain
+		if req.Tunnel && s.cf.TunnelEnabled() {
+			cnameID, err := s.cf.AddTunnelRoute(r.Context(), hostname, svc.Target)
+			if err != nil {
+				log.Printf("web: add tunnel route %s: %v", subdomain, err)
+			} else {
+				svc.DNSRecordID = cnameID
+				svc.TunnelRouteID = hostname
+			}
+		} else if s.cfg.ServerIP != "" {
+			dnsID, err := s.cf.CreateRecord(r.Context(), hostname, s.cfg.ServerIP)
+			if err != nil {
+				log.Printf("web: create DNS %s: %v", subdomain, err)
+			} else {
+				svc.DNSRecordID = dnsID
+			}
 		}
 	}
 
@@ -349,9 +365,10 @@ type updateServiceRequest struct {
 	Subdomain  string  `json:"subdomain"`
 	Target     string  `json:"target"`
 	Category   string  `json:"category"`
-	Icon       *string `json:"icon"`        // nil = keep existing; "" = clear; non-empty = set
-	Tunnel     *bool   `json:"tunnel"`      // nil = keep existing; true/false = enable/disable
-	SkipHealth *bool   `json:"skip_health"` // nil = keep existing; true/false = skip health check
+	Icon       *string `json:"icon"`         // nil = keep existing; "" = clear; non-empty = set
+	Tunnel     *bool   `json:"tunnel"`       // nil = keep existing; true/false = enable/disable
+	SkipHealth *bool   `json:"skip_health"`  // nil = keep existing; true/false = skip health check
+	DirectOnly *bool   `json:"direct_only"`  // nil = keep existing; true/false = direct link only
 }
 
 func (s *Server) updateService(w http.ResponseWriter, r *http.Request) {
@@ -368,11 +385,6 @@ func (s *Server) updateService(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	newSub := sanitiseSubdomain(req.Subdomain)
-	if newSub == "" {
-		newSub = svc.Subdomain
-	}
-
 	oldSub := svc.Subdomain
 	oldDNSID := svc.DNSRecordID
 	oldTunnelRoute := svc.TunnelRouteID
@@ -385,7 +397,30 @@ func (s *Server) updateService(w http.ResponseWriter, r *http.Request) {
 	if req.SkipHealth != nil {
 		skipHealth = *req.SkipHealth
 	}
+	directOnly := svc.DirectOnly
+	if req.DirectOnly != nil {
+		directOnly = *req.DirectOnly
+	}
 	newTarget := firstNonEmpty(req.Target, svc.Target)
+
+	// Determine the new subdomain key.
+	// When direct-only, use a synthetic key so the store map stays unique.
+	// When switching off direct-only, the caller must supply a real subdomain.
+	var newSub string
+	if directOnly {
+		// Preserve existing _direct_ key, or generate one if switching to direct.
+		if svc.DirectOnly {
+			newSub = oldSub // keep existing synthetic key
+		} else {
+			newSub = "_direct_" + svc.ID
+		}
+	} else {
+		newSub = sanitiseSubdomain(req.Subdomain)
+		if newSub == "" {
+			newSub = oldSub
+		}
+	}
+
 	updated := &store.Service{
 		ID:            svc.ID,
 		Name:          firstNonEmpty(req.Name, svc.Name),
@@ -398,81 +433,119 @@ func (s *Server) updateService(w http.ResponseWriter, r *http.Request) {
 		ContainerID:   svc.ContainerID,
 		ContainerName: svc.ContainerName,
 		SkipHealth:    skipHealth,
+		DirectOnly:    directOnly,
 		CreatedAt:     svc.CreatedAt,
 	}
 
-	// Determine whether the caller wants tunnel on/off (nil = keep current state).
-	currentlyTunneled := oldTunnelRoute != ""
-	wantTunnel := currentlyTunneled
-	if req.Tunnel != nil {
-		wantTunnel = *req.Tunnel
-	}
+	// If switching to direct-only, tear down any existing DNS/tunnel records.
+	// If switching from direct-only to subdomain, create DNS. Otherwise use normal routing logic.
+	wasDirectOnly := svc.DirectOnly
+	if directOnly {
+		if !wasDirectOnly {
+			// Newly direct-only: remove existing DNS/tunnel.
+			if oldTunnelRoute != "" {
+				if err := s.cf.RemoveTunnelRoute(r.Context(), oldTunnelRoute, oldDNSID); err != nil {
+					log.Printf("web: remove tunnel route %s: %v", oldSub, err)
+				}
+			} else if oldDNSID != "" {
+				if err := s.cf.DeleteRecord(r.Context(), oldDNSID); err != nil {
+					log.Printf("web: delete DNS %s: %v", oldSub, err)
+				}
+			}
+		}
+		// No DNS/tunnel records for direct-only services.
+	} else {
+		// Determine whether the caller wants tunnel on/off (nil = keep current state).
+		currentlyTunneled := oldTunnelRoute != ""
+		wantTunnel := currentlyTunneled
+		if req.Tunnel != nil {
+			wantTunnel = *req.Tunnel
+		}
 
-	oldHostname := oldSub + "." + s.cfg.Domain
-	newHostname := newSub + "." + s.cfg.Domain
+		oldHostname := oldSub + "." + s.cfg.Domain
+		newHostname := newSub + "." + s.cfg.Domain
 
-	if s.cf.TunnelEnabled() && wantTunnel {
-		if currentlyTunneled {
-			// Already tunneled — re-route only if something changed.
-			if newSub != oldSub || newTarget != svc.Target {
-				cnameID, err := s.cf.ReplaceTunnelRoute(r.Context(), oldHostname, newHostname, newTarget, oldDNSID)
+		if wasDirectOnly {
+			// Switching from direct-only to subdomain: create DNS record.
+			if s.cfg.ServerIP != "" && !wantTunnel {
+				dnsID, err := s.cf.CreateRecord(r.Context(), newHostname, s.cfg.ServerIP)
 				if err != nil {
-					log.Printf("web: replace tunnel route %s→%s: %v", oldSub, newSub, err)
+					log.Printf("web: create DNS %s: %v", newSub, err)
+				} else {
+					updated.DNSRecordID = dnsID
+				}
+			} else if wantTunnel && s.cf.TunnelEnabled() {
+				cnameID, err := s.cf.AddTunnelRoute(r.Context(), newHostname, newTarget)
+				if err != nil {
+					log.Printf("web: add tunnel route %s: %v", newSub, err)
 				} else {
 					updated.DNSRecordID = cnameID
 					updated.TunnelRouteID = newHostname
 				}
+			}
+		} else if s.cf.TunnelEnabled() && wantTunnel {
+			if currentlyTunneled {
+				// Already tunneled — re-route only if something changed.
+				if newSub != oldSub || newTarget != svc.Target {
+					cnameID, err := s.cf.ReplaceTunnelRoute(r.Context(), oldHostname, newHostname, newTarget, oldDNSID)
+					if err != nil {
+						log.Printf("web: replace tunnel route %s→%s: %v", oldSub, newSub, err)
+					} else {
+						updated.DNSRecordID = cnameID
+						updated.TunnelRouteID = newHostname
+					}
+				} else {
+					updated.DNSRecordID = oldDNSID
+					updated.TunnelRouteID = oldTunnelRoute
+				}
+			} else {
+				// Switching from A record to tunnel.
+				if oldDNSID != "" {
+					if err := s.cf.DeleteRecord(r.Context(), oldDNSID); err != nil {
+						log.Printf("web: delete DNS %s: %v", oldSub, err)
+					}
+				}
+				cnameID, err := s.cf.AddTunnelRoute(r.Context(), newHostname, newTarget)
+				if err != nil {
+					log.Printf("web: add tunnel route %s: %v", newSub, err)
+				} else {
+					updated.DNSRecordID = cnameID
+					updated.TunnelRouteID = newHostname
+				}
+			}
+		} else {
+			// Want A record (or tunnel not configured).
+			if currentlyTunneled {
+				// Switching from tunnel to A record.
+				if err := s.cf.RemoveTunnelRoute(r.Context(), oldTunnelRoute, oldDNSID); err != nil {
+					log.Printf("web: remove tunnel route %s: %v", oldSub, err)
+				}
+				if s.cfg.ServerIP != "" {
+					dnsID, err := s.cf.CreateRecord(r.Context(), newHostname, s.cfg.ServerIP)
+					if err != nil {
+						log.Printf("web: create DNS %s: %v", newSub, err)
+					} else {
+						updated.DNSRecordID = dnsID
+					}
+				}
+			} else if newSub != oldSub {
+				// Subdomain changed, swap A records.
+				if oldDNSID != "" {
+					if err := s.cf.DeleteRecord(r.Context(), oldDNSID); err != nil {
+						log.Printf("web: delete DNS %s: %v", oldSub, err)
+					}
+				}
+				if s.cfg.ServerIP != "" {
+					dnsID, err := s.cf.CreateRecord(r.Context(), newHostname, s.cfg.ServerIP)
+					if err != nil {
+						log.Printf("web: create DNS %s: %v", newSub, err)
+					} else {
+						updated.DNSRecordID = dnsID
+					}
+				}
 			} else {
 				updated.DNSRecordID = oldDNSID
-				updated.TunnelRouteID = oldTunnelRoute
 			}
-		} else {
-			// Switching from A record to tunnel.
-			if oldDNSID != "" {
-				if err := s.cf.DeleteRecord(r.Context(), oldDNSID); err != nil {
-					log.Printf("web: delete DNS %s: %v", oldSub, err)
-				}
-			}
-			cnameID, err := s.cf.AddTunnelRoute(r.Context(), newHostname, newTarget)
-			if err != nil {
-				log.Printf("web: add tunnel route %s: %v", newSub, err)
-			} else {
-				updated.DNSRecordID = cnameID
-				updated.TunnelRouteID = newHostname
-			}
-		}
-	} else {
-		// Want A record (or tunnel not configured).
-		if currentlyTunneled {
-			// Switching from tunnel to A record.
-			if err := s.cf.RemoveTunnelRoute(r.Context(), oldTunnelRoute, oldDNSID); err != nil {
-				log.Printf("web: remove tunnel route %s: %v", oldSub, err)
-			}
-			if s.cfg.ServerIP != "" {
-				dnsID, err := s.cf.CreateRecord(r.Context(), newHostname, s.cfg.ServerIP)
-				if err != nil {
-					log.Printf("web: create DNS %s: %v", newSub, err)
-				} else {
-					updated.DNSRecordID = dnsID
-				}
-			}
-		} else if newSub != oldSub {
-			// Subdomain changed, swap A records.
-			if oldDNSID != "" {
-				if err := s.cf.DeleteRecord(r.Context(), oldDNSID); err != nil {
-					log.Printf("web: delete DNS %s: %v", oldSub, err)
-				}
-			}
-			if s.cfg.ServerIP != "" {
-				dnsID, err := s.cf.CreateRecord(r.Context(), newHostname, s.cfg.ServerIP)
-				if err != nil {
-					log.Printf("web: create DNS %s: %v", newSub, err)
-				} else {
-					updated.DNSRecordID = dnsID
-				}
-			}
-		} else {
-			updated.DNSRecordID = oldDNSID
 		}
 	}
 

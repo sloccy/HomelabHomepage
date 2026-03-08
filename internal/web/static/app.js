@@ -132,7 +132,7 @@ function _toggleCategory(header) {
 }
 
 function renderCard(svc, domain, health) {
-  const url  = `https://${svc.subdomain}.${domain}`;
+  const url  = svc.direct_only ? svc.target : `https://${svc.subdomain}.${domain}`;
   let icon;
   if (svc.icon) {
     icon = `<img class="card-icon" src="${esc(svc.icon)}" alt="" loading="lazy" onerror="this.style.display='none'">`;
@@ -146,7 +146,7 @@ function renderCard(svc, domain, health) {
       <span class="health-dot ${dot}" title="${dot}"></span>
       ${icon}
       <div class="card-name">${esc(svc.name)}</div>
-      <div class="card-url">${esc(svc.subdomain)}.${esc(domain)}</div>
+      <div class="card-url">${svc.direct_only ? esc(svc.target) : `${esc(svc.subdomain)}.${esc(domain)}`}</div>
     </a>`;
 }
 
@@ -585,7 +585,7 @@ async function loadServices() {
 }
 
 function serviceRow(svc, domain) {
-  const url  = `https://${svc.subdomain}.${domain}`;
+  const url  = svc.direct_only ? svc.target : `https://${svc.subdomain}.${domain}`;
   let icon;
   if (svc.icon) {
     icon = `<img class="svc-icon" src="${esc(svc.icon)}" alt="" loading="lazy" onerror="this.style.display='none'">`;
@@ -601,7 +601,7 @@ function serviceRow(svc, domain) {
     <tr>
       <td class="td-icon">${icon}</td>
       <td><strong>${esc(svc.name)}</strong></td>
-      <td class="link-cell"><a href="${esc(url)}" target="_blank" rel="noopener">${esc(svc.subdomain)}.${esc(domain)}</a></td>
+      <td class="link-cell"><a href="${esc(url)}" target="_blank" rel="noopener">${svc.direct_only ? esc(svc.target) : `${esc(svc.subdomain)}.${esc(domain)}`}</a></td>
       <td><code style="font-size:.8rem;color:var(--muted)">${esc(svc.target)}</code></td>
       <td>${tag} ${tunnelBadge}</td>
       <td>
@@ -664,7 +664,7 @@ function discItem(d) {
         <div class="disc-meta">${src} <a href="${esc(url)}" target="_blank" rel="noopener">${esc(url)}</a></div>
       </div>
       <div class="disc-actions">
-        <button class="btn btn-primary btn-sm" onclick="showAssignModal('${esc(d.id)}','${esc(label)}')">Assign</button>
+        <button class="btn btn-primary btn-sm" onclick="showAssignModal('${esc(d.id)}','${esc(label)}','${esc(d.suggested_subdomain||'')}')">Assign</button>
         <button class="btn btn-ghost btn-sm" onclick="ignoreDiscovered('${esc(d.id)}')">Ignore</button>
         <button class="btn btn-ghost btn-sm" onclick="dismissDiscovered('${esc(d.id)}')">✕</button>
       </div>
@@ -796,8 +796,19 @@ function _tunnelToggle(checked) {
     </div>`;
 }
 
-function showAssignModal(id, title) {
-  const suggested = sanitiseSubdomain(title);
+function _directOnlyToggle(checked) {
+  return `
+    <div class="form-group">
+      <label style="display:flex;align-items:center;gap:.5rem;cursor:pointer">
+        <input id="m-direct-only" type="checkbox" ${checked ? 'checked' : ''} style="width:1rem;height:1rem;accent-color:var(--accent)">
+        Use IP directly
+        <span style="color:var(--muted);font-weight:400;font-size:.8rem">(no subdomain, links to target URL)</span>
+      </label>
+    </div>`;
+}
+
+function showAssignModal(id, title, suggestedSub) {
+  const suggested = suggestedSub || sanitiseSubdomain(title);
   openModal(`
     <h3>Assign Subdomain</h3>
     <p style="color:var(--muted);font-size:.875rem;margin-bottom:1.25rem">
@@ -854,7 +865,7 @@ function showAddManualModal() {
       <label>Service Name</label>
       <input id="m-name" type="text" placeholder="Plex">
     </div>
-    <div class="form-group">
+    <div id="subdomain-group" class="form-group">
       <label>Subdomain</label>
       <input id="m-sub" type="text" placeholder="plex">
       <div class="input-hint">Will be available at <span id="sub-preview">.${esc(statusData.domain || '')}</span></div>
@@ -869,6 +880,7 @@ function showAddManualModal() {
       ${_categoryDatalist()}
     </div>
     ${_tunnelToggle(false)}
+    ${_directOnlyToggle(false)}
     <div class="form-actions">
       <button class="btn btn-ghost" onclick="closeModal()">Cancel</button>
       <button class="btn btn-primary" onclick="submitAddManual()">Add →</button>
@@ -878,20 +890,24 @@ function showAddManualModal() {
     const val = sanitiseSubdomain(e.target.value) || e.target.value;
     document.getElementById('sub-preview').textContent = `${val}.${statusData.domain || ''}`;
   });
+  document.getElementById('m-direct-only').addEventListener('change', (e) => {
+    document.getElementById('subdomain-group').style.display = e.target.checked ? 'none' : '';
+  });
 }
 
 async function submitAddManual() {
-  const name      = document.getElementById('m-name').value.trim();
-  const subdomain = document.getElementById('m-sub').value.trim();
-  const target    = document.getElementById('m-target').value.trim();
-  const category  = document.getElementById('m-category').value.trim();
-  const tunnel    = document.getElementById('m-tunnel')?.checked ?? false;
-  if (!subdomain) { toast('Subdomain is required', 'error'); return; }
-  if (!target)    { toast('Target URL is required', 'error'); return; }
+  const name       = document.getElementById('m-name').value.trim();
+  const subdomain  = document.getElementById('m-sub').value.trim();
+  const target     = document.getElementById('m-target').value.trim();
+  const category   = document.getElementById('m-category').value.trim();
+  const tunnel     = document.getElementById('m-tunnel')?.checked ?? false;
+  const directOnly = document.getElementById('m-direct-only')?.checked ?? false;
+  if (!directOnly && !subdomain) { toast('Subdomain is required', 'error'); return; }
+  if (!target) { toast('Target URL is required', 'error'); return; }
   try {
-    await api('POST', '/api/services', { name, subdomain, target, category, tunnel });
+    await api('POST', '/api/services', { name, subdomain, target, category, tunnel, direct_only: directOnly });
     closeModal();
-    toast(`Added ${subdomain}.${statusData.domain || ''}`);
+    toast(directOnly ? `Added ${name || target}` : `Added ${subdomain}.${statusData.domain || ''}`);
     loadServices();
   } catch (e) {
     toast(e.message, 'error');
@@ -923,10 +939,10 @@ async function showEditModal(id) {
       <label>Service Name</label>
       <input id="m-name" type="text" value="${esc(svc.name)}">
     </div>
-    <div class="form-group">
+    <div id="subdomain-group" class="form-group"${svc.direct_only ? ' style="display:none"' : ''}>
       <label>Subdomain</label>
-      <input id="m-sub" type="text" value="${esc(svc.subdomain)}">
-      <div class="input-hint">Will be available at <span id="sub-preview">${esc(svc.subdomain)}.${esc(statusData.domain || '')}</span></div>
+      <input id="m-sub" type="text" value="${esc(svc.direct_only ? '' : svc.subdomain)}">
+      <div class="input-hint">Will be available at <span id="sub-preview">${esc(svc.direct_only ? '' : svc.subdomain)}.${esc(statusData.domain || '')}</span></div>
     </div>
     <div class="form-group">
       <label>Target URL</label>
@@ -949,9 +965,12 @@ async function showEditModal(id) {
       <div class="input-hint">Upload a custom icon, pull from the service, or leave empty to use the live favicon proxy.</div>
     </div>
     ${_tunnelToggle(!!svc.tunnel_route_id)}
-    <div class="form-group" style="display:flex;flex-direction:row;align-items:center;gap:.75rem;margin-bottom:.5rem">
-      <input id="m-skip-health" type="checkbox" ${svc.skip_health ? 'checked' : ''}>
-      <label for="m-skip-health" style="margin:0">Skip health check</label>
+    ${_directOnlyToggle(!!svc.direct_only)}
+    <div class="form-group">
+      <label style="display:flex;align-items:center;gap:.5rem;cursor:pointer">
+        <input id="m-skip-health" type="checkbox" ${svc.skip_health ? 'checked' : ''} style="width:1rem;height:1rem;accent-color:var(--accent)">
+        Skip health check
+      </label>
     </div>
     <div class="form-actions">
       <button class="btn btn-ghost" onclick="closeModal()">Cancel</button>
@@ -961,6 +980,9 @@ async function showEditModal(id) {
   document.getElementById('m-sub').addEventListener('input', (e) => {
     const val = sanitiseSubdomain(e.target.value) || e.target.value;
     document.getElementById('sub-preview').textContent = `${val}.${statusData.domain || ''}`;
+  });
+  document.getElementById('m-direct-only').addEventListener('change', (e) => {
+    document.getElementById('subdomain-group').style.display = e.target.checked ? 'none' : '';
   });
 }
 
@@ -1002,17 +1024,17 @@ function _clearEditIcon(id) {
 }
 
 async function submitEdit(id) {
-  const name      = document.getElementById('m-name').value.trim();
-  const subdomain = document.getElementById('m-sub').value.trim();
-  const target    = document.getElementById('m-target').value.trim();
-  const category  = document.getElementById('m-category').value.trim();
-  const tunnelEl    = document.getElementById('m-tunnel');
-  const tunnel      = tunnelEl ? tunnelEl.checked : undefined;
+  const name       = document.getElementById('m-name').value.trim();
+  const subdomain  = document.getElementById('m-sub').value.trim();
+  const target     = document.getElementById('m-target').value.trim();
+  const category   = document.getElementById('m-category').value.trim();
+  const tunnelEl   = document.getElementById('m-tunnel');
+  const tunnel     = tunnelEl ? tunnelEl.checked : undefined;
   const skipHealth  = document.getElementById('m-skip-health')?.checked ?? false;
-  if (!subdomain) { toast('Subdomain is required', 'error'); return; }
-  const body = tunnel !== undefined
-    ? { name, subdomain, target, category, tunnel, skip_health: skipHealth }
-    : { name, subdomain, target, category, skip_health: skipHealth };
+  const directOnly  = document.getElementById('m-direct-only')?.checked ?? false;
+  if (!directOnly && !subdomain) { toast('Subdomain is required', 'error'); return; }
+  const body = { name, subdomain, target, category, skip_health: skipHealth, direct_only: directOnly };
+  if (tunnel !== undefined) body.tunnel = tunnel;
   try {
     const fileInput = document.getElementById('m-icon-file');
     if (fileInput && fileInput.files[0]) {
