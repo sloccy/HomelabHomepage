@@ -274,59 +274,12 @@ func (d *Discoverer) upsertContainerWithLabels(ctx context.Context, id, name str
 			log.Printf("discovery: reattached %q → %s (%s)", name, existing.Subdomain, id)
 			return
 		}
-		d.addDockerDiscovered(id, info.name, info.target)
+		d.addDockerDiscovered(id, info.name, info.target, info.subdomain)
 		return
 	}
 
-	svc := &store.Service{
-		ID:            newID(),
-		Name:          info.name,
-		Subdomain:     info.subdomain,
-		Target:        info.target,
-		Source:        "docker",
-		ContainerID:   id,
-		ContainerName: name,
-		CreatedAt:     time.Now(),
-	}
-
-	hostname := info.subdomain + "." + d.cfg.Domain
-	if labels["lantern.tunnel"] == "true" && d.cf.TunnelEnabled() {
-		cnameID, err := d.cf.AddTunnelRoute(ctx, hostname, info.target)
-		if err != nil {
-			log.Printf("discovery: add tunnel route for %s: %v", info.subdomain, err)
-		} else {
-			svc.DNSRecordID = cnameID
-			svc.TunnelRouteID = hostname
-		}
-	} else if d.cfg.ServerIP != "" {
-		dnsID, err := d.cf.CreateRecord(ctx, hostname, d.cfg.ServerIP)
-		if err != nil {
-			log.Printf("discovery: create DNS for %s: %v", info.subdomain, err)
-		} else {
-			svc.DNSRecordID = dnsID
-		}
-	}
-
-	d.store.AddService(svc)
-	if err := d.store.Save(); err != nil {
-		log.Printf("discovery: save store: %v", err)
-	}
-	log.Printf("discovery: auto-assigned %q → %s.%s (%s)", info.name, info.subdomain, d.cfg.Domain, info.target)
-
-	go func(id, target string) {
-		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-		defer cancel()
-		icon := FetchFaviconForTarget(ctx, target)
-		if icon == "" {
-			return
-		}
-		if existing := d.store.GetServiceByID(id); existing != nil {
-			updated := *existing
-			updated.Icon = icon
-			d.store.UpdateService(id, &updated)
-			_ = d.store.Save()
-		}
-	}(svc.ID, svc.Target)
+	// New container — send to Discovered for user review instead of auto-assigning.
+	d.addDockerDiscovered(id, info.name, info.target, info.subdomain)
 }
 
 // resolveContainer determines the display name, subdomain and target URL for a container
@@ -388,20 +341,21 @@ func (d *Discoverer) resolveContainer(name string, ports []dockerPort, labels ma
 	return info
 }
 
-func (d *Discoverer) addDockerDiscovered(id, name, target string) {
+func (d *Discoverer) addDockerDiscovered(id, name, target, suggestedSub string) {
 	if d.store.GetDiscoveredByContainerID(id) != nil {
 		return
 	}
 	ip, port := splitTarget(target)
 	disc := &store.DiscoveredService{
-		ID:            newID(),
-		IP:            ip,
-		Port:          port,
-		Title:         name,
-		Source:        "docker",
-		ContainerName: name,
-		ContainerID:   id,
-		DiscoveredAt:  time.Now(),
+		ID:                 newID(),
+		IP:                 ip,
+		Port:               port,
+		Title:              name,
+		Source:             "docker",
+		ContainerName:      name,
+		ContainerID:        id,
+		SuggestedSubdomain: suggestedSub,
+		DiscoveredAt:       time.Now(),
 	}
 	d.store.AddDiscovered(disc)
 	_ = d.store.Save()

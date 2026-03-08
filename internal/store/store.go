@@ -24,6 +24,7 @@ type Service struct {
 	DNSRecordID    string    `json:"dns_record_id,omitempty"`
 	TunnelRouteID  string    `json:"tunnel_route_id,omitempty"` // hostname routed via CF tunnel
 	SkipHealth     bool      `json:"skip_health,omitempty"`
+	DirectOnly     bool      `json:"direct_only,omitempty"` // link directly to target, no subdomain/DNS
 	CreatedAt      time.Time `json:"created_at"`
 }
 
@@ -55,9 +56,10 @@ type DiscoveredService struct {
 	ServiceName   string    `json:"service_name,omitempty"`
 	Confidence    float32   `json:"confidence,omitempty"`
 	Source        string    `json:"source"` // "docker" | "network"
-	ContainerName string    `json:"container_name,omitempty"`
-	ContainerID   string    `json:"container_id,omitempty"`
-	DiscoveredAt  time.Time `json:"discovered_at"`
+	ContainerName      string    `json:"container_name,omitempty"`
+	ContainerID        string    `json:"container_id,omitempty"`
+	SuggestedSubdomain string    `json:"suggested_subdomain,omitempty"`
+	DiscoveredAt       time.Time `json:"discovered_at"`
 }
 
 type Settings struct{}
