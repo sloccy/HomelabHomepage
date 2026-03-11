@@ -97,11 +97,35 @@ func (s *Server) routes() {
 	fileServer := http.FileServer(http.FS(sub))
 	s.mux.Handle("GET /", fileServer)
 
+	// Manage page (separate static HTML shell).
+	s.mux.HandleFunc("GET /manage", func(w http.ResponseWriter, r *http.Request) {
+		http.ServeFileFS(w, r, sub, "manage.html")
+	})
+
+	// Fragment endpoints — return HTML for htmx.
+	s.mux.HandleFunc("GET /fragments/services", s.fragServicesGrid)
+	s.mux.HandleFunc("GET /fragments/bookmarks", s.fragBookmarksGrid)
+	s.mux.HandleFunc("GET /fragments/sysinfo", s.fragSysinfo)
+	s.mux.HandleFunc("GET /fragments/status", s.fragStatus)
+	s.mux.HandleFunc("GET /fragments/tunnel", s.fragTunnel)
+	s.mux.HandleFunc("GET /fragments/subnets", s.fragSubnets)
+	s.mux.HandleFunc("GET /fragments/services-table", s.fragServicesTable)
+	s.mux.HandleFunc("GET /fragments/service-form", s.fragServiceFormAdd)
+	s.mux.HandleFunc("GET /fragments/service-form/{id}", s.fragServiceFormEdit)
+	s.mux.HandleFunc("GET /fragments/discovered", s.fragDiscovered)
+	s.mux.HandleFunc("GET /fragments/ignored", s.fragIgnored)
+	s.mux.HandleFunc("GET /fragments/assign-form/{id}", s.fragAssignForm)
+	s.mux.HandleFunc("GET /fragments/bookmarks-table", s.fragBookmarksTable)
+	s.mux.HandleFunc("GET /fragments/bookmark-form", s.fragBookmarkFormAdd)
+	s.mux.HandleFunc("GET /fragments/bookmark-form/{id}", s.fragBookmarkFormEdit)
+	s.mux.HandleFunc("GET /fragments/ddns", s.fragDDNS)
+
 	// API routes (Go 1.22 pattern matching).
 	s.mux.HandleFunc("GET /api/services", s.listServices)
 	s.mux.HandleFunc("POST /api/services", s.createService)
 	s.mux.HandleFunc("PUT /api/services/{id}", s.updateService)
 	s.mux.HandleFunc("DELETE /api/services/{id}", s.deleteService)
+	s.mux.HandleFunc("POST /api/services/{id}/move", s.moveService)
 
 	s.mux.HandleFunc("GET /api/discovered", s.listDiscovered)
 	s.mux.HandleFunc("DELETE /api/discovered/{id}", s.deleteDiscovered)
@@ -237,19 +261,29 @@ type createServiceRequest struct {
 }
 
 func (s *Server) createService(w http.ResponseWriter, r *http.Request) {
-	var req createServiceRequest
-	if err := readJSON(r, &req); err != nil {
-		apiError(w, http.StatusBadRequest, "invalid JSON")
+	if err := r.ParseForm(); err != nil {
+		errorTrigger(w, "invalid form data")
+		w.WriteHeader(http.StatusBadRequest)
 		return
 	}
+	var req createServiceRequest
+	req.DiscoveredID = r.FormValue("discovered_id")
+	req.Name = r.FormValue("name")
+	req.Subdomain = r.FormValue("subdomain")
+	req.Target = r.FormValue("target")
+	req.Category = r.FormValue("category")
+	req.Tunnel = r.FormValue("tunnel") == "on" || r.FormValue("tunnel") == "true" || r.FormValue("tunnel") == "1"
+	req.DirectOnly = r.FormValue("direct_only") == "on" || r.FormValue("direct_only") == "true"
 	req.Subdomain = sanitiseSubdomain(req.Subdomain)
 	if !req.DirectOnly {
 		if req.Subdomain == "" {
-			apiError(w, http.StatusBadRequest, "subdomain is required")
+			errorTrigger(w, "subdomain is required")
+			w.WriteHeader(http.StatusBadRequest)
 			return
 		}
 		if s.store.GetServiceBySubdomain(req.Subdomain) != nil {
-			apiError(w, http.StatusConflict, "subdomain already assigned")
+			errorTrigger(w, "subdomain already assigned")
+			w.WriteHeader(http.StatusConflict)
 			return
 		}
 	}
@@ -264,7 +298,8 @@ func (s *Server) createService(w http.ResponseWriter, r *http.Request) {
 	if req.DiscoveredID != "" {
 		disc := s.store.GetDiscoveredByID(req.DiscoveredID)
 		if disc == nil {
-			apiError(w, http.StatusNotFound, "discovered service not found")
+			errorTrigger(w, "discovered service not found")
+			w.WriteHeader(http.StatusNotFound)
 			return
 		}
 		scheme := "http"
@@ -282,7 +317,8 @@ func (s *Server) createService(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if target == "" {
-		apiError(w, http.StatusBadRequest, "target is required")
+		errorTrigger(w, "target is required")
+		w.WriteHeader(http.StatusBadRequest)
 		return
 	}
 	if name == "" {
@@ -357,7 +393,8 @@ func (s *Server) createService(w http.ResponseWriter, r *http.Request) {
 		}(svc.ID, svc.Target)
 	}
 
-	writeJSON(w, http.StatusCreated, svc)
+	toastTrigger(w, "Service added", "success", "refreshServicesTable", "refreshDiscovered")
+	w.WriteHeader(http.StatusNoContent)
 }
 
 type updateServiceRequest struct {
@@ -375,14 +412,40 @@ func (s *Server) updateService(w http.ResponseWriter, r *http.Request) {
 	id := r.PathValue("id")
 	svc := s.store.GetServiceByID(id)
 	if svc == nil {
-		apiError(w, http.StatusNotFound, "service not found")
+		errorTrigger(w, "service not found")
+		w.WriteHeader(http.StatusNotFound)
 		return
 	}
 
-	var req updateServiceRequest
-	if err := readJSON(r, &req); err != nil {
-		apiError(w, http.StatusBadRequest, "invalid JSON")
+	if err := r.ParseForm(); err != nil {
+		errorTrigger(w, "invalid form data")
+		w.WriteHeader(http.StatusBadRequest)
 		return
+	}
+	var req updateServiceRequest
+	req.Name = r.FormValue("name")
+	req.Subdomain = r.FormValue("subdomain")
+	req.Target = r.FormValue("target")
+	req.Category = r.FormValue("category")
+	// icon: present in form only when explicitly changed
+	if r.FormValue("icon_present") == "1" {
+		iconVal := r.FormValue("icon")
+		req.Icon = &iconVal
+	}
+	// tunnel checkbox: only meaningful when the form includes a tunnel_present hidden field
+	if r.FormValue("tunnel_present") == "1" {
+		v := r.FormValue("tunnel") == "on" || r.FormValue("tunnel") == "true"
+		req.Tunnel = &v
+	}
+	// skip_health checkbox: only meaningful when the form includes a skip_health_present hidden field
+	if r.FormValue("skip_health_present") == "1" {
+		v := r.FormValue("skip_health") == "on" || r.FormValue("skip_health") == "true"
+		req.SkipHealth = &v
+	}
+	// direct_only checkbox: only meaningful when the form includes a direct_only_present hidden field
+	if r.FormValue("direct_only_present") == "1" {
+		v := r.FormValue("direct_only") == "on" || r.FormValue("direct_only") == "true"
+		req.DirectOnly = &v
 	}
 
 	oldSub := svc.Subdomain
@@ -553,7 +616,8 @@ func (s *Server) updateService(w http.ResponseWriter, r *http.Request) {
 	if err := s.store.Save(); err != nil {
 		log.Printf("web: save: %v", err)
 	}
-	writeJSON(w, http.StatusOK, updated)
+	toastTrigger(w, "Service updated", "success", "refreshServicesTable")
+	w.WriteHeader(http.StatusNoContent)
 }
 
 func (s *Server) deleteService(w http.ResponseWriter, r *http.Request) {
@@ -610,7 +674,7 @@ func (s *Server) triggerScan(w http.ResponseWriter, r *http.Request) {
 	if s.scanner != nil {
 		s.scanner.ScanNow(r.Context())
 	}
-	writeJSON(w, http.StatusAccepted, map[string]string{"status": "scan started"})
+	renderTemplate(w, "status.html", s.buildStatusData())
 }
 
 type statusResponse struct {
@@ -681,37 +745,37 @@ func (s *Server) getTunnel(w http.ResponseWriter, r *http.Request) {
 
 func (s *Server) createTunnel(w http.ResponseWriter, r *http.Request) {
 	if s.tunnel == nil {
-		apiError(w, http.StatusServiceUnavailable, "tunnel manager not available")
+		errorTrigger(w, "tunnel manager not available")
+		w.WriteHeader(http.StatusServiceUnavailable)
 		return
 	}
 	if st := s.tunnel.Status(); st.TunnelID != "" {
-		apiError(w, http.StatusConflict, "tunnel already exists")
+		errorTrigger(w, "tunnel already exists")
+		w.WriteHeader(http.StatusConflict)
 		return
 	}
-	info, err := s.tunnel.Create(r.Context())
-	if err != nil {
+	if _, err := s.tunnel.Create(r.Context()); err != nil {
 		log.Printf("web: create tunnel: %v", err)
-		apiError(w, http.StatusInternalServerError, err.Error())
+		errorTrigger(w, err.Error())
+		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
-	writeJSON(w, http.StatusCreated, tunnel.TunnelStatus{
-		TunnelID:  info.TunnelID,
-		Running:   true,
-		CreatedAt: info.CreatedAt,
-	})
+	renderTemplate(w, "tunnel.html", s.buildTunnelFragData())
 }
 
 func (s *Server) deleteTunnel(w http.ResponseWriter, r *http.Request) {
 	if s.tunnel == nil {
-		apiError(w, http.StatusNotFound, "tunnel manager not available")
+		errorTrigger(w, "tunnel manager not available")
+		w.WriteHeader(http.StatusNotFound)
 		return
 	}
 	if err := s.tunnel.Delete(r.Context()); err != nil {
 		log.Printf("web: delete tunnel: %v", err)
-		apiError(w, http.StatusInternalServerError, err.Error())
+		errorTrigger(w, err.Error())
+		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
-	w.WriteHeader(http.StatusNoContent)
+	renderTemplate(w, "tunnel.html", s.buildTunnelFragData())
 }
 
 // ---- Scan subnets -----------------------------------------------------------
@@ -725,33 +789,40 @@ func (s *Server) listScanSubnets(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) addScanSubnet(w http.ResponseWriter, r *http.Request) {
-	var req struct {
-		CIDR string `json:"cidr"`
-	}
-	if err := readJSON(r, &req); err != nil || req.CIDR == "" {
-		apiError(w, http.StatusBadRequest, "cidr is required")
+	if err := r.ParseForm(); err != nil {
+		errorTrigger(w, "invalid form data")
+		w.WriteHeader(http.StatusBadRequest)
 		return
 	}
-	if _, _, err := net.ParseCIDR(req.CIDR); err != nil {
-		apiError(w, http.StatusBadRequest, "invalid CIDR notation")
+	cidr := strings.TrimSpace(r.FormValue("cidr"))
+	if cidr == "" {
+		errorTrigger(w, "cidr is required")
+		w.WriteHeader(http.StatusBadRequest)
 		return
 	}
-	s.store.AddScanSubnet(req.CIDR)
+	if _, _, err := net.ParseCIDR(cidr); err != nil {
+		errorTrigger(w, "invalid CIDR notation")
+		w.WriteHeader(http.StatusBadRequest)
+		return
+	}
+	s.store.AddScanSubnet(cidr)
 	if err := s.store.Save(); err != nil {
 		log.Printf("web: save: %v", err)
 	}
-	writeJSON(w, http.StatusCreated, map[string]string{"cidr": req.CIDR})
+	subnets := s.store.GetScanSubnets()
+	if subnets == nil {
+		subnets = []string{}
+	}
+	renderTemplate(w, "subnets.html", subnetsFragData{Subnets: subnets})
 }
 
 func (s *Server) removeScanSubnet(w http.ResponseWriter, r *http.Request) {
-	var req struct {
-		CIDR string `json:"cidr"`
-	}
-	if err := readJSON(r, &req); err != nil || req.CIDR == "" {
+	cidr := r.URL.Query().Get("cidr")
+	if cidr == "" {
 		apiError(w, http.StatusBadRequest, "cidr is required")
 		return
 	}
-	s.store.RemoveScanSubnet(req.CIDR)
+	s.store.RemoveScanSubnet(cidr)
 	if err := s.store.Save(); err != nil {
 		log.Printf("web: save: %v", err)
 	}
@@ -768,26 +839,32 @@ func (s *Server) listDDNS(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) addDDNS(w http.ResponseWriter, r *http.Request) {
-	var req struct {
-		Domain string `json:"domain"`
-	}
-	if err := readJSON(r, &req); err != nil || req.Domain == "" {
-		apiError(w, http.StatusBadRequest, "domain is required")
+	if err := r.ParseForm(); err != nil {
+		errorTrigger(w, "invalid form data")
+		w.WriteHeader(http.StatusBadRequest)
 		return
 	}
-	req.Domain = strings.ToLower(strings.TrimSpace(req.Domain))
-	s.store.AddDDNSDomain(req.Domain)
+	domain := strings.ToLower(strings.TrimSpace(r.FormValue("domain")))
+	if domain == "" {
+		errorTrigger(w, "domain is required")
+		w.WriteHeader(http.StatusBadRequest)
+		return
+	}
+	s.store.AddDDNSDomain(domain)
 
 	// Immediately create/update record if we know the public IP.
 	if ip := s.store.GetPublicIP(); ip != "" {
-		if _, err := s.cf.CreateRecord(r.Context(), req.Domain, ip); err != nil {
-			log.Printf("web: ddns create record %s: %v", req.Domain, err)
+		if _, err := s.cf.CreateRecord(r.Context(), domain, ip); err != nil {
+			log.Printf("web: ddns create record %s: %v", domain, err)
 		}
 	}
 	if err := s.store.Save(); err != nil {
 		log.Printf("web: save: %v", err)
 	}
-	writeJSON(w, http.StatusCreated, map[string]string{"domain": req.Domain})
+	renderTemplate(w, "ddns.html", ddnsFragData{
+		Domains:  s.store.GetDDNSDomains(),
+		PublicIP: s.store.GetPublicIP(),
+	})
 }
 
 func (s *Server) removeDDNS(w http.ResponseWriter, r *http.Request) {
@@ -880,7 +957,7 @@ func (s *Server) uploadServiceIcon(w http.ResponseWriter, r *http.Request) {
 	if err := s.store.Save(); err != nil {
 		log.Printf("web: save: %v", err)
 	}
-	writeJSON(w, http.StatusOK, &updated)
+	renderTemplate(w, "icon-preview.html", &updated)
 }
 
 func (s *Server) clearServiceIcon(w http.ResponseWriter, r *http.Request) {
@@ -896,7 +973,7 @@ func (s *Server) clearServiceIcon(w http.ResponseWriter, r *http.Request) {
 	if err := s.store.Save(); err != nil {
 		log.Printf("web: save: %v", err)
 	}
-	writeJSON(w, http.StatusOK, &updated)
+	renderTemplate(w, "icon-preview.html", &updated)
 }
 
 // ---- Service reorder --------------------------------------------------------
@@ -929,7 +1006,8 @@ func (s *Server) pullServiceFavicon(w http.ResponseWriter, r *http.Request) {
 	defer cancel()
 	icon := discovery.FetchFaviconForTarget(ctx, svc.Target)
 	if icon == "" {
-		apiError(w, http.StatusUnprocessableEntity, "no favicon found")
+		errorTrigger(w, "no favicon found")
+		w.WriteHeader(http.StatusUnprocessableEntity)
 		return
 	}
 	updated := *svc
@@ -938,7 +1016,7 @@ func (s *Server) pullServiceFavicon(w http.ResponseWriter, r *http.Request) {
 	if err := s.store.Save(); err != nil {
 		log.Printf("web: save: %v", err)
 	}
-	writeJSON(w, http.StatusOK, &updated)
+	renderTemplate(w, "icon-preview.html", &updated)
 }
 
 // ---- Ignore discovered ------------------------------------------------------
@@ -986,64 +1064,58 @@ func (s *Server) listBookmarks(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) createBookmark(w http.ResponseWriter, r *http.Request) {
-	var req struct {
-		Name     string `json:"name"`
-		URL      string `json:"url"`
-		Icon     string `json:"icon"`
-		Category string `json:"category"`
-	}
-	if err := readJSON(r, &req); err != nil {
-		apiError(w, http.StatusBadRequest, "invalid JSON")
+	if err := r.ParseForm(); err != nil {
+		errorTrigger(w, "invalid form data")
+		w.WriteHeader(http.StatusBadRequest)
 		return
 	}
-	if req.URL == "" {
-		apiError(w, http.StatusBadRequest, "url is required")
+	bmURL := r.FormValue("url")
+	if bmURL == "" {
+		errorTrigger(w, "url is required")
+		w.WriteHeader(http.StatusBadRequest)
 		return
 	}
-	if req.Name == "" {
-		req.Name = req.URL
+	name := r.FormValue("name")
+	if name == "" {
+		name = bmURL
 	}
 	bm := &store.Bookmark{
 		ID:       newID(),
-		Name:     req.Name,
-		URL:      req.URL,
-		Icon:     req.Icon,
-		Category: req.Category,
+		Name:     name,
+		URL:      bmURL,
+		Category: r.FormValue("category"),
 	}
 	s.store.AddBookmark(bm)
 	if err := s.store.Save(); err != nil {
 		log.Printf("web: save: %v", err)
 	}
-	writeJSON(w, http.StatusCreated, bm)
+	toastTrigger(w, "Bookmark added", "success", "refreshBookmarksTable")
+	w.WriteHeader(http.StatusNoContent)
 }
 
 func (s *Server) updateBookmark(w http.ResponseWriter, r *http.Request) {
 	id := r.PathValue("id")
-	var req struct {
-		Name     string `json:"name"`
-		URL      string `json:"url"`
-		Icon     string `json:"icon"`
-		Category string `json:"category"`
-	}
-	if err := readJSON(r, &req); err != nil {
-		apiError(w, http.StatusBadRequest, "invalid JSON")
+	if err := r.ParseForm(); err != nil {
+		errorTrigger(w, "invalid form data")
+		w.WriteHeader(http.StatusBadRequest)
 		return
 	}
 	updated := &store.Bookmark{
 		ID:       id,
-		Name:     req.Name,
-		URL:      req.URL,
-		Icon:     req.Icon,
-		Category: req.Category,
+		Name:     r.FormValue("name"),
+		URL:      r.FormValue("url"),
+		Category: r.FormValue("category"),
 	}
 	if !s.store.UpdateBookmark(id, updated) {
-		apiError(w, http.StatusNotFound, "bookmark not found")
+		errorTrigger(w, "bookmark not found")
+		w.WriteHeader(http.StatusNotFound)
 		return
 	}
 	if err := s.store.Save(); err != nil {
 		log.Printf("web: save: %v", err)
 	}
-	writeJSON(w, http.StatusOK, updated)
+	toastTrigger(w, "Bookmark updated", "success", "refreshBookmarksTable")
+	w.WriteHeader(http.StatusNoContent)
 }
 
 func (s *Server) deleteBookmark(w http.ResponseWriter, r *http.Request) {

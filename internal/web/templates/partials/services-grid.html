@@ -1,0 +1,49 @@
+{{if .IsEmpty}}
+<div class="empty-state">
+  <img src="/logo.png" class="logo-img-lg" alt="Lantern">
+  <h2>Welcome to Lantern</h2>
+  <p>No services assigned yet. Add services from the manage view.</p>
+  <a href="/manage" class="btn btn-primary">Get Started →</a>
+</div>
+{{else}}
+{{range .Groups}}
+<div class="category-group" data-cat="{{.Name}}"
+     x-data="{open: true}"
+     x-init="open = localStorage.getItem('cat:' + $root.getAttribute('data-cat')) !== '0'">
+  {{if .Name}}
+  <div class="category-header"
+       @click="open = !open; localStorage.setItem('cat:' + $root.getAttribute('data-cat'), open ? '1' : '0')">
+    <span class="category-arrow" x-text="open ? '▾' : '▸'">▾</span>
+    <span class="category-name">{{.Name}}</span>
+    <span class="category-count">{{len .Services}}</span>
+  </div>
+  {{end}}
+  <div class="grid" x-show="open">
+    {{range .Services}}
+    {{$h := healthStatus .ID $.Health}}
+    <a class="service-card" href="{{serviceURL .Subdomain $.Domain}}"
+       target="_blank" rel="noopener" data-name="{{.Name}}">
+      {{if $h}}<span class="health-dot {{$h}}"></span>{{end}}
+      {{iconEl .Icon .Target "card-icon"}}
+      <div class="card-name">{{.Name}}</div>
+      <div class="card-url">{{.Subdomain}}.{{$.Domain}}</div>
+      <div class="reorder-btns">
+        <button class="btn btn-ghost btn-sm reorder-btn"
+                hx-post="/api/services/{{.ID}}/move"
+                hx-vals='{"direction":"left"}'
+                hx-target="#services-grid"
+                hx-swap="innerHTML"
+                onclick="event.preventDefault(); event.stopPropagation()">←</button>
+        <button class="btn btn-ghost btn-sm reorder-btn"
+                hx-post="/api/services/{{.ID}}/move"
+                hx-vals='{"direction":"right"}'
+                hx-target="#services-grid"
+                hx-swap="innerHTML"
+                onclick="event.preventDefault(); event.stopPropagation()">→</button>
+      </div>
+    </a>
+    {{end}}
+  </div>
+</div>
+{{end}}
+{{end}}

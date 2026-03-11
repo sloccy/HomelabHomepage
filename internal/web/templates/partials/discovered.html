@@ -1,0 +1,37 @@
+{{if .}}
+{{range .}}
+<div class="disc-item">
+  <div style="flex-shrink:0">
+    {{if .Icon}}{{iconEl .Icon "" "card-icon"}}{{else}}<div class="card-icon-placeholder">🔍</div>{{end}}
+  </div>
+  <div class="disc-info">
+    <div class="disc-title">{{.Title}}</div>
+    <div class="disc-meta">
+      {{.IP}}:{{.Port}}
+      {{if .ServiceName}} · <strong>{{.ServiceName}}</strong>{{end}}
+      {{if .Confidence}} ({{confPct .Confidence}}%){{end}}
+      · <span class="{{tagClass .Source}}">{{.Source}}</span>
+      {{if .ContainerName}} · {{.ContainerName}}{{end}}
+    </div>
+  </div>
+  <div class="disc-actions">
+    <a href="http://{{.IP}}:{{.Port}}" target="_blank" rel="noopener"
+       class="btn btn-ghost btn-sm">↗</a>
+    <button class="btn btn-primary btn-sm"
+            hx-get="/fragments/assign-form/{{.ID}}"
+            hx-target="#modal-content">Assign</button>
+    <button class="btn btn-ghost btn-sm"
+            hx-post="/api/discovered/{{.ID}}/ignore"
+            hx-target="closest .disc-item"
+            hx-swap="delete"
+            hx-confirm="Ignore {{.IP}}:{{.Port}} permanently?">Ignore</button>
+    <button class="btn btn-ghost btn-sm"
+            hx-delete="/api/discovered/{{.ID}}"
+            hx-target="closest .disc-item"
+            hx-swap="delete">Dismiss</button>
+  </div>
+</div>
+{{end}}
+{{else}}
+<p class="empty-small">No discovered services.</p>
+{{end}}

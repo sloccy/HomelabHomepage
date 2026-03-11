@@ -1,0 +1,32 @@
+{{if .}}
+<div class="table-wrap">
+  <table>
+    <thead>
+      <tr><th>Name</th><th>URL</th><th>Category</th><th></th></tr>
+    </thead>
+    <tbody>
+      {{range .}}
+      <tr>
+        <td>{{.Name}}</td>
+        <td class="link-cell">
+          <a href="{{.URL}}" target="_blank" rel="noopener">{{.URL}}</a>
+        </td>
+        <td>{{if .Category}}{{.Category}}{{else}}—{{end}}</td>
+        <td class="actions">
+          <button class="btn btn-ghost btn-sm"
+                  hx-get="/fragments/bookmark-form/{{.ID}}"
+                  hx-target="#modal-content">Edit</button>
+          <button class="btn btn-danger btn-sm"
+                  hx-delete="/api/bookmarks/{{.ID}}"
+                  hx-target="closest tr"
+                  hx-swap="delete"
+                  hx-confirm="Delete {{.Name}}?">Delete</button>
+        </td>
+      </tr>
+      {{end}}
+    </tbody>
+  </table>
+</div>
+{{else}}
+<p class="empty-small">No bookmarks yet.</p>
+{{end}}

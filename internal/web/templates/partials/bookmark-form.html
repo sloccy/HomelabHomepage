@@ -1,0 +1,49 @@
+{{if .Bookmark}}
+<h3>Edit Bookmark</h3>
+<form hx-put="/api/bookmarks/{{.Bookmark.ID}}"
+      hx-swap="none">
+  <div class="form-group">
+    <label>Name</label>
+    <input name="name" value="{{.Bookmark.Name}}" placeholder="My Bookmark">
+  </div>
+  <div class="form-group">
+    <label>URL</label>
+    <input name="url" type="url" value="{{.Bookmark.URL}}" required placeholder="https://example.com">
+  </div>
+  <div class="form-group">
+    <label>Category</label>
+    <input name="category" value="{{.Bookmark.Category}}" list="categories-list" placeholder="Optional">
+    <datalist id="categories-list">
+      {{range .Categories}}<option value="{{.}}">{{end}}
+    </datalist>
+  </div>
+  <div class="form-actions">
+    <button type="button" class="btn btn-ghost" @click="modalOpen=false">Cancel</button>
+    <button type="submit" class="btn btn-primary">Save</button>
+  </div>
+</form>
+{{else}}
+<h3>Add Bookmark</h3>
+<form hx-post="/api/bookmarks"
+      hx-swap="none">
+  <div class="form-group">
+    <label>Name</label>
+    <input name="name" placeholder="My Bookmark">
+  </div>
+  <div class="form-group">
+    <label>URL</label>
+    <input name="url" type="url" required placeholder="https://example.com">
+  </div>
+  <div class="form-group">
+    <label>Category</label>
+    <input name="category" list="categories-list" placeholder="Optional">
+    <datalist id="categories-list">
+      {{range .Categories}}<option value="{{.}}">{{end}}
+    </datalist>
+  </div>
+  <div class="form-actions">
+    <button type="button" class="btn btn-ghost" @click="modalOpen=false">Cancel</button>
+    <button type="submit" class="btn btn-primary">Add Bookmark</button>
+  </div>
+</form>
+{{end}}

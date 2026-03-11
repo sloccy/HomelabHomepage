@@ -1,0 +1,35 @@
+{{if .Domains}}
+<div class="table-wrap">
+  <table>
+    <thead><tr><th>Domain</th><th>Points To</th><th></th></tr></thead>
+    <tbody>
+      {{range .Domains}}
+      <tr>
+        <td class="ddns-domain">{{.}}</td>
+        <td>{{$.PublicIP}}</td>
+        <td class="actions">
+          <button class="btn btn-danger btn-sm"
+                  hx-delete="/api/ddns/{{.}}"
+                  hx-target="closest tr"
+                  hx-swap="delete"
+                  hx-confirm="Remove {{.}}?">Remove</button>
+        </td>
+      </tr>
+      {{end}}
+    </tbody>
+  </table>
+</div>
+{{else}}
+<p class="empty-small">No DDNS domains configured.</p>
+{{end}}
+<div style="padding:.75rem 1.5rem;border-top:1px solid var(--border)">
+  <form hx-post="/api/ddns"
+        hx-target="#ddns-list"
+        hx-swap="innerHTML"
+        style="display:flex;gap:.5rem;align-items:center"
+        hx-on::after-request="if(event.detail.successful) this.reset()">
+    <input class="search-input" name="domain"
+           placeholder="home.example.com" style="max-width:250px" required>
+    <button class="btn btn-primary btn-sm" type="submit">+ Add</button>
+  </form>
+</div>

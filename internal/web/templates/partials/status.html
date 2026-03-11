@@ -1,0 +1,65 @@
+<div class="section-header">
+  <h2 class="section-title">Status</h2>
+  <button class="btn btn-primary"
+          {{if not .Scanning}}
+          hx-post="/api/scan"
+          hx-target="#status-section"
+          hx-swap="innerHTML"
+          {{end}}
+          {{if .Scanning}}disabled{{end}}>
+    {{if .Scanning}}⟳ Scanning…{{else}}⟳ Scan Now{{end}}
+  </button>
+</div>
+<div class="status-grid">
+  <div class="status-cell">
+    <div class="status-label">Status</div>
+    <div class="status-value {{if .Scanning}}scanning{{else}}ok{{end}}">
+      {{if .Scanning}}Scanning…{{else}}Ready{{end}}
+    </div>
+  </div>
+  <div class="status-cell">
+    <div class="status-label">Domain</div>
+    <div class="status-value">{{if .Domain}}{{.Domain}}{{else}}—{{end}}</div>
+  </div>
+  <div class="status-cell">
+    <div class="status-label">Public IP</div>
+    <div class="status-value">{{if .PublicIP}}{{.PublicIP}}{{else}}—{{end}}</div>
+  </div>
+  <div class="status-cell">
+    <div class="status-label">Server IP</div>
+    <div class="status-value">{{if .ServerIP}}{{.ServerIP}}{{else}}—{{end}}</div>
+  </div>
+  <div class="status-cell">
+    <div class="status-label">Last Scan</div>
+    <div class="status-value">{{fmtTime .LastScan}}</div>
+  </div>
+  <div class="status-cell">
+    <div class="status-label">Next Scan</div>
+    <div class="status-value">{{fmtTime .NextScan}}</div>
+  </div>
+  <div class="status-cell">
+    <div class="status-label">Scan Interval</div>
+    <div class="status-value">{{.ScanInterval}}</div>
+  </div>
+  {{if .TunnelID}}
+  <div class="status-cell">
+    <div class="status-label">Tunnel</div>
+    <div class="status-value {{if .TunnelRunning}}ok{{end}}">
+      {{.TunnelID}} {{if .TunnelRunning}}Running{{else}}Stopped{{end}}
+    </div>
+  </div>
+  {{end}}
+</div>
+{{if .Scanning}}
+<div class="scan-log"
+     hx-get="/fragments/status"
+     hx-trigger="every 1.5s"
+     hx-target="#status-section"
+     hx-swap="innerHTML">
+  {{range .ScanLog}}<div class="{{logClass .}}">{{.}}</div>{{end}}
+</div>
+{{else if .ScanLog}}
+<div class="scan-log">
+  {{range .ScanLog}}<div class="{{logClass .}}">{{.}}</div>{{end}}
+</div>
+{{end}}

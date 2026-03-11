@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Lantern – Manage</title>
+  <link rel="icon" type="image/png" href="/logo.png">
+  <link rel="stylesheet" href="/style.css">
+  <script src="https://cdn.jsdelivr.net/npm/htmx.org@2.0.4/dist/htmx.min.js"></script>
+  <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.14.8/dist/cdn.min.js"></script>
+</head>
+<body x-data="{modalOpen: false}"
+      @closeModal.window="modalOpen = false"
+      @openModal.window="modalOpen = true">
+
+<header class="header">
+  <div class="logo">
+    <img src="/logo.png" class="logo-img" alt="Lantern">
+    <span class="logo-text">Lantern</span>
+    <span class="badge">Manage</span>
+  </div>
+  <a href="/" class="btn btn-ghost">← Home</a>
+</header>
+
+<main class="manage-container">
+
+  <!-- Status -->
+  <section class="section" id="status-section"
+           hx-get="/fragments/status"
+           hx-trigger="load"
+           hx-swap="innerHTML"></section>
+
+  <!-- Tunnel (placeholder replaced by fragment or nothing) -->
+  <div id="tunnel-placeholder"
+       hx-get="/fragments/tunnel"
+       hx-trigger="load"
+       hx-swap="outerHTML"></div>
+
+  <!-- Scan Subnets -->
+  <section class="section">
+    <div class="section-header">
+      <h2 class="section-title">Scan Subnets</h2>
+    </div>
+    <p class="section-desc">Subnets to scan for services (CIDR notation, e.g.
+      <code>10.0.1.0/24</code>). If none are configured, the local /24 is auto-detected.</p>
+    <div id="subnets-list"
+         hx-get="/fragments/subnets"
+         hx-trigger="load"
+         hx-swap="innerHTML"></div>
+  </section>
+
+  <!-- Assigned Services -->
+  <section class="section">
+    <div class="section-header">
+      <h2 class="section-title">Services</h2>
+      <button class="btn btn-primary"
+              hx-get="/fragments/service-form"
+              hx-target="#modal-content">+ Add Service</button>
+    </div>
+    <div id="services-table"
+         hx-get="/fragments/services-table"
+         hx-trigger="load, refreshServicesTable from:body"
+         hx-swap="innerHTML"></div>
+  </section>
+
+  <!-- Bookmarks -->
+  <section class="section">
+    <div class="section-header">
+      <h2 class="section-title">Bookmarks</h2>
+      <button class="btn btn-primary"
+              hx-get="/fragments/bookmark-form"
+              hx-target="#modal-content">+ Add Bookmark</button>
+    </div>
+    <p class="section-desc">External links shown on the home view. No proxy or DNS — just shortcuts.</p>
+    <div id="bookmarks-table"
+         hx-get="/fragments/bookmarks-table"
+         hx-trigger="load, refreshBookmarksTable from:body"
+         hx-swap="innerHTML"></div>
+  </section>
+
+  <!-- Discovered -->
+  <section class="section" x-data="{ignoredOpen: false}">
+    <div class="section-header">
+      <h2 class="section-title">Discovered</h2>
+      <div style="display:flex;gap:.5rem;align-items:center">
+        <button class="btn btn-ghost btn-sm"
+                @click="ignoredOpen = !ignoredOpen"
+                x-text="ignoredOpen ? '✕ Close' : 'Ignored'">Ignored</button>
+      </div>
+    </div>
+    <p class="section-desc">Services found by network scan or Docker that haven't been assigned a subdomain.</p>
+    <div id="discovered-list"
+         hx-get="/fragments/discovered"
+         hx-trigger="load, refreshDiscovered from:body"
+         hx-swap="innerHTML"></div>
+    <!-- Ignored section — toggled by Alpine, content loaded eagerly on page load -->
+    <div id="ignored-section" x-show="ignoredOpen">
+      <div class="section-header" style="border-top:1px solid var(--border)">
+        <h2 class="section-title">Ignored Services</h2>
+        <button class="btn btn-ghost btn-sm" @click="ignoredOpen = false">✕ Close</button>
+      </div>
+      <p class="section-desc">These IP:port pairs are permanently suppressed from discovery results.</p>
+      <div hx-get="/fragments/ignored"
+           hx-trigger="load"
+           hx-swap="innerHTML"></div>
+    </div>
+  </section>
+
+  <!-- Dynamic DNS -->
+  <section class="section">
+    <div class="section-header">
+      <h2 class="section-title">Dynamic DNS</h2>
+    </div>
+    <p class="section-desc">These domains will automatically update to your current public IP address.</p>
+    <div id="ddns-list"
+         hx-get="/fragments/ddns"
+         hx-trigger="load"
+         hx-swap="innerHTML"></div>
+  </section>
+
+</main>
+
+<!-- Modal -->
+<div class="modal-backdrop" x-show="modalOpen" style="display:none"
+     @click.self="modalOpen = false">
+  <div class="modal" @keydown.escape.window="modalOpen = false">
+    <button class="modal-close" @click="modalOpen = false">✕</button>
+    <div id="modal-content"></div>
+  </div>
+</div>
+
+<!-- Toast -->
+<div x-data="{show:false, msg:'', type:'success', _t:null}"
+     @showToast.window="
+       clearTimeout(_t);
+       msg=event.detail.msg; type=event.detail.type||'success';
+       show=true; _t=setTimeout(()=>show=false, 3500)"
+     x-show="show" :class="'toast '+type" x-text="msg"
+     style="display:none"></div>
+
+<script src="/app.js"></script>
+</body>
+</html>

@@ -1,0 +1,24 @@
+{{if .}}
+<div class="table-wrap">
+  <table>
+    <thead><tr><th>IP:Port</th><th>Title</th><th>Ignored At</th><th></th></tr></thead>
+    <tbody>
+      {{range .}}
+      <tr>
+        <td><code>{{.IP}}:{{.Port}}</code></td>
+        <td>{{if .Title}}{{.Title}}{{else}}—{{end}}</td>
+        <td>{{fmtTime .IgnoredAt}}</td>
+        <td class="actions">
+          <button class="btn btn-ghost btn-sm"
+                  hx-delete="/api/ignored/{{.ID}}"
+                  hx-target="closest tr"
+                  hx-swap="delete">Un-ignore</button>
+        </td>
+      </tr>
+      {{end}}
+    </tbody>
+  </table>
+</div>
+{{else}}
+<p class="empty-small">No ignored services.</p>
+{{end}}

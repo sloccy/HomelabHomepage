@@ -1,0 +1,46 @@
+{{if .Services}}
+<div class="table-wrap">
+  <table>
+    <thead>
+      <tr>
+        <th class="td-icon"></th>
+        <th>Name</th>
+        <th>Subdomain</th>
+        <th>Target</th>
+        <th>Source</th>
+        <th></th>
+      </tr>
+    </thead>
+    <tbody>
+      {{range .Services}}
+      <tr>
+        <td class="td-icon">{{iconEl .Icon .Target "svc-icon"}}</td>
+        <td>{{.Name}}</td>
+        <td class="link-cell">
+          <a href="{{serviceURL .Subdomain $.Domain}}" target="_blank" rel="noopener">
+            {{.Subdomain}}.{{$.Domain}}
+          </a>
+        </td>
+        <td><code style="font-size:.8rem">{{.Target}}</code></td>
+        <td>
+          <span class="{{tagClass .Source}}">{{.Source}}</span>
+          {{if isTunneled .}}<span class="tag tag-tunnel">tunnel</span>{{end}}
+        </td>
+        <td class="actions">
+          <button class="btn btn-ghost btn-sm"
+                  hx-get="/fragments/service-form/{{.ID}}"
+                  hx-target="#modal-content">Edit</button>
+          <button class="btn btn-danger btn-sm"
+                  hx-delete="/api/services/{{.ID}}"
+                  hx-target="closest tr"
+                  hx-swap="delete"
+                  hx-confirm="Delete {{.Name}}?">Delete</button>
+        </td>
+      </tr>
+      {{end}}
+    </tbody>
+  </table>
+</div>
+{{else}}
+<p class="empty-small">No services assigned yet.</p>
+{{end}}
