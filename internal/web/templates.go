@@ -135,6 +135,15 @@ var funcMap = template.FuncMap{
 		return "https://" + subdomain + "." + domain
 	},
 
+	// cardURL returns the URL a service card should link to.
+	// DirectOnly services link straight to their target; others use subdomain.domain.
+	"cardURL": func(svc *store.Service, domain string) string {
+		if svc.DirectOnly {
+			return svc.Target
+		}
+		return "https://" + svc.Subdomain + "." + domain
+	},
+
 	// tagClass returns CSS classes for a source tag.
 	"tagClass": func(source string) string {
 		switch source {

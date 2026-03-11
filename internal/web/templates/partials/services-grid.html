@@ -21,12 +21,12 @@
   <div class="grid" x-show="open">
     {{range .Services}}
     {{$h := healthStatus .ID $.Health}}
-    <a class="service-card" href="{{serviceURL .Subdomain $.Domain}}"
+    <a class="service-card" href="{{cardURL . $.Domain}}"
        target="_blank" rel="noopener" data-name="{{.Name}}">
       {{if $h}}<span class="health-dot {{$h}}"></span>{{end}}
       {{iconEl .Icon .Target "card-icon"}}
       <div class="card-name">{{.Name}}</div>
-      <div class="card-url">{{.Subdomain}}.{{$.Domain}}</div>
+      <div class="card-url">{{if .DirectOnly}}{{.Target}}{{else}}{{.Subdomain}}.{{$.Domain}}{{end}}</div>
       <div class="reorder-btns">
         <button class="btn btn-ghost btn-sm reorder-btn"
                 hx-post="/api/services/{{.ID}}/move"
