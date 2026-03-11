@@ -6,142 +6,67 @@
   <title>Lantern</title>
   <link rel="icon" type="image/png" href="/logo.png">
   <link rel="stylesheet" href="/style.css">
+  <script src="https://cdn.jsdelivr.net/npm/htmx.org@2.0.4/dist/htmx.min.js"></script>
+  <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.14.8/dist/cdn.min.js"></script>
 </head>
-<body>
+<body x-data="{modalOpen: false}"
+      @closeModal.window="modalOpen = false"
+      @openModal.window="modalOpen = true">
 
-<!-- ═══════════════════════════════════════ HOME VIEW ══ -->
-<div id="view-home" class="view">
-  <header class="header">
-    <div class="logo">
-      <img src="/logo.png" class="logo-img" alt="Lantern">
-      <span class="logo-text">Lantern</span>
-    </div>
-    <input id="search-input" class="search-input" type="search" placeholder="Search… ( / )">
-    <div class="header-right">
-      <span id="header-clock" class="header-clock"></span>
-      <button class="btn btn-ghost" onclick="showView('manage')">⚙ Manage</button>
-    </div>
-  </header>
-  <div id="sysinfo-bar" class="sysinfo-bar" style="display:none"></div>
-  <main id="services-grid" class="grid-root"></main>
-  <div id="bookmarks-home" class="grid-root bookmarks-home" style="display:none">
-    <div class="bookmarks-divider">Bookmarks</div>
-    <div id="bookmarks-grid"></div>
+<header class="header">
+  <div class="logo">
+    <img src="/logo.png" class="logo-img" alt="Lantern">
+    <span class="logo-text">Lantern</span>
   </div>
-  <div id="home-empty" class="empty-state" style="display:none">
-    <img src="/logo.png" class="logo-img-lg" alt="Lantern">
-    <h2>Welcome to Lantern</h2>
-    <p>No services assigned yet. Add services from the manage view.</p>
-    <button class="btn btn-primary" onclick="showView('manage')">Get Started →</button>
+  <input id="search-input" class="search-input" type="search"
+         placeholder="Search… ( / )" autocomplete="off">
+  <div class="header-right">
+    <span id="header-clock" class="header-clock"
+          x-data="{
+            t: '',
+            init() { this.tick(); setInterval(() => this.tick(), 1000); },
+            tick() {
+              const d = new Date();
+              this.t = d.toLocaleDateString('en',{weekday:'short',day:'numeric',month:'short'})
+                     + '\u2002' + d.toLocaleTimeString('en-GB');
+            }
+          }" x-text="t"></span>
+    <a href="/manage" class="btn btn-ghost">⚙ Manage</a>
   </div>
-</div>
+</header>
 
-<!-- ════════════════════════════════════ MANAGE VIEW ══ -->
-<div id="view-manage" class="view" style="display:none">
-  <header class="header">
-    <div class="logo">
-      <img src="/logo.png" class="logo-img" alt="Lantern">
-      <span class="logo-text">Lantern</span>
-      <span class="badge">Manage</span>
-    </div>
-    <button class="btn btn-ghost" onclick="showView('home')">← Home</button>
-  </header>
+<div id="sysinfo-wrapper"
+     hx-get="/fragments/sysinfo"
+     hx-trigger="load, every 5s"
+     hx-swap="innerHTML"></div>
 
-  <main class="manage-container">
+<main id="services-grid" class="grid-root"
+      hx-get="/fragments/services"
+      hx-trigger="load"
+      hx-swap="innerHTML"></main>
 
-    <!-- Status -->
-    <section class="section">
-      <div class="section-header">
-        <h2 class="section-title">Status</h2>
-        <button class="btn btn-primary" id="scan-btn" onclick="triggerScan()">⟳ Scan Now</button>
-      </div>
-      <div id="status-grid" class="status-grid"></div>
-      <div id="scan-log" class="scan-log" style="display:none"></div>
-    </section>
+<div id="bookmarks-home"
+     hx-get="/fragments/bookmarks"
+     hx-trigger="load"
+     hx-swap="innerHTML"></div>
 
-    <!-- Cloudflare Tunnel -->
-    <section class="section" id="tunnel-section" style="display:none">
-      <div class="section-header">
-        <h2 class="section-title">Cloudflare Tunnel</h2>
-      </div>
-      <p class="section-desc">Create a Cloudflare Tunnel managed by Lantern. The tunnel runs as a subprocess and restarts automatically. Individual services can be routed through it via the tunnel checkbox.</p>
-      <div id="tunnel-content"></div>
-    </section>
-
-    <!-- Scan Subnets -->
-    <section class="section">
-      <div class="section-header">
-        <h2 class="section-title">Scan Subnets</h2>
-        <button class="btn btn-primary" onclick="showAddSubnetModal()">+ Add Subnet</button>
-      </div>
-      <p class="section-desc">Subnets to scan for services (CIDR notation, e.g. <code>10.0.1.0/24</code>). If none are configured, the local /24 is auto-detected.</p>
-      <div id="subnets-list"></div>
-    </section>
-
-    <!-- Assigned Services -->
-    <section class="section">
-      <div class="section-header">
-        <h2 class="section-title">Services</h2>
-        <button class="btn btn-primary" onclick="showAddManualModal()">+ Add Service</button>
-      </div>
-      <div id="services-list"></div>
-    </section>
-
-    <!-- Bookmarks -->
-    <section class="section">
-      <div class="section-header">
-        <h2 class="section-title">Bookmarks</h2>
-        <button class="btn btn-primary" onclick="showAddBookmarkModal()">+ Add Bookmark</button>
-      </div>
-      <p class="section-desc">External links shown on the home view. No proxy or DNS — just shortcuts.</p>
-      <div id="bookmarks-list"></div>
-    </section>
-
-    <!-- Discovered -->
-    <section class="section">
-      <div class="section-header">
-        <h2 class="section-title">Discovered</h2>
-        <div style="display:flex;gap:.5rem;align-items:center">
-          <span id="discovered-count" class="count-badge"></span>
-          <button class="btn btn-ghost btn-sm" onclick="toggleIgnored()">Ignored</button>
-        </div>
-      </div>
-      <p class="section-desc">Services found by network scan or Docker that haven't been assigned a subdomain.</p>
-      <div id="discovered-list"></div>
-    </section>
-
-    <!-- Ignored -->
-    <section class="section" id="ignored-section" style="display:none">
-      <div class="section-header">
-        <h2 class="section-title">Ignored Services</h2>
-        <button class="btn btn-ghost btn-sm" onclick="toggleIgnored()">✕ Close</button>
-      </div>
-      <p class="section-desc">These IP:port pairs are permanently suppressed from discovery results. Un-ignore to allow them to reappear.</p>
-      <div id="ignored-list"></div>
-    </section>
-
-<!-- Dynamic DNS -->
-    <section class="section">
-      <div class="section-header">
-        <h2 class="section-title">Dynamic DNS</h2>
-        <button class="btn btn-primary" onclick="showAddDDNSModal()">+ Add Domain</button>
-      </div>
-      <p class="section-desc">These domains will automatically update to your current public IP address.</p>
-      <div id="ddns-list"></div>
-    </section>
-
-  </main>
-</div>
-
-<!-- ══════════════════════════════════════════ MODAL ══ -->
-<div id="modal-backdrop" class="modal-backdrop" style="display:none" onclick="closeModal()">
-  <div class="modal" onclick="event.stopPropagation()">
-    <button class="modal-close" onclick="closeModal()">✕</button>
+<!-- Modal -->
+<div class="modal-backdrop" x-show="modalOpen" style="display:none"
+     @click.self="modalOpen = false">
+  <div class="modal" @keydown.escape.window="modalOpen = false">
+    <button class="modal-close" @click="modalOpen = false">✕</button>
     <div id="modal-content"></div>
   </div>
 </div>
 
-<div id="toast" class="toast" style="display:none"></div>
+<!-- Toast -->
+<div x-data="{show:false, msg:'', type:'success', _t:null}"
+     @showToast.window="
+       clearTimeout(_t);
+       msg=event.detail.msg; type=event.detail.type||'success';
+       show=true; _t=setTimeout(()=>show=false, 3500)"
+     x-show="show" :class="'toast '+type" x-text="msg"
+     style="display:none"></div>
 
 <script src="/app.js"></script>
 </body>

@@ -1,0 +1,29 @@
+{{if .Groups}}
+<div class="grid-root bookmarks-home">
+  <div class="bookmarks-divider">Bookmarks</div>
+  {{range .Groups}}
+  <div class="category-group" data-cat="{{.Name}}"
+       x-data="{open: true}"
+       x-init="open = localStorage.getItem('bcat:' + $root.getAttribute('data-cat')) !== '0'">
+    {{if .Name}}
+    <div class="category-header"
+         @click="open = !open; localStorage.setItem('bcat:' + $root.getAttribute('data-cat'), open ? '1' : '0')">
+      <span class="category-arrow" x-text="open ? '▾' : '▸'">▾</span>
+      <span class="category-name">{{.Name}}</span>
+      <span class="category-count">{{len .Bookmarks}}</span>
+    </div>
+    {{end}}
+    <div class="grid" x-show="open">
+      {{range .Bookmarks}}
+      <a class="bookmark-card service-card" href="{{.URL}}"
+         target="_blank" rel="noopener" data-name="{{.Name}}">
+        {{iconEl .Icon .URL "card-icon"}}
+        <div class="card-name">{{.Name}}</div>
+        <div class="card-url">{{.URL}}</div>
+      </a>
+      {{end}}
+    </div>
+  </div>
+  {{end}}
+</div>
+{{end}}

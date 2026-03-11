@@ -1,0 +1,47 @@
+{{if .Available}}
+<section class="section" id="tunnel-section">
+  <div class="section-header">
+    <h2 class="section-title">Cloudflare Tunnel</h2>
+  </div>
+  <p class="section-desc">Create a Cloudflare Tunnel managed by Lantern. The tunnel runs as a subprocess and restarts automatically. Individual services can be routed through it via the tunnel checkbox.</p>
+  {{if .Status.TunnelID}}
+  <div style="padding:1rem 1.5rem;display:flex;flex-direction:column;gap:.75rem">
+    <div>
+      <span class="status-label">Tunnel ID</span>
+      <span class="status-value" style="display:inline;margin-left:.5rem">{{.Status.TunnelID}}</span>
+    </div>
+    <div>
+      <span class="status-label">Status</span>
+      <span class="status-value {{if .Status.Running}}ok{{end}}" style="display:inline;margin-left:.5rem">
+        {{if .Status.Running}}Running{{else}}Stopped{{end}}
+      </span>
+    </div>
+    {{if not .Status.CreatedAt.IsZero}}
+    <div>
+      <span class="status-label">Created</span>
+      <span style="margin-left:.5rem">{{fmtTime .Status.CreatedAt}}</span>
+    </div>
+    {{end}}
+    <div>
+      <button class="btn btn-danger btn-sm"
+              hx-delete="/api/tunnel"
+              hx-target="#tunnel-section"
+              hx-swap="outerHTML"
+              hx-confirm="Delete this tunnel? This will remove it from Cloudflare.">
+        Delete Tunnel
+      </button>
+    </div>
+  </div>
+  {{else}}
+  <div style="padding:1rem 1.5rem">
+    <button class="btn btn-primary"
+            hx-post="/api/tunnel"
+            hx-target="#tunnel-section"
+            hx-swap="outerHTML"
+            hx-confirm="Create a new Cloudflare tunnel?">
+      Create Tunnel
+    </button>
+  </div>
+  {{end}}
+</section>
+{{end}}

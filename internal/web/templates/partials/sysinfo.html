@@ -1,0 +1,7 @@
+<div class="sysinfo-bar">
+  <span class="sysinfo-label">CPU</span>{{printf "%.0f" .CPUPercent}}%
+  <span class="sysinfo-sep">|</span>
+  <span class="sysinfo-label">RAM</span>{{fmtMem .MemUsedMB}} / {{fmtMem .MemTotalMB}}
+  <span class="sysinfo-sep">|</span>
+  <span class="sysinfo-label">Disk</span>{{.DiskUsedGB}} / {{.DiskTotalGB}} GB
+</div>
