@@ -87,7 +87,7 @@ func hxTrigger(w http.ResponseWriter, kvs ...any) {
 // toastTrigger writes HX-Trigger headers that close the modal and show a toast.
 func toastTrigger(w http.ResponseWriter, msg, typ string, extraEvents ...string) {
 	var sb strings.Builder
-	sb.WriteString(fmt.Sprintf(`{"closeModal":null,"showToast":{"msg":%q,"type":%q}`, msg, typ))
+	sb.WriteString(fmt.Sprintf(`{"closeModal":null,"showtoast":{"msg":%q,"type":%q}`, msg, typ))
 	for _, ev := range extraEvents {
 		sb.WriteString(fmt.Sprintf(`,%q:null`, ev))
 	}
@@ -97,7 +97,7 @@ func toastTrigger(w http.ResponseWriter, msg, typ string, extraEvents ...string)
 
 // errorTrigger writes HX-Trigger for an error toast (no modal close).
 func errorTrigger(w http.ResponseWriter, msg string) {
-	w.Header().Set("HX-Trigger", fmt.Sprintf(`{"showToast":{"msg":%q,"type":"error"}}`, msg))
+	w.Header().Set("HX-Trigger", fmt.Sprintf(`{"showtoast":{"msg":%q,"type":"error"}}`, msg))
 }
 
 // ---- Template function map --------------------------------------------------
