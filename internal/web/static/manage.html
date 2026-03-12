@@ -7,6 +7,48 @@
   <link rel="icon" type="image/png" href="/logo.png">
   <link rel="stylesheet" href="/style.css">
   <script src="https://cdn.jsdelivr.net/npm/htmx.org@2.0.4/dist/htmx.min.js"></script>
+
+  <!-- Alpine diagnostic: intercept window.addEventListener BEFORE Alpine loads -->
+  <script>
+  (function() {
+    const _wadd = window.addEventListener.bind(window);
+    window.addEventListener = function(type, listener, options) {
+      console.log('[ALPINE-DIAG] window.addEventListener:', type,
+                  '| listener src:', listener.toString().slice(0, 80));
+      return _wadd(type, listener, options);
+    };
+
+    // Restore after Alpine has had a chance to bind (500ms should be plenty)
+    document.addEventListener('alpine:initialized', function() {
+      window.addEventListener = _wadd;
+      console.log('[ALPINE-DIAG] alpine:initialized — listener intercept removed');
+
+      // Inspect body x-data state via Alpine's internal data stack
+      const body = document.body;
+      const stack = body._x_dataStack;
+      console.log('[ALPINE-DIAG] body._x_dataStack:', stack);
+
+      // Test: dispatch openModal and see if any listener fires
+      console.log('[ALPINE-DIAG] dispatching test openModal event to window...');
+      let caught = false;
+      const testFn = () => { caught = true; };
+      _wadd('openModal', testFn, {once: true});
+      window.dispatchEvent(new CustomEvent('openModal'));
+      console.log('[ALPINE-DIAG] test openModal caught by raw listener:', caught);
+
+      // Test: dispatch showToast (same pattern, known to work via Alpine)
+      console.log('[ALPINE-DIAG] dispatching test showToast event to window...');
+      window.dispatchEvent(new CustomEvent('showToast', {
+        detail: { msg: 'Alpine diag test — ignore me', type: 'success' }
+      }));
+    });
+
+    document.addEventListener('alpine:init', function() {
+      console.log('[ALPINE-DIAG] alpine:init fired');
+    });
+  })();
+  </script>
+
   <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.14.8/dist/cdn.min.js"></script>
 </head>
 <body x-data>
