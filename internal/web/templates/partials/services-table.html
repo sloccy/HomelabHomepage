@@ -26,15 +26,17 @@
           <span class="{{tagClass .Source}}">{{.Source}}</span>
           {{if isTunneled .}}<span class="tag tag-tunnel">tunnel</span>{{end}}
         </td>
-        <td class="actions">
-          <button class="btn btn-ghost btn-sm"
-                  hx-get="/fragments/service-form/{{.ID}}"
-                  hx-target="#modal-content">Edit</button>
-          <button class="btn btn-danger btn-sm"
-                  hx-delete="/api/services/{{.ID}}"
-                  hx-target="closest tr"
-                  hx-swap="delete"
-                  hx-confirm="Delete {{.Name}}?">Delete</button>
+        <td>
+          <div class="actions">
+            <button class="btn btn-ghost btn-sm"
+                    hx-get="/fragments/service-form/{{.ID}}"
+                    hx-target="#modal-content">Edit</button>
+            <button class="btn btn-danger btn-sm"
+                    hx-delete="/api/services/{{.ID}}"
+                    hx-target="closest tr"
+                    hx-swap="delete"
+                    hx-confirm="Delete {{.Name}}?">Delete</button>
+          </div>
         </td>
       </tr>
       {{end}}
