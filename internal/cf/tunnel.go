@@ -3,6 +3,7 @@ package cf
 import (
 	"context"
 	"fmt"
+	"log"
 	"net/http"
 )
 
@@ -21,14 +22,9 @@ type tunnelConfigResult struct {
 	Config tunnelConfig `json:"config"`
 }
 
-// tunnelEnabled reports whether tunnel management is fully configured.
-func (c *Client) tunnelEnabled() bool {
-	return !c.noop && c.tunnelID != "" && c.accountID != ""
-}
-
 // TunnelEnabled reports whether Cloudflare Tunnel management is active.
 func (c *Client) TunnelEnabled() bool {
-	return c.tunnelEnabled()
+	return !c.noop && c.tunnelID != "" && c.accountID != ""
 }
 
 // TunnelAvailable reports whether tunnel creation is possible (account configured),
@@ -41,7 +37,7 @@ func (c *Client) TunnelAvailable() bool {
 // corresponding CNAME DNS record pointing to the tunnel endpoint.
 // Returns the CNAME DNS record ID for later cleanup.
 func (c *Client) AddTunnelRoute(ctx context.Context, hostname, backend string) (cnameID string, err error) {
-	if !c.tunnelEnabled() {
+	if !c.TunnelEnabled() {
 		return "", nil
 	}
 	if err := c.modifyIngress(ctx, func(rules []ingressRule) []ingressRule {
@@ -64,7 +60,7 @@ func (c *Client) AddTunnelRoute(ctx context.Context, hostname, backend string) (
 // RemoveTunnelRoute removes the hostname ingress rule from the tunnel and
 // deletes its CNAME DNS record.
 func (c *Client) RemoveTunnelRoute(ctx context.Context, hostname, cnameID string) error {
-	if !c.tunnelEnabled() {
+	if !c.TunnelEnabled() {
 		return nil
 	}
 	if err := c.modifyIngress(ctx, func(rules []ingressRule) []ingressRule {
@@ -90,7 +86,7 @@ func (c *Client) RemoveTunnelRoute(ctx context.Context, hostname, cnameID string
 // in a single ingress update, then swaps the CNAME DNS record.
 // Returns the new CNAME record ID.
 func (c *Client) ReplaceTunnelRoute(ctx context.Context, oldHostname, newHostname, backend, oldCNAMEID string) (newCNAMEID string, err error) {
-	if !c.tunnelEnabled() {
+	if !c.TunnelEnabled() {
 		return "", nil
 	}
 	if err := c.modifyIngress(ctx, func(rules []ingressRule) []ingressRule {
@@ -107,7 +103,7 @@ func (c *Client) ReplaceTunnelRoute(ctx context.Context, oldHostname, newHostnam
 	if oldCNAMEID != "" {
 		if err := c.DeleteRecord(ctx, oldCNAMEID); err != nil {
 			// Log-only: new CNAME creation is more important.
-			_ = fmt.Errorf("delete old CNAME %s: %w", oldHostname, err)
+			log.Printf("cf: delete old CNAME %s: %v", oldHostname, err)
 		}
 	}
 	newCNAMEID, err = c.createCNAME(ctx, newHostname)

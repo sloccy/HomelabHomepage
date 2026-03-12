@@ -218,14 +218,18 @@ func (s *Server) checkHealth() {
 	s.healthMu.Unlock()
 }
 
-func (s *Server) getHealth(w http.ResponseWriter, r *http.Request) {
+func (s *Server) healthSnapshot() map[string]string {
 	s.healthMu.RLock()
 	out := make(map[string]string, len(s.health))
 	for k, v := range s.health {
 		out[k] = v
 	}
 	s.healthMu.RUnlock()
-	writeJSON(w, http.StatusOK, out)
+	return out
+}
+
+func (s *Server) getHealth(w http.ResponseWriter, r *http.Request) {
+	writeJSON(w, http.StatusOK, s.healthSnapshot())
 }
 
 // ---- Helpers ----------------------------------------------------------------
@@ -693,39 +697,7 @@ type statusResponse struct {
 }
 
 func (s *Server) getStatus(w http.ResponseWriter, r *http.Request) {
-	var scanning bool
-	var last, next time.Time
-	var scanLog []string
-	if s.scanner != nil {
-		scanning, last, next = s.scanner.Status()
-		scanLog = s.scanner.ScanLog()
-	}
-	tunnelID := ""
-	tunnelRunning := false
-	if s.tunnel != nil {
-		st := s.tunnel.Status()
-		tunnelRunning = st.Running
-		if st.TunnelID != "" && len(st.TunnelID) >= 8 {
-			tunnelID = st.TunnelID[:8] + "…"
-		}
-	} else if s.cf.TunnelEnabled() && len(s.cfg.CFTunnelID) >= 8 {
-		// Fallback: externally-managed tunnel via env var (no manager).
-		tunnelID = s.cfg.CFTunnelID[:8] + "…"
-	}
-	writeJSON(w, http.StatusOK, statusResponse{
-		Scanning:      scanning,
-		LastScan:      last,
-		NextScan:      next,
-		ScanInterval:  s.cfg.ScanInterval.String(),
-		PublicIP:      s.store.GetPublicIP(),
-		Domain:        s.cfg.Domain,
-		ServerIP:      s.cfg.ServerIP,
-		TunnelAvailable: s.cf.TunnelAvailable(),
-		TunnelEnabled: s.cf.TunnelEnabled(),
-		TunnelID:      tunnelID,
-		TunnelRunning: tunnelRunning,
-		ScanLog:       scanLog,
-	})
+	writeJSON(w, http.StatusOK, s.buildStatusData())
 }
 
 // ---- Tunnel -----------------------------------------------------------------
@@ -781,11 +753,7 @@ func (s *Server) deleteTunnel(w http.ResponseWriter, r *http.Request) {
 // ---- Scan subnets -----------------------------------------------------------
 
 func (s *Server) listScanSubnets(w http.ResponseWriter, r *http.Request) {
-	subnets := s.store.GetScanSubnets()
-	if subnets == nil {
-		subnets = []string{}
-	}
-	writeJSON(w, http.StatusOK, subnets)
+	writeJSON(w, http.StatusOK, s.store.GetScanSubnets())
 }
 
 func (s *Server) addScanSubnet(w http.ResponseWriter, r *http.Request) {
@@ -809,11 +777,7 @@ func (s *Server) addScanSubnet(w http.ResponseWriter, r *http.Request) {
 	if err := s.store.Save(); err != nil {
 		log.Printf("web: save: %v", err)
 	}
-	subnets := s.store.GetScanSubnets()
-	if subnets == nil {
-		subnets = []string{}
-	}
-	renderTemplate(w, "subnets.html", subnetsFragData{Subnets: subnets})
+	renderTemplate(w, "subnets.html", subnetsFragData{Subnets: s.store.GetScanSubnets()})
 }
 
 func (s *Server) removeScanSubnet(w http.ResponseWriter, r *http.Request) {

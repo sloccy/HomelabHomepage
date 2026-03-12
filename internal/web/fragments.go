@@ -10,20 +10,12 @@ import (
 
 	"lantern/internal/store"
 	"lantern/internal/sysinfo"
-	"lantern/internal/tunnel"
 )
 
 // ---- Fragment handlers (GET /fragments/*) -----------------------------------
 
 func (s *Server) fragServicesGrid(w http.ResponseWriter, r *http.Request) {
-	services := s.store.GetAllServices()
-	s.healthMu.RLock()
-	health := make(map[string]string, len(s.health))
-	for k, v := range s.health {
-		health[k] = v
-	}
-	s.healthMu.RUnlock()
-	renderTemplate(w, "services-grid.html", buildServicesGrid(services, s.cfg.Domain, health))
+	renderTemplate(w, "services-grid.html", buildServicesGrid(s.store.GetAllServices(), s.cfg.Domain, s.healthSnapshot()))
 }
 
 func (s *Server) fragBookmarksGrid(w http.ResponseWriter, r *http.Request) {
@@ -169,7 +161,7 @@ func (s *Server) fragDDNS(w http.ResponseWriter, r *http.Request) {
 
 // ---- Data helpers -----------------------------------------------------------
 
-func (s *Server) buildStatusData() statusFragData {
+func (s *Server) buildStatusData() statusResponse {
 	var scanning bool
 	var last, next time.Time
 	var scanLog []string
@@ -188,7 +180,7 @@ func (s *Server) buildStatusData() statusFragData {
 	} else if s.cf.TunnelEnabled() && len(s.cfg.CFTunnelID) >= 8 {
 		tunnelID = s.cfg.CFTunnelID[:8] + "…"
 	}
-	return statusFragData{statusResponse{
+	return statusResponse{
 		Scanning:        scanning,
 		LastScan:        last,
 		NextScan:        next,
@@ -201,7 +193,7 @@ func (s *Server) buildStatusData() statusFragData {
 		TunnelID:        tunnelID,
 		TunnelRunning:   tunnelRunning,
 		ScanLog:         scanLog,
-	}}
+	}
 }
 
 func (s *Server) buildTunnelFragData() tunnelFragData {
@@ -276,5 +268,3 @@ func findBookmarkByID(bms []*store.Bookmark, id string) *store.Bookmark {
 	return nil
 }
 
-// Compile-time assertion that TunnelStatus is used (avoids blank import).
-var _ tunnel.TunnelStatus

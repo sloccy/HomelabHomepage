@@ -246,11 +246,6 @@ type bookmarksGridData struct {
 	Groups []bookmarkGroup
 }
 
-// statusFragData embeds statusResponse and adds template-specific fields.
-type statusFragData struct {
-	statusResponse
-}
-
 type tunnelFragData struct {
 	Status    tunnel.TunnelStatus
 	Available bool

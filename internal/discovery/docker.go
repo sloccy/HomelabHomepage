@@ -372,25 +372,6 @@ func (d *Discoverer) addDockerDiscovered(id, name, target, suggestedSub string) 
 	}(disc.ID, target)
 }
 
-func (d *Discoverer) removeContainer(ctx context.Context, id string) {
-	if svc := d.store.GetServiceByContainerID(id); svc != nil {
-		_, dnsID, tunnelRoute := d.store.DeleteService(svc.ID)
-		if tunnelRoute != "" {
-			if err := d.cf.RemoveTunnelRoute(ctx, tunnelRoute, dnsID); err != nil {
-				log.Printf("discovery: remove tunnel route for %s: %v", svc.Subdomain, err)
-			}
-		} else if dnsID != "" {
-			if err := d.cf.DeleteRecord(ctx, dnsID); err != nil {
-				log.Printf("discovery: delete DNS for %s: %v", svc.Subdomain, err)
-			}
-		}
-		_ = d.store.Save()
-		log.Printf("discovery: removed container service %q", svc.Name)
-		return
-	}
-	d.store.RemoveDiscoveredByContainerID(id)
-	_ = d.store.Save()
-}
 
 // ── Traefik label helpers ─────────────────────────────────────────────────────
 

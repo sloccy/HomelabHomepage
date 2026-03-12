@@ -458,7 +458,7 @@ func tcpSweep(ctx context.Context, ips []string, ports []int, logf func(string, 
 					logf("[TCP] Context cancelled — stopping workers")
 					return
 				}
-				addr := fmt.Sprintf("%s:%d", j.ip, j.port)
+				addr := net.JoinHostPort(j.ip, strconv.Itoa(j.port))
 				conn, err := net.DialTimeout("tcp", addr, timeout)
 				if err == nil {
 					conn.Close()
