@@ -36,13 +36,6 @@
 
   <div x-data="{direct: {{if .Service.DirectOnly}}true{{else}}false{{end}}}">
     <input type="hidden" name="direct_only_present" value="1">
-    <div class="form-group">
-      <label style="display:flex;align-items:center;gap:.5rem;cursor:pointer">
-        <input type="checkbox" name="direct_only" x-model="direct"
-               {{if .Service.DirectOnly}}checked{{end}}>
-        Direct link (no subdomain or DNS)
-      </label>
-    </div>
     <div class="form-group" x-show="!direct">
       <label>Subdomain</label>
       <div x-data="{sub: '{{.Service.Subdomain}}'}" style="position:relative">
@@ -54,30 +47,31 @@
       <label>Target URL</label>
       <input name="target" value="{{.Service.Target}}" placeholder="http://10.0.0.5:8080" required>
     </div>
-  </div>
-
-  <div class="form-group">
-    <label>Category</label>
-    <input name="category" value="{{.Service.Category}}" list="categories-list" placeholder="Optional">
-    <datalist id="categories-list">
-      {{range .Categories}}<option value="{{.}}">{{end}}
-    </datalist>
-  </div>
-  <input type="hidden" name="tunnel_present" value="1">
-  {{if .TunnelEnabled}}
-  <div class="form-group">
-    <label style="display:flex;align-items:center;gap:.5rem;cursor:pointer">
-      <input type="checkbox" name="tunnel" {{if isTunneled .Service}}checked{{end}}>
-      Route via Cloudflare Tunnel
-    </label>
-  </div>
-  {{end}}
-  <input type="hidden" name="skip_health_present" value="1">
-  <div class="form-group">
-    <label style="display:flex;align-items:center;gap:.5rem;cursor:pointer">
-      <input type="checkbox" name="skip_health" {{if .Service.SkipHealth}}checked{{end}}>
-      Skip health check
-    </label>
+    <div class="form-group">
+      <label>Category</label>
+      <input name="category" value="{{.Service.Category}}" list="categories-list" placeholder="Optional">
+      <datalist id="categories-list">
+        {{range .Categories}}<option value="{{.}}">{{end}}
+      </datalist>
+    </div>
+    <input type="hidden" name="tunnel_present" value="1">
+    <input type="hidden" name="skip_health_present" value="1">
+    <div class="checkbox-row">
+      <label class="checkbox-label">
+        <input type="checkbox" name="direct_only" x-model="direct" {{if .Service.DirectOnly}}checked{{end}}>
+        Direct link
+      </label>
+      {{if .TunnelEnabled}}
+      <label class="checkbox-label">
+        <input type="checkbox" name="tunnel" {{if isTunneled .Service}}checked{{end}}>
+        Cloudflare Tunnel
+      </label>
+      {{end}}
+      <label class="checkbox-label">
+        <input type="checkbox" name="skip_health" {{if .Service.SkipHealth}}checked{{end}}>
+        Skip health check
+      </label>
+    </div>
   </div>
   <div class="form-actions">
     <button type="button" class="btn btn-ghost" onclick="closeModal()">Cancel</button>
@@ -97,12 +91,6 @@
   </div>
 
   <div x-data="{direct: false}">
-    <div class="form-group">
-      <label style="display:flex;align-items:center;gap:.5rem;cursor:pointer">
-        <input type="checkbox" name="direct_only" x-model="direct">
-        Direct link (no subdomain or DNS)
-      </label>
-    </div>
     <div class="form-group" x-show="!direct">
       <label>Subdomain</label>
       <div x-data="{sub: ''}" style="position:relative">
@@ -114,23 +102,33 @@
       <label>Target URL</label>
       <input name="target" placeholder="http://10.0.0.5:8080" required>
     </div>
+    <div class="form-group">
+      <label>Category</label>
+      <input name="category" list="categories-list" placeholder="Optional">
+      <datalist id="categories-list">
+        {{range .Categories}}<option value="{{.}}">{{end}}
+      </datalist>
+    </div>
+    {{if .TunnelEnabled}}
+    <div class="checkbox-row">
+      <label class="checkbox-label">
+        <input type="checkbox" name="direct_only" x-model="direct">
+        Direct link
+      </label>
+      <label class="checkbox-label">
+        <input type="checkbox" name="tunnel">
+        Cloudflare Tunnel
+      </label>
+    </div>
+    {{else}}
+    <div class="checkbox-row">
+      <label class="checkbox-label">
+        <input type="checkbox" name="direct_only" x-model="direct">
+        Direct link
+      </label>
+    </div>
+    {{end}}
   </div>
-
-  <div class="form-group">
-    <label>Category</label>
-    <input name="category" list="categories-list" placeholder="Optional">
-    <datalist id="categories-list">
-      {{range .Categories}}<option value="{{.}}">{{end}}
-    </datalist>
-  </div>
-  {{if .TunnelEnabled}}
-  <div class="form-group">
-    <label style="display:flex;align-items:center;gap:.5rem;cursor:pointer">
-      <input type="checkbox" name="tunnel">
-      Route via Cloudflare Tunnel
-    </label>
-  </div>
-  {{end}}
   <div class="form-actions">
     <button type="button" class="btn btn-ghost" onclick="closeModal()">Cancel</button>
     <button type="submit" class="btn btn-primary">Add Service</button>

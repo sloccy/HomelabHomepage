@@ -375,7 +375,9 @@ tr:hover td { background: var(--surface2); }
 .tag-manual  { background: #3b2e6e; color: #c4b5fd; }
 .tag-tunnel  { background: rgba(249,130,50,.15); color: #f98232; }
 
-.actions { display: flex; gap: .5rem; }
+.actions { display: flex; gap: .5rem; align-items: center; }
+.checkbox-row { display: flex; flex-wrap: wrap; gap: 1.5rem; margin-bottom: 1rem; align-items: center; }
+.checkbox-label { display: flex; align-items: center; gap: .4rem; cursor: pointer; font-size: .875rem; color: var(--text); white-space: nowrap; }
 .link-cell a { color: var(--accent); font-family: monospace; font-size: .85rem; }
 
 /* ── Discovered items ──────────────────────────────────────────────────── */

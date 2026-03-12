@@ -635,7 +635,7 @@ func (s *Server) deleteService(w http.ResponseWriter, r *http.Request) {
 	if err := s.store.Save(); err != nil {
 		log.Printf("web: save: %v", err)
 	}
-	w.WriteHeader(http.StatusNoContent)
+	w.WriteHeader(http.StatusOK)
 }
 
 // ---- Discovered -------------------------------------------------------------
@@ -665,7 +665,7 @@ func (s *Server) deleteDiscovered(w http.ResponseWriter, r *http.Request) {
 	if err := s.store.Save(); err != nil {
 		log.Printf("web: save: %v", err)
 	}
-	w.WriteHeader(http.StatusNoContent)
+	w.WriteHeader(http.StatusOK)
 }
 
 // ---- Scan -------------------------------------------------------------------
@@ -1030,7 +1030,7 @@ func (s *Server) ignoreDiscovered(w http.ResponseWriter, r *http.Request) {
 	if err := s.store.Save(); err != nil {
 		log.Printf("web: save: %v", err)
 	}
-	w.WriteHeader(http.StatusNoContent)
+	w.WriteHeader(http.StatusOK)
 }
 
 func (s *Server) listIgnored(w http.ResponseWriter, r *http.Request) {
@@ -1043,14 +1043,25 @@ func (s *Server) listIgnored(w http.ResponseWriter, r *http.Request) {
 
 func (s *Server) unignoreService(w http.ResponseWriter, r *http.Request) {
 	id := r.PathValue("id")
-	if err := s.store.UnignoreService(id); err != nil {
+	ig, err := s.store.UnignoreService(id)
+	if err != nil {
 		apiError(w, http.StatusNotFound, err.Error())
 		return
 	}
+	// Re-add as a discovered service so it appears in the Discovered section.
+	s.store.AddDiscovered(&store.DiscoveredService{
+		ID:           ig.ID,
+		IP:           ig.IP,
+		Port:         ig.Port,
+		Title:        ig.Title,
+		Source:       "network",
+		DiscoveredAt: time.Now(),
+	})
 	if err := s.store.Save(); err != nil {
 		log.Printf("web: save: %v", err)
 	}
-	w.WriteHeader(http.StatusNoContent)
+	hxTrigger(w, "refreshDiscovered", nil)
+	w.WriteHeader(http.StatusOK)
 }
 
 // ---- Bookmarks --------------------------------------------------------------
@@ -1127,7 +1138,7 @@ func (s *Server) deleteBookmark(w http.ResponseWriter, r *http.Request) {
 	if err := s.store.Save(); err != nil {
 		log.Printf("web: save: %v", err)
 	}
-	w.WriteHeader(http.StatusNoContent)
+	w.WriteHeader(http.StatusOK)
 }
 
 // ---- Settings ---------------------------------------------------------------

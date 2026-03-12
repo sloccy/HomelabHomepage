@@ -123,11 +123,15 @@
      onclick="if(event.target===this)closeModal()">
   <div class="modal">
     <button class="modal-close" onclick="closeModal()">✕</button>
-    <div id="modal-content"></div>
+    <div id="modal-content" hx-on::after-swap="openModal()"></div>
   </div>
 </div>
 
-<!-- Toast -->
+<!-- Toast
+     NOTE: HTML normalises ALL attribute names to lowercase before Alpine reads them.
+     @showToast.window is stored as @showtoast.window, so Alpine registers
+     window.addEventListener('showtoast', ...). Any dispatched event MUST use the
+     same lowercase name — the Go server sends {"showtoast": ...} for this reason. -->
 <div x-data="{show:false, msg:'', type:'success', _t:null}"
      @showToast.window="
        clearTimeout(_t);
@@ -143,13 +147,6 @@ function openModal() {
 function closeModal() {
   document.getElementById('modal-backdrop').style.display = 'none';
 }
-
-// Open modal whenever HTMX swaps content into #modal-content
-htmx.on('htmx:afterSwap', e => {
-  if (e.detail.target && e.detail.target.id === 'modal-content') {
-    openModal();
-  }
-});
 
 // Close modal on server-triggered closeModal event (form submit success)
 document.body.addEventListener('closeModal', closeModal);

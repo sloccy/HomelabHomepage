@@ -421,24 +421,24 @@ func (s *Store) GetIgnored() []*IgnoredService {
 	return out
 }
 
-// UnignoreService removes an entry from the ignored list by ID.
-func (s *Store) UnignoreService(id string) error {
+// UnignoreService removes an entry from the ignored list by ID and returns it.
+func (s *Store) UnignoreService(id string) (*IgnoredService, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	filtered := s.d.Ignored[:0]
-	found := false
+	var removed *IgnoredService
 	for _, ig := range s.d.Ignored {
 		if ig.ID == id {
-			found = true
+			removed = ig
 		} else {
 			filtered = append(filtered, ig)
 		}
 	}
-	if !found {
-		return fmt.Errorf("ignored service %q not found", id)
+	if removed == nil {
+		return nil, fmt.Errorf("ignored service %q not found", id)
 	}
 	s.d.Ignored = filtered
-	return nil
+	return removed, nil
 }
 
 // IsIgnored reports whether the given IP:port pair is in the ignored list.
