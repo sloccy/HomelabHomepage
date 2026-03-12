@@ -9,7 +9,8 @@
   <script src="https://cdn.jsdelivr.net/npm/htmx.org@2.0.4/dist/htmx.min.js"></script>
   <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.14.8/dist/cdn.min.js"></script>
 </head>
-<body x-data="{modalOpen: false}"
+<body x-data="{modalOpen: false, editMode: false}"
+      :class="{'edit-layout-mode': editMode}"
       @closeModal.window="modalOpen = false"
       @openModal.window="modalOpen = true">
 
@@ -31,6 +32,7 @@
                      + '\u2002' + d.toLocaleTimeString('en-GB');
             }
           }" x-text="t"></span>
+    <button @click="editMode = !editMode" :class="editMode ? 'btn btn-primary' : 'btn btn-ghost'">✎ Edit Layout</button>
     <a href="/manage" class="btn btn-ghost">⚙ Manage</a>
   </div>
 </header>
