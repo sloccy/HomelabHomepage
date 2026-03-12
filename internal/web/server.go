@@ -1030,6 +1030,7 @@ func (s *Server) ignoreDiscovered(w http.ResponseWriter, r *http.Request) {
 	if err := s.store.Save(); err != nil {
 		log.Printf("web: save: %v", err)
 	}
+	hxTrigger(w, "refreshIgnored", nil)
 	w.WriteHeader(http.StatusOK)
 }
 
