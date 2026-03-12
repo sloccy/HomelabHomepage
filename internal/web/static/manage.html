@@ -7,50 +7,6 @@
   <link rel="icon" type="image/png" href="/logo.png">
   <link rel="stylesheet" href="/style.css">
   <script src="https://cdn.jsdelivr.net/npm/htmx.org@2.0.4/dist/htmx.min.js"></script>
-
-  <!-- Alpine diagnostic: intercept window.addEventListener BEFORE Alpine loads -->
-  <script>
-  (function() {
-    const _wadd = window.addEventListener.bind(window);
-    window.addEventListener = function(type, listener, options) {
-      console.log('[ALPINE-DIAG] window.addEventListener:', type,
-                  '| listener src:', listener.toString().slice(0, 80));
-      return _wadd(type, listener, options);
-    };
-
-    // Restore after Alpine has had a chance to bind (500ms should be plenty)
-    document.addEventListener('alpine:initialized', function() {
-      window.addEventListener = _wadd;
-      console.log('[ALPINE-DIAG] alpine:initialized — listener intercept removed');
-
-      // Inspect body x-data state via Alpine's internal data stack
-      const body = document.body;
-      const stack = body._x_dataStack;
-      console.log('[ALPINE-DIAG] body._x_dataStack:', stack);
-
-      // Root cause note: HTML normalizes attribute names to lowercase, so
-      // @showToast.window → Alpine registers 'showtoast' (lowercase).
-      // Events must be dispatched with the SAME lowercase name to match.
-
-      // Test: dispatch showtoast (lowercase = correct) to verify toast works
-      console.log('[ALPINE-DIAG] dispatching showtoast (lowercase) to window...');
-      window.dispatchEvent(new CustomEvent('showtoast', {
-        detail: { msg: 'Alpine diag: toast working ✓', type: 'success' }
-      }));
-
-      // Test: dispatch showToast (camelCase = wrong) to confirm it does NOT fire
-      console.log('[ALPINE-DIAG] dispatching showToast (camelCase) to window — should NOT show toast...');
-      window.dispatchEvent(new CustomEvent('showToast', {
-        detail: { msg: 'Alpine diag: WRONG CASE — should not appear', type: 'error' }
-      }));
-    });
-
-    document.addEventListener('alpine:init', function() {
-      console.log('[ALPINE-DIAG] alpine:init fired');
-    });
-  })();
-  </script>
-
   <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.14.8/dist/cdn.min.js"></script>
 </head>
 <body x-data>
