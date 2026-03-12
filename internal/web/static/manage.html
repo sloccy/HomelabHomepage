@@ -99,7 +99,7 @@
       </div>
       <p class="section-desc">These IP:port pairs are permanently suppressed from discovery results.</p>
       <div hx-get="/fragments/ignored"
-           hx-trigger="load"
+           hx-trigger="load, refreshIgnored from:body"
            hx-swap="innerHTML"></div>
     </div>
   </section>
