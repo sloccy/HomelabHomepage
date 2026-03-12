@@ -138,6 +138,12 @@
      x-show="show" :class="'toast '+type" x-text="msg"
      style="display:none"></div>
 
-<script src="/app.js"></script>
+<script>
+htmx.on('htmx:afterSwap', e => {
+  if (e.detail.target.id === 'modal-content') {
+    window.dispatchEvent(new CustomEvent('openModal'));
+  }
+});
+</script>
 </body>
 </html>
