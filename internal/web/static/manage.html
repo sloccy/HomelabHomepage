@@ -139,8 +139,21 @@
      style="display:none"></div>
 
 <script>
+// DEBUG: capture-phase click listener — fires before anything can stop it
+document.body.addEventListener('click', e => {
+  const hxEl = e.target.closest('[hx-get],[hx-post],[hx-put],[hx-delete]');
+  console.log('[CLICK]', e.target.tagName, '→ hx-element:', hxEl ? hxEl.outerHTML.slice(0, 120) : 'none');
+}, true);
+
+// DEBUG: log key HTMX lifecycle events
+['htmx:configRequest','htmx:beforeRequest','htmx:afterRequest',
+ 'htmx:beforeSwap','htmx:afterSwap','htmx:responseError','htmx:sendError'].forEach(ev => {
+  document.body.addEventListener(ev, e => console.log('[HTMX]', ev, e.detail));
+});
+
 htmx.on('htmx:afterSwap', e => {
-  if (e.detail.target.id === 'modal-content') {
+  console.log('[MODAL] afterSwap target id:', e.detail.target?.id);
+  if (e.detail.target?.id === 'modal-content') {
     window.dispatchEvent(new CustomEvent('openModal'));
   }
 });
