@@ -129,7 +129,6 @@ type createDNSParams struct {
 
 type updateDNSParams struct {
 	Content string `json:"content"`
-	Proxied bool   `json:"proxied"`
 }
 
 // CreateRecord creates an A record and returns its ID.
