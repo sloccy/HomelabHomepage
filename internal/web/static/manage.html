@@ -28,18 +28,20 @@
       const stack = body._x_dataStack;
       console.log('[ALPINE-DIAG] body._x_dataStack:', stack);
 
-      // Test: dispatch openModal and see if any listener fires
-      console.log('[ALPINE-DIAG] dispatching test openModal event to window...');
-      let caught = false;
-      const testFn = () => { caught = true; };
-      _wadd('openModal', testFn, {once: true});
-      window.dispatchEvent(new CustomEvent('openModal'));
-      console.log('[ALPINE-DIAG] test openModal caught by raw listener:', caught);
+      // Root cause note: HTML normalizes attribute names to lowercase, so
+      // @showToast.window → Alpine registers 'showtoast' (lowercase).
+      // Events must be dispatched with the SAME lowercase name to match.
 
-      // Test: dispatch showToast (same pattern, known to work via Alpine)
-      console.log('[ALPINE-DIAG] dispatching test showToast event to window...');
+      // Test: dispatch showtoast (lowercase = correct) to verify toast works
+      console.log('[ALPINE-DIAG] dispatching showtoast (lowercase) to window...');
+      window.dispatchEvent(new CustomEvent('showtoast', {
+        detail: { msg: 'Alpine diag: toast working ✓', type: 'success' }
+      }));
+
+      // Test: dispatch showToast (camelCase = wrong) to confirm it does NOT fire
+      console.log('[ALPINE-DIAG] dispatching showToast (camelCase) to window — should NOT show toast...');
       window.dispatchEvent(new CustomEvent('showToast', {
-        detail: { msg: 'Alpine diag test — ignore me', type: 'success' }
+        detail: { msg: 'Alpine diag: WRONG CASE — should not appear', type: 'error' }
       }));
     });
 
