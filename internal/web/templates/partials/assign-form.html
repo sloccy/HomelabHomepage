@@ -13,28 +13,38 @@
     <label>Service Name</label>
     <input name="name" value="{{.Discovered.Title}}" placeholder="My Service">
   </div>
-  <div class="form-group">
-    <label>Subdomain</label>
-    <div x-data="{sub: '{{or .Discovered.SuggestedSubdomain .Discovered.ServiceName}}'}">
-      <input name="subdomain" x-model="sub" required placeholder="myservice">
-      <div class="input-hint" x-text="sub ? sub + '.{{.Domain}}' : ''"></div>
+  <div x-data="{direct: false}">
+    <div class="form-group" x-show="!direct">
+      <label>Subdomain</label>
+      <div x-data="{sub: '{{or .Discovered.SuggestedSubdomain .Discovered.ServiceName}}'}">
+        <input name="subdomain" x-model="sub" required placeholder="myservice">
+        <div class="input-hint" x-text="sub ? sub + '.{{.Domain}}' : ''"></div>
+      </div>
+    </div>
+    <div class="form-group">
+      <label>Category</label>
+      <input name="category" list="categories-list" placeholder="Optional">
+      <datalist id="categories-list">
+        {{range .Categories}}<option value="{{.}}">{{end}}
+      </datalist>
+    </div>
+    <div class="checkbox-row">
+      <label class="checkbox-label">
+        <input type="checkbox" name="direct_only" x-model="direct">
+        Direct link
+      </label>
+      {{if .TunnelEnabled}}
+      <label class="checkbox-label">
+        <input type="checkbox" name="tunnel">
+        Cloudflare Tunnel
+      </label>
+      {{end}}
+      <label class="checkbox-label">
+        <input type="checkbox" name="skip_health">
+        Skip health check
+      </label>
     </div>
   </div>
-  <div class="form-group">
-    <label>Category</label>
-    <input name="category" list="categories-list" placeholder="Optional">
-    <datalist id="categories-list">
-      {{range .Categories}}<option value="{{.}}">{{end}}
-    </datalist>
-  </div>
-  {{if .TunnelEnabled}}
-  <div class="form-group">
-    <label style="display:flex;align-items:center;gap:.5rem;cursor:pointer">
-      <input type="checkbox" name="tunnel">
-      Route via Cloudflare Tunnel
-    </label>
-  </div>
-  {{end}}
   <div class="form-actions">
     <button type="button" class="btn btn-ghost" onclick="closeModal()">Cancel</button>
     <button type="submit" class="btn btn-primary">Assign</button>
