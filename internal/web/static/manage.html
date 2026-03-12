@@ -5,11 +5,15 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Lantern – Manage</title>
   <link rel="icon" type="image/png" href="/logo.png">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="/style.css">
   <script src="https://cdn.jsdelivr.net/npm/htmx.org@2.0.8/dist/htmx.min.js"></script>
   <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.15.8/dist/cdn.min.js"></script>
 </head>
 <body x-data>
+
+<div id="htmx-topbar"></div>
 
 <header class="header">
   <div class="logo">
@@ -26,7 +30,9 @@
   <section class="section" id="status-section"
            hx-get="/fragments/status"
            hx-trigger="load"
-           hx-swap="innerHTML"></section>
+           hx-swap="innerHTML">
+    <div class="htmx-indicator section-spinner"></div>
+  </section>
 
   <!-- Tunnel (placeholder replaced by fragment or nothing) -->
   <div id="tunnel-placeholder"
@@ -44,7 +50,9 @@
     <div id="subnets-list"
          hx-get="/fragments/subnets"
          hx-trigger="load"
-         hx-swap="innerHTML"></div>
+         hx-swap="innerHTML">
+      <div class="htmx-indicator section-spinner"></div>
+    </div>
   </section>
 
   <!-- Assigned Services -->
@@ -58,7 +66,9 @@
     <div id="services-table"
          hx-get="/fragments/services-table"
          hx-trigger="load, refreshServicesTable from:body"
-         hx-swap="innerHTML"></div>
+         hx-swap="innerHTML">
+      <div class="htmx-indicator section-spinner"></div>
+    </div>
   </section>
 
   <!-- Bookmarks -->
@@ -73,7 +83,9 @@
     <div id="bookmarks-table"
          hx-get="/fragments/bookmarks-table"
          hx-trigger="load, refreshBookmarksTable from:body"
-         hx-swap="innerHTML"></div>
+         hx-swap="innerHTML">
+      <div class="htmx-indicator section-spinner"></div>
+    </div>
   </section>
 
   <!-- Discovered -->
@@ -90,7 +102,9 @@
     <div id="discovered-list"
          hx-get="/fragments/discovered"
          hx-trigger="load, refreshDiscovered from:body"
-         hx-swap="innerHTML"></div>
+         hx-swap="innerHTML">
+      <div class="htmx-indicator section-spinner"></div>
+    </div>
     <!-- Ignored section — toggled by Alpine, content loaded eagerly on page load -->
     <div id="ignored-section" x-show="ignoredOpen">
       <div class="section-header" style="border-top:1px solid var(--border)">
@@ -113,7 +127,9 @@
     <div id="ddns-list"
          hx-get="/fragments/ddns"
          hx-trigger="load"
-         hx-swap="innerHTML"></div>
+         hx-swap="innerHTML">
+      <div class="htmx-indicator section-spinner"></div>
+    </div>
   </section>
 
 </main>
@@ -153,6 +169,10 @@ document.body.addEventListener('closeModal', closeModal);
 
 // Keyboard close
 document.addEventListener('keydown', e => { if (e.key === 'Escape') closeModal(); });
+
+const _topbar = document.getElementById('htmx-topbar');
+htmx.on('htmx:beforeRequest', () => _topbar.classList.add('active'));
+htmx.on('htmx:afterRequest',  () => _topbar.classList.remove('active'));
 </script>
 </body>
 </html>

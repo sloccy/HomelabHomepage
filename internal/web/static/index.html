@@ -5,6 +5,8 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Lantern</title>
   <link rel="icon" type="image/png" href="/logo.png">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="/style.css">
   <script src="https://cdn.jsdelivr.net/npm/htmx.org@2.0.8/dist/htmx.min.js"></script>
   <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.15.8/dist/cdn.min.js"></script>
@@ -13,6 +15,8 @@
       :class="{'edit-layout-mode': editMode}"
       @closeModal.window="modalOpen = false"
       @openModal.window="modalOpen = true">
+
+<div id="htmx-topbar"></div>
 
 <header class="header">
   <div class="logo">
@@ -40,17 +44,23 @@
 <div id="sysinfo-wrapper"
      hx-get="/fragments/sysinfo"
      hx-trigger="load, every 5s"
-     hx-swap="innerHTML"></div>
+     hx-swap="innerHTML">
+  <div class="htmx-indicator section-spinner"></div>
+</div>
 
 <main id="services-grid" class="grid-root"
       hx-get="/fragments/services"
       hx-trigger="load"
-      hx-swap="innerHTML"></main>
+      hx-swap="innerHTML">
+  <div class="htmx-indicator section-spinner"></div>
+</main>
 
 <div id="bookmarks-home"
      hx-get="/fragments/bookmarks"
      hx-trigger="load"
-     hx-swap="innerHTML"></div>
+     hx-swap="innerHTML">
+  <div class="htmx-indicator section-spinner"></div>
+</div>
 
 <!-- Modal -->
 <div class="modal-backdrop" x-show="modalOpen" style="display:none"
@@ -71,5 +81,10 @@
      style="display:none"></div>
 
 <script src="/app.js"></script>
+<script>
+  const _topbar = document.getElementById('htmx-topbar');
+  htmx.on('htmx:beforeRequest', () => _topbar.classList.add('active'));
+  htmx.on('htmx:afterRequest',  () => _topbar.classList.remove('active'));
+</script>
 </body>
 </html>
