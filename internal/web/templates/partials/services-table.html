@@ -17,9 +17,11 @@
         <td class="td-icon">{{iconEl .Icon .Target "svc-icon"}}</td>
         <td>{{.Name}}</td>
         <td class="link-cell">
-          <a href="{{serviceURL .Subdomain $.Domain}}" target="_blank" rel="noopener">
-            {{.Subdomain}}.{{$.Domain}}
-          </a>
+          {{if .DirectOnly}}
+            <a href="{{.Target}}" target="_blank" rel="noopener">{{.Target}}</a>
+          {{else}}
+            <a href="{{serviceURL .Subdomain $.Domain}}" target="_blank" rel="noopener">{{.Subdomain}}.{{$.Domain}}</a>
+          {{end}}
         </td>
         <td><code style="font-size:.8rem">{{.Target}}</code></td>
         <td>
