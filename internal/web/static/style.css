@@ -432,6 +432,8 @@ tr:hover td { background: var(--surface2); }
   padding: 2rem;
   width: 100%;
   max-width: 480px;
+  max-height: calc(100vh - 4rem);
+  overflow-y: auto;
   position: relative;
   box-shadow: var(--shadow);
 }

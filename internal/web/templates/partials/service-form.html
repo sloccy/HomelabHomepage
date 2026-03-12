@@ -1,8 +1,7 @@
 {{if .Service}}
 <h3>Edit Service</h3>
 <form hx-put="/api/services/{{.Service.ID}}"
-      hx-swap="none"
-      hx-on::after-request="if(event.detail.successful) { }">
+      hx-swap="none">
 
   <input type="hidden" name="discovered_id" value="">
 
