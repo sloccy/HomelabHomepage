@@ -1,9 +1,14 @@
 {
   "$schema": "https://docs.renovatebot.com/renovate-schema.json",
-  "extends": ["config:recommended"],
-  "regexManagers": [
+  "extends": [
+    "config:recommended"
+  ],
+  "customManagers": [
     {
-      "fileMatch": ["^internal/web/static/.*\\.html$"],
+      "customType": "regex",
+      "managerFilePatterns": [
+        "/^internal/web/static/.*\\.html$/"
+      ],
       "matchStrings": [
         "cdn\\.jsdelivr\\.net/npm/(?<depName>[^@/]+)@(?<currentValue>[^/]+)/"
       ],
@@ -12,17 +17,35 @@
   ],
   "packageRules": [
     {
-      "matchManagers": ["dockerfile", "github-actions", "gomod", "regex"],
-      "matchUpdateTypes": ["minor", "patch", "digest"],
+      "matchManagers": [
+        "dockerfile",
+        "github-actions",
+        "gomod",
+        "custom.regex"
+      ],
+      "matchUpdateTypes": [
+        "minor",
+        "patch",
+        "digest"
+      ],
       "automerge": true,
       "automergeType": "pr"
     },
     {
-      "matchManagers": ["dockerfile", "github-actions", "gomod", "regex"],
-      "matchUpdateTypes": ["major"],
+      "matchManagers": [
+        "dockerfile",
+        "github-actions",
+        "gomod",
+        "custom.regex"
+      ],
+      "matchUpdateTypes": [
+        "major"
+      ],
       "automerge": false,
       "dependencyDashboardApproval": false,
-      "labels": ["major-update"]
+      "labels": [
+        "major-update"
+      ]
     }
   ]
 }
