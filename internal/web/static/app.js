@@ -11,8 +11,8 @@ function showView(view) {
   document.getElementById('view-home').style.display   = view === 'home'   ? '' : 'none';
   document.getElementById('view-manage').style.display = view === 'manage' ? '' : 'none';
   window.location.hash = view === 'home' ? '' : view;
-  if (view === 'home')   { loadHome(); startSysinfo(); startClock(); _initSearch(); }
-  if (view === 'manage') { stopSysinfo(); stopClock(); loadManage(); }
+  if (view === 'home')   { loadHome(); }
+  if (view === 'manage') { loadManage(); }
 }
 
 window.addEventListener('DOMContentLoaded', () => {
@@ -34,14 +34,8 @@ async function api(method, path, body) {
 
 // ── Toast ─────────────────────────────────────────────────────────────────────
 
-let toastTimer;
 function toast(msg, type = 'success') {
-  const el = document.getElementById('toast');
-  el.textContent = msg;
-  el.className = `toast ${type}`;
-  el.style.display = 'block';
-  clearTimeout(toastTimer);
-  toastTimer = setTimeout(() => { el.style.display = 'none'; }, 3500);
+  window.dispatchEvent(new CustomEvent('showToast', { detail: { msg, type } }));
 }
 
 // ── Home view ─────────────────────────────────────────────────────────────────
@@ -165,94 +159,27 @@ function svcEmoji(svc) {
 
 // ── Search / filter ───────────────────────────────────────────────────────────
 
-function _initSearch() {
-  const input = document.getElementById('search-input');
-  if (!input) return;
-  input.addEventListener('input', _filterCards);
-}
-
-function _filterCards() {
-  const input = document.getElementById('search-input');
-  const q = (input ? input.value : '').toLowerCase().trim();
-  const root = document.getElementById('services-grid');
-  if (!root) return;
-
-  root.querySelectorAll('.service-card').forEach(card => {
-    const name = (card.dataset.name || '').toLowerCase();
-    const sub  = (card.dataset.sub  || '').toLowerCase();
-    card.style.display = (!q || name.includes(q) || sub.includes(q)) ? '' : 'none';
-  });
-
-  // Hide category headers whose entire grid is hidden.
-  root.querySelectorAll('.category-group').forEach(group => {
-    const header = group.querySelector('.category-header');
-    const grid   = group.querySelector('.grid');
-    if (!header || !grid) return;
-    const anyVisible = [...grid.querySelectorAll('.service-card')].some(c => c.style.display !== 'none');
-    group.style.display = anyVisible ? '' : 'none';
-  });
-}
-
-// ── Clock ─────────────────────────────────────────────────────────────────────
-
-let _clockTimer = null;
-
-function startClock() {
-  _updateClock();
-  _clockTimer = setInterval(_updateClock, 1000);
-}
-
-function stopClock() {
-  clearInterval(_clockTimer);
-  _clockTimer = null;
-}
-
-function _updateClock() {
-  const el = document.getElementById('header-clock');
-  if (!el) return;
-  const now = new Date();
-  const days = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
-  const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
-  const pad = n => String(n).padStart(2, '0');
-  el.textContent = `${days[now.getDay()]} ${pad(now.getDate())} ${months[now.getMonth()]}  ${pad(now.getHours())}:${pad(now.getMinutes())}:${pad(now.getSeconds())}`;
-}
-
-// ── System stats bar ─────────────────────────────────────────────────────────
-
-let _sysinfoTimer = null;
-
-async function startSysinfo() {
-  await _fetchSysinfo();
-  _sysinfoTimer = setInterval(_fetchSysinfo, 5000);
-}
-
-function stopSysinfo() {
-  clearInterval(_sysinfoTimer);
-  _sysinfoTimer = null;
-}
-
-async function _fetchSysinfo() {
-  try {
-    const s = await api('GET', '/api/sysinfo');
-    const bar = document.getElementById('sysinfo-bar');
-    if (!bar) return;
-    bar.style.display = '';
-    bar.innerHTML = `
-      <span class="sysinfo-item"><span class="sysinfo-label">CPU</span>${s.cpu_percent.toFixed(1)}%</span>
-      <span class="sysinfo-sep">·</span>
-      <span class="sysinfo-item"><span class="sysinfo-label">RAM</span>${_fmtGB(s.mem_used_mb)} / ${_fmtGB(s.mem_total_mb)}</span>
-      <span class="sysinfo-sep">·</span>
-      <span class="sysinfo-item"><span class="sysinfo-label">Disk</span>${s.disk_used_gb} / ${s.disk_total_gb} GB</span>`;
-  } catch {
-    const bar = document.getElementById('sysinfo-bar');
-    if (bar) bar.style.display = 'none';
-  }
-}
-
-function _fmtGB(mb) {
-  const gb = mb / 1024;
-  return gb >= 1 ? gb.toFixed(1) + ' GB' : mb + ' MB';
-}
+document.addEventListener('alpine:init', () => {
+  Alpine.data('search', () => ({
+    query: '',
+    filter() {
+      const q = this.query.toLowerCase().trim();
+      const root = document.getElementById('services-grid');
+      if (!root) return;
+      root.querySelectorAll('.service-card').forEach(card => {
+        const name = (card.dataset.name || '').toLowerCase();
+        const sub  = (card.dataset.sub  || '').toLowerCase();
+        card.style.display = (!q || name.includes(q) || sub.includes(q)) ? '' : 'none';
+      });
+      root.querySelectorAll('.category-group').forEach(group => {
+        const grid = group.querySelector('.grid');
+        if (!grid) return;
+        const anyVisible = [...grid.querySelectorAll('.service-card')].some(c => c.style.display !== 'none');
+        group.style.display = anyVisible ? '' : 'none';
+      });
+    }
+  }));
+});
 
 // ── Drag-to-reorder ──────────────────────────────────────────────────────────
 
@@ -391,41 +318,6 @@ function _scanLogClass(line) {
 }
 
 let _logHideTimer = null;
-let _scanPollTimer = null;
-
-async function triggerScan() {
-  const btn = document.getElementById('scan-btn');
-  btn.disabled = true;
-  btn.textContent = '⟳ Scanning…';
-  try {
-    await api('POST', '/api/scan');
-    toast('Network scan started');
-    _pollScanStatus();
-  } catch (e) {
-    toast(e.message, 'error');
-    btn.disabled = false;
-    btn.textContent = '⟳ Scan Now';
-  }
-}
-
-async function _pollScanStatus() {
-  clearTimeout(_scanPollTimer);
-  try {
-    const s = await api('GET', '/api/status');
-    statusData = s;
-    renderStatus(s);
-    if (s.scanning) {
-      _scanPollTimer = setTimeout(_pollScanStatus, 1500);
-    } else {
-      document.getElementById('scan-btn').disabled = false;
-      document.getElementById('scan-btn').textContent = '⟳ Scan Now';
-      loadDiscovered();
-    }
-  } catch (e) {
-    document.getElementById('scan-btn').disabled = false;
-    document.getElementById('scan-btn').textContent = '⟳ Scan Now';
-  }
-}
 
 // ── Cloudflare Tunnel ─────────────────────────────────────────────────────────
 

@@ -22,19 +22,6 @@
   --transition: all .2s cubic-bezier(0.4,0,0.2,1);
 }
 
-/* ── Reset ─────────────────────────────────────────────────────────────── */
-*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-html { font-size: 16px; }
-body {
-  background: var(--bg);
-  color: var(--text);
-  font-family: 'Inter', system-ui, -apple-system, sans-serif;
-  line-height: 1.5;
-  min-height: 100vh;
-}
-a { color: var(--accent); text-decoration: none; }
-a:hover { text-decoration: underline; }
-
 /* ── HTMX top progress bar ──────────────────────────────────────────────── */
 #htmx-topbar {
   position: fixed;
@@ -468,27 +455,6 @@ button.htmx-request::after {
 
 /* ── Tables ────────────────────────────────────────────────────────────── */
 .table-wrap { overflow-x: auto; }
-table {
-  width: 100%;
-  border-collapse: collapse;
-  font-size: .875rem;
-}
-th {
-  text-align: left;
-  padding: .65rem 1.25rem;
-  color: var(--muted);
-  font-weight: 500;
-  font-size: .72rem;
-  text-transform: uppercase;
-  letter-spacing: .06em;
-  border-bottom: 1px solid var(--border);
-  background: var(--surface2);
-}
-td {
-  padding: .75rem 1.25rem;
-  border-bottom: 1px solid var(--border);
-  vertical-align: middle;
-}
 tr:last-child td { border-bottom: none; }
 tr:hover td { background: var(--surface2); }
 tr:nth-child(even) td { background: rgba(255,255,255,.015); }
@@ -605,26 +571,16 @@ tr:nth-child(even):hover td { background: var(--surface2); }
 
 /* ── Forms ─────────────────────────────────────────────────────────────── */
 .form-group { margin-bottom: 1rem; }
-.form-group label { display: block; font-size: .8rem; color: var(--muted); margin-bottom: .35rem; font-weight: 500; letter-spacing: .02em; }
-.form-group input, .form-group select {
-  width: 100%;
-  background: var(--surface2);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-sm);
-  color: var(--text);
-  padding: .6rem .875rem;
-  font-size: .875rem;
-  font-family: inherit;
-  transition: border-color .15s, box-shadow .15s;
-}
-.form-group input:focus, .form-group select:focus {
-  outline: none;
-  border-color: var(--accent);
-  box-shadow: 0 0 0 3px rgba(201,162,39,.15);
-}
-.form-group input::placeholder { color: var(--muted); }
 .form-actions { display: flex; gap: .75rem; justify-content: flex-end; margin-top: 1.5rem; }
 .input-hint { font-size: .75rem; color: var(--muted); margin-top: .3rem; }
+
+/* ── Icon edit row ──────────────────────────────────────────────────────── */
+.icon-edit-row {
+  display: flex;
+  align-items: center;
+  gap: .75rem;
+  margin-top: .25rem;
+}
 
 /* ── Toast ──────────────────────────────────────────────────────────────── */
 .toast {
@@ -668,14 +624,6 @@ tr:nth-child(even):hover td { background: var(--surface2); }
 .scan-log-line.http  { color: #ffb74d; }
 .scan-log-line.arp   { color: #ce93d8; }
 .scan-log-line.scan  { color: #80cbc4; }
-
-/* ── Icon edit row ──────────────────────────────────────────────────────── */
-.icon-edit-row {
-  display: flex;
-  align-items: center;
-  gap: .75rem;
-  margin-top: .25rem;
-}
 
 /* ── Animations ─────────────────────────────────────────────────────────── */
 @keyframes fadeIn {
