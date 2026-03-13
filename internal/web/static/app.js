@@ -18,19 +18,22 @@ document.addEventListener('alpine:init', () => {
     query: '',
     filter() {
       const q = this.query.toLowerCase().trim();
-      const root = document.getElementById('services-grid');
-      if (!root) return;
-      root.querySelectorAll('.service-card').forEach(card => {
-        const name = (card.dataset.name || '').toLowerCase();
-        const sub  = (card.dataset.sub  || '').toLowerCase();
-        card.style.display = (!q || name.includes(q) || sub.includes(q)) ? '' : 'none';
-      });
-      root.querySelectorAll('.category-group').forEach(group => {
-        const grid = group.querySelector('.grid');
-        if (!grid) return;
-        const anyVisible = [...grid.querySelectorAll('.service-card')].some(c => c.style.display !== 'none');
-        group.style.display = anyVisible ? '' : 'none';
-      });
+      const filterRoot = root => {
+        if (!root) return;
+        root.querySelectorAll('.service-card').forEach(card => {
+          const name = (card.dataset.name || '').toLowerCase();
+          const sub  = (card.dataset.sub  || '').toLowerCase();
+          card.style.display = (!q || name.includes(q) || sub.includes(q)) ? '' : 'none';
+        });
+        root.querySelectorAll('.category-group').forEach(group => {
+          const grid = group.querySelector('.grid');
+          if (!grid) return;
+          const anyVisible = [...grid.querySelectorAll('.service-card')].some(c => c.style.display !== 'none');
+          group.style.display = anyVisible ? '' : 'none';
+        });
+      };
+      filterRoot(document.getElementById('services-grid'));
+      filterRoot(document.getElementById('bookmarks-home'));
     }
   }));
 });
