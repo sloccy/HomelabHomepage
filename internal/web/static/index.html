@@ -12,8 +12,25 @@
   <script src="https://cdn.jsdelivr.net/npm/htmx.org@2.0.8/dist/htmx.min.js"></script>
   <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.15.8/dist/cdn.min.js"></script>
 </head>
-<body x-data="{modalOpen: false, editMode: false}"
+<body x-data="{
+        modalOpen: false,
+        editMode: false,
+        focusSearch(e) {
+          const tag = document.activeElement.tagName;
+          if (tag==='INPUT'||tag==='TEXTAREA'||tag==='SELECT') return;
+          e.preventDefault();
+          document.getElementById('search-input')?.focus();
+        },
+        clearSearch() {
+          const tag = document.activeElement.tagName;
+          if (tag==='INPUT'||tag==='TEXTAREA'||tag==='SELECT') return;
+          const s = document.getElementById('search-input');
+          if (s && s.value) { s.value=''; s.dispatchEvent(new Event('input',{bubbles:true})); s.blur(); }
+        }
+      }"
       :class="{'edit-layout-mode': editMode}"
+      @keydown.window="$event.key==='/'&&focusSearch($event)"
+      @keydown.escape.window="clearSearch()"
       @closeModal.window="modalOpen = false"
       @openModal.window="modalOpen = true">
 
