@@ -231,10 +231,11 @@ type serviceGroup struct {
 }
 
 type servicesGridData struct {
-	Groups  []serviceGroup
-	Domain  string
-	Health  map[string]string
-	IsEmpty bool
+	Groups    []serviceGroup
+	Domain    string
+	Health    map[string]string
+	IsEmpty   bool
+	Searching bool
 }
 
 type bookmarkGroup struct {
@@ -286,7 +287,7 @@ type subnetsFragData struct {
 
 // ---- Helper functions -------------------------------------------------------
 
-func buildServicesGrid(services []*store.Service, domain string, health map[string]string) servicesGridData {
+func buildServicesGrid(services []*store.Service, domain string, health map[string]string, searching bool) servicesGridData {
 	sorted := make([]*store.Service, len(services))
 	copy(sorted, services)
 	sort.Slice(sorted, func(i, j int) bool {
@@ -319,10 +320,11 @@ func buildServicesGrid(services []*store.Service, domain string, health map[stri
 	})
 
 	return servicesGridData{
-		Groups:  groups,
-		Domain:  domain,
-		Health:  health,
-		IsEmpty: len(services) == 0,
+		Groups:    groups,
+		Domain:    domain,
+		Health:    health,
+		IsEmpty:   len(services) == 0,
+		Searching: searching,
 	}
 }
 

@@ -29,7 +29,7 @@ func (s *Server) fragServicesGrid(w http.ResponseWriter, r *http.Request) {
 		}
 		services = filtered
 	}
-	renderTemplate(w, "services-grid.html", buildServicesGrid(services, s.cfg.Domain, s.healthSnapshot()))
+	renderTemplate(w, "services-grid.html", buildServicesGrid(services, s.cfg.Domain, s.healthSnapshot(), q != ""))
 }
 
 func (s *Server) fragBookmarksGrid(w http.ResponseWriter, r *http.Request) {
