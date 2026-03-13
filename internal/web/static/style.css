@@ -46,7 +46,8 @@
 
 /* ── Structural resets (prevent Pico double-spacing) ────────────────────── */
 header, main, section { padding: 0; margin: 0; }
-button, [type="submit"], [type="button"], [type="reset"] { margin-bottom: 0; width: auto; }
+button, [type="submit"], [type="button"], [type="reset"] { margin-bottom: 0; }
+button[type="submit"], button[type="button"], button[type="reset"], button:not([type]) { width: auto; }
 
 /* ── HTMX top progress bar ──────────────────────────────────────────────── */
 #htmx-topbar {
@@ -137,14 +138,13 @@ button, [type="submit"], [type="button"], [type="reset"] { margin-bottom: 0; wid
 }
 
 /* ── Buttons ────────────────────────────────────────────────────────────── */
-.btn {
+button.btn {
   display: inline-flex;
   align-items: center;
   gap: .4rem;
   padding: .45rem 1rem;
   border: none;
   border-radius: var(--radius-sm);
-  width: auto;
   font-size: .875rem;
   font-family: inherit;
   font-weight: 500;
@@ -647,7 +647,7 @@ tr:last-child td { border-bottom: none; }
 /* ── Subnet add form ────────────────────────────────────────────────────── */
 .subnet-add-form { padding: .75rem 1.5rem; border-top: 1px solid var(--border); }
 .subnet-form-row { display: flex; gap: .5rem; align-items: center; }
-.subnet-input { flex: 1; max-width: 320px; border-radius: 20px; }
+input.subnet-input { flex: 1; max-width: 320px; border-radius: 20px; }
 
 /* ── Section actions ────────────────────────────────────────────────────── */
 .section-actions { display: flex; gap: .5rem; align-items: center; }
