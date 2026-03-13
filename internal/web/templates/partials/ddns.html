@@ -22,14 +22,14 @@
 {{else}}
 <p class="empty-small">No DDNS domains configured.</p>
 {{end}}
-<div style="padding:.75rem 1.5rem;border-top:1px solid var(--border)">
+<div class="subnet-add-form">
   <form hx-post="/api/ddns"
         hx-target="#ddns-list"
         hx-swap="innerHTML"
-        style="display:flex;gap:.5rem;align-items:center"
+        class="subnet-form-row"
         hx-on::after-request="if(event.detail.successful) this.reset()">
-    <input class="search-input" name="domain"
-           placeholder="home.example.com" style="max-width:250px" required>
+    <input class="subnet-input" name="domain"
+           placeholder="home.example.com" required>
     <button class="btn btn-primary btn-sm" type="submit">+ Add</button>
   </form>
 </div>
