@@ -7,13 +7,13 @@
       <tr>
         <td class="ddns-domain">{{.}}</td>
         <td>{{$.PublicIP}}</td>
-        <td class="actions">
+        <td class="td-actions"><div class="actions">
           <button class="btn btn-danger btn-sm"
                   hx-delete="/api/ddns/{{.}}"
                   hx-target="closest tr"
                   hx-swap="delete"
-                  hx-confirm="Remove {{.}}?">Remove</button>
-        </td>
+                  hx-confirm="Delete {{.}}?">Delete</button>
+        </div></td>
       </tr>
       {{end}}
     </tbody>
