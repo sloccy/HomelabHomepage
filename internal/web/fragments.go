@@ -66,7 +66,7 @@ func (s *Server) fragServicesTable(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) fragServiceFormAdd(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("HX-Trigger-After-Swap", "openModal")
+	w.Header().Set("HX-Trigger-After-Swap", "openmodal")
 	renderTemplate(w, "service-form.html", serviceFormData{
 		Categories:    getUniqueCategories(s.store.GetAllServices(), s.store.GetAllBookmarks()),
 		Domain:        s.cfg.Domain,
@@ -80,7 +80,7 @@ func (s *Server) fragServiceFormEdit(w http.ResponseWriter, r *http.Request) {
 		http.NotFound(w, r)
 		return
 	}
-	w.Header().Set("HX-Trigger-After-Swap", "openModal")
+	w.Header().Set("HX-Trigger-After-Swap", "openmodal")
 	renderTemplate(w, "service-form.html", serviceFormData{
 		Service:       svc,
 		Categories:    getUniqueCategories(s.store.GetAllServices(), s.store.GetAllBookmarks()),
@@ -118,7 +118,7 @@ func (s *Server) fragAssignForm(w http.ResponseWriter, r *http.Request) {
 		http.NotFound(w, r)
 		return
 	}
-	w.Header().Set("HX-Trigger-After-Swap", "openModal")
+	w.Header().Set("HX-Trigger-After-Swap", "openmodal")
 	renderTemplate(w, "assign-form.html", assignFormData{
 		Discovered:    disc,
 		Categories:    getUniqueCategories(s.store.GetAllServices(), s.store.GetAllBookmarks()),
@@ -132,7 +132,7 @@ func (s *Server) fragBookmarksTable(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) fragBookmarkFormAdd(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("HX-Trigger-After-Swap", "openModal")
+	w.Header().Set("HX-Trigger-After-Swap", "openmodal")
 	renderTemplate(w, "bookmark-form.html", bookmarkFormData{
 		Categories: getUniqueCategories(s.store.GetAllServices(), s.store.GetAllBookmarks()),
 	})
@@ -145,7 +145,7 @@ func (s *Server) fragBookmarkFormEdit(w http.ResponseWriter, r *http.Request) {
 		http.NotFound(w, r)
 		return
 	}
-	w.Header().Set("HX-Trigger-After-Swap", "openModal")
+	w.Header().Set("HX-Trigger-After-Swap", "openmodal")
 	renderTemplate(w, "bookmark-form.html", bookmarkFormData{
 		Bookmark:   bm,
 		Categories: getUniqueCategories(s.store.GetAllServices(), s.store.GetAllBookmarks()),

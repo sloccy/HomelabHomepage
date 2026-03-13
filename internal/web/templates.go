@@ -87,7 +87,7 @@ func hxTrigger(w http.ResponseWriter, kvs ...any) {
 // toastTrigger writes HX-Trigger headers that close the modal and show a toast.
 func toastTrigger(w http.ResponseWriter, msg, typ string, extraEvents ...string) {
 	var sb strings.Builder
-	sb.WriteString(fmt.Sprintf(`{"closeModal":null,"showtoast":{"msg":%q,"type":%q}`, msg, typ))
+	sb.WriteString(fmt.Sprintf(`{"closemodal":null,"showtoast":{"msg":%q,"type":%q}`, msg, typ))
 	for _, ev := range extraEvents {
 		sb.WriteString(fmt.Sprintf(`,%q:null`, ev))
 	}
