@@ -28,7 +28,7 @@
           <span class="{{tagClass .Source}}">{{.Source}}</span>
           {{if isTunneled .}}<span class="tag tag-tunnel">tunnel</span>{{end}}
         </td>
-        <td>
+        <td class="td-actions">
           <div class="actions">
             <button class="btn btn-ghost btn-sm"
                     hx-get="/fragments/service-form/{{.ID}}"
