@@ -7,6 +7,10 @@ function toast(msg, type = 'success') {
   window.dispatchEvent(new CustomEvent('showToast', { detail: { msg, type } }));
 }
 
+function closeModal() {
+  document.body.dispatchEvent(new CustomEvent('closeModal'));
+}
+
 // ── Search / filter ───────────────────────────────────────────────────────────
 
 document.addEventListener('alpine:init', () => {
