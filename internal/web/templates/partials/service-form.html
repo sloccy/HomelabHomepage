@@ -8,7 +8,7 @@
   <div class="form-group">
     <label>Icon</label>
     {{template "icon-preview.html" .Service}}
-    <div class="icon-edit-row" style="margin-top:.5rem">
+    <div class="icon-edit-row">
       <label class="btn btn-ghost btn-sm" style="cursor:pointer">
         Upload
         <input type="file" name="icon" accept="image/*" style="display:none"
@@ -38,7 +38,7 @@
     <input type="hidden" name="direct_only_present" value="1">
     <div class="form-group" x-show="!direct">
       <label>Subdomain</label>
-      <div x-data="{sub: '{{.Service.Subdomain}}'}" style="position:relative">
+      <div x-data="{sub: '{{.Service.Subdomain}}'}" class="subdomain-wrap">
         <input name="subdomain" x-model="sub">
         <div class="input-hint" x-text="sub + '.{{.Domain}}'"></div>
       </div>
@@ -93,7 +93,7 @@
   <div x-data="{direct: false}">
     <div class="form-group" x-show="!direct">
       <label>Subdomain</label>
-      <div x-data="{sub: ''}" style="position:relative">
+      <div x-data="{sub: ''}" class="subdomain-wrap">
         <input name="subdomain" x-model="sub" placeholder="myservice">
         <div class="input-hint" x-text="sub ? sub + '.{{.Domain}}' : ''"></div>
       </div>

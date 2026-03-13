@@ -22,6 +22,31 @@
   --transition: all .2s cubic-bezier(0.4,0,0.2,1);
 }
 
+/* ── Pico CSS variable overrides ────────────────────────────────────────── */
+[data-theme="dark"] {
+  --pico-background-color:                        var(--bg);
+  --pico-color:                                   var(--text);
+  --pico-muted-color:                             var(--muted);
+  --pico-primary:                                 var(--accent);
+  --pico-primary-hover:                           var(--accent-h);
+  --pico-primary-inverse:                         #000;
+  --pico-form-element-background-color:           var(--surface2);
+  --pico-form-element-border-color:               var(--border);
+  --pico-form-element-color:                      var(--text);
+  --pico-form-element-placeholder-color:          var(--muted);
+  --pico-form-element-active-border-color:        var(--accent);
+  --pico-table-border-color:                      var(--border);
+  --pico-table-row-stripped-background-color:     rgba(255,255,255,.015);
+  --pico-table-row-hover-background-color:        var(--surface2);
+  --pico-font-family:                             'Inter', sans-serif;
+  --pico-border-radius:                           var(--radius-sm);
+  --pico-border-color:                            var(--border);
+}
+
+/* ── Structural resets (prevent Pico double-spacing) ────────────────────── */
+header, main, section { padding: 0; margin: 0; }
+button, [type="submit"], [type="button"], [type="reset"] { margin-bottom: 0; }
+
 /* ── HTMX top progress bar ──────────────────────────────────────────────── */
 #htmx-topbar {
   position: fixed;
@@ -83,21 +108,12 @@
 .search-input {
   flex: 1;
   max-width: 320px;
-  padding: .45rem .875rem;
-  background: var(--surface2);
-  border: 1px solid var(--border);
   border-radius: 20px;
-  color: var(--text);
-  font-size: .875rem;
-  font-family: inherit;
-  outline: none;
-  transition: var(--transition);
 }
 .search-input:focus {
   border-color: var(--accent);
   box-shadow: 0 0 0 3px rgba(201,162,39,.12);
 }
-.search-input::placeholder { color: var(--muted); }
 .header-clock {
   font-size: .8rem;
   color: var(--muted);
@@ -132,6 +148,7 @@
   white-space: nowrap;
   position: relative;
   overflow: hidden;
+  margin-bottom: 0;
 }
 .btn:disabled { opacity: .45; cursor: not-allowed; }
 .btn:focus-visible {
@@ -456,9 +473,6 @@ button.htmx-request::after {
 /* ── Tables ────────────────────────────────────────────────────────────── */
 .table-wrap { overflow-x: auto; }
 tr:last-child td { border-bottom: none; }
-tr:hover td { background: var(--surface2); }
-tr:nth-child(even) td { background: rgba(255,255,255,.015); }
-tr:nth-child(even):hover td { background: var(--surface2); }
 
 .td-icon { width: 40px; }
 .svc-icon { width: 28px; height: 28px; border-radius: 6px; object-fit: contain; }
@@ -579,7 +593,7 @@ tr:nth-child(even):hover td { background: var(--surface2); }
   display: flex;
   align-items: center;
   gap: .75rem;
-  margin-top: .25rem;
+  margin-top: .5rem;
 }
 
 /* ── Toast ──────────────────────────────────────────────────────────────── */
@@ -624,6 +638,18 @@ tr:nth-child(even):hover td { background: var(--surface2); }
 .scan-log-line.http  { color: #ffb74d; }
 .scan-log-line.arp   { color: #ce93d8; }
 .scan-log-line.scan  { color: #80cbc4; }
+
+/* ── Subnet add form ────────────────────────────────────────────────────── */
+.subnet-add-form { padding: .75rem 1.5rem; border-top: 1px solid var(--border); }
+.subnet-form-row { display: flex; gap: .5rem; align-items: center; }
+.subnet-input { max-width: 200px; border-radius: 20px; }
+
+/* ── Section actions ────────────────────────────────────────────────────── */
+.section-actions { display: flex; gap: .5rem; align-items: center; }
+.section-header--bordered { border-top: 1px solid var(--border); }
+
+/* ── Subdomain wrap ─────────────────────────────────────────────────────── */
+.subdomain-wrap { position: relative; }
 
 /* ── Animations ─────────────────────────────────────────────────────────── */
 @keyframes fadeIn {

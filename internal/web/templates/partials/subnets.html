@@ -21,14 +21,13 @@
 {{else}}
 <p class="empty-small">No subnets configured — local /24 is auto-detected.</p>
 {{end}}
-<div style="padding:.75rem 1.5rem;border-top:1px solid var(--border)">
+<div class="subnet-add-form">
   <form hx-post="/api/scan/subnets"
         hx-target="#subnets-list"
         hx-swap="innerHTML"
-        style="display:flex;gap:.5rem;align-items:center"
+        class="subnet-form-row"
         hx-on::after-request="this.reset()">
-    <input class="search-input" name="cidr" placeholder="10.0.1.0/24"
-           style="max-width:200px" required>
+    <input class="subnet-input" name="cidr" placeholder="10.0.1.0/24" required>
     <button class="btn btn-primary btn-sm" type="submit">+ Add</button>
   </form>
 </div>

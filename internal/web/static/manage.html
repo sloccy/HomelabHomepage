@@ -93,7 +93,7 @@
   <section class="section" x-data="{ignoredOpen: false}">
     <div class="section-header">
       <h2 class="section-title">Discovered</h2>
-      <div style="display:flex;gap:.5rem;align-items:center">
+      <div class="section-actions">
         <button class="btn btn-ghost btn-sm"
                 @click="ignoredOpen = !ignoredOpen"
                 x-text="ignoredOpen ? '✕ Close' : 'Ignored'">Ignored</button>
@@ -108,7 +108,7 @@
     </div>
     <!-- Ignored section — toggled by Alpine, content loaded eagerly on page load -->
     <div id="ignored-section" x-show="ignoredOpen">
-      <div class="section-header" style="border-top:1px solid var(--border)">
+      <div class="section-header section-header--bordered">
         <h2 class="section-title">Ignored Services</h2>
         <button class="btn btn-ghost btn-sm" @click="ignoredOpen = false">✕ Close</button>
       </div>
