@@ -144,6 +144,7 @@ button, [type="submit"], [type="button"], [type="reset"] { margin-bottom: 0; wid
   padding: .45rem 1rem;
   border: none;
   border-radius: var(--radius-sm);
+  width: auto;
   font-size: .875rem;
   font-family: inherit;
   font-weight: 500;

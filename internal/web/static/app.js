@@ -8,7 +8,7 @@ function toast(msg, type = 'success') {
 }
 
 function closeModal() {
-  document.body.dispatchEvent(new CustomEvent('closeModal'));
+  document.body.dispatchEvent(new CustomEvent('closemodal'));
 }
 
 // ── Search / filter ───────────────────────────────────────────────────────────
