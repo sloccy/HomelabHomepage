@@ -158,6 +158,7 @@ func (s *Server) routes() {
 	s.mux.HandleFunc("POST /api/bookmarks", s.createBookmark)
 	s.mux.HandleFunc("PUT /api/bookmarks/{id}", s.updateBookmark)
 	s.mux.HandleFunc("DELETE /api/bookmarks/{id}", s.deleteBookmark)
+	s.mux.HandleFunc("POST /api/bookmarks/{id}/move", s.moveBookmark)
 
 	s.mux.HandleFunc("GET /api/settings", s.getSettings)
 	s.mux.HandleFunc("PUT /api/settings", s.updateSettings)

@@ -257,6 +257,55 @@ func (s *Server) moveService(w http.ResponseWriter, r *http.Request) {
 	s.fragServicesGrid(w, r)
 }
 
+// ---- Move bookmark (reorder by direction) ------------------------------------
+
+func (s *Server) moveBookmark(w http.ResponseWriter, r *http.Request) {
+	id := r.PathValue("id")
+	direction := r.FormValue("direction")
+
+	bookmarks := s.store.GetAllBookmarks()
+	sort.Slice(bookmarks, func(i, j int) bool {
+		if bookmarks[i].Order != bookmarks[j].Order {
+			return bookmarks[i].Order < bookmarks[j].Order
+		}
+		return bookmarks[i].Name < bookmarks[j].Name
+	})
+
+	ids := make([]string, len(bookmarks))
+	idx := -1
+	for i, bm := range bookmarks {
+		ids[i] = bm.ID
+		if bm.ID == id {
+			idx = i
+		}
+	}
+	if idx < 0 {
+		http.NotFound(w, r)
+		return
+	}
+
+	var swapIdx int
+	switch direction {
+	case "left":
+		swapIdx = idx - 1
+	case "right":
+		swapIdx = idx + 1
+	default:
+		w.WriteHeader(http.StatusBadRequest)
+		return
+	}
+
+	if swapIdx >= 0 && swapIdx < len(ids) {
+		ids[idx], ids[swapIdx] = ids[swapIdx], ids[idx]
+		s.store.ReorderBookmarks(ids)
+		if err := s.store.Save(); err != nil {
+			log.Printf("web: save reorder bookmarks: %v", err)
+		}
+	}
+
+	s.fragBookmarksGrid(w, r)
+}
+
 // ---- Helpers ----------------------------------------------------------------
 
 func findBookmarkByID(bms []*store.Bookmark, id string) *store.Bookmark {

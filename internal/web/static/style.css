@@ -46,6 +46,7 @@
 
 /* ── Structural resets (prevent Pico double-spacing) ────────────────────── */
 header, main, section { padding: 0; margin: 0; }
+main { max-width: unset; }
 button, [type="submit"], [type="button"], [type="reset"] { margin-bottom: 0; }
 button[type="submit"], button[type="button"], button[type="reset"], button:not([type]) { width: auto; }
 

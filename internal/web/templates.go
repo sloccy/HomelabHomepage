@@ -327,9 +327,18 @@ func buildServicesGrid(services []*store.Service, domain string, health map[stri
 }
 
 func buildBookmarksGrid(bookmarks []*store.Bookmark) bookmarksGridData {
+	sorted := make([]*store.Bookmark, len(bookmarks))
+	copy(sorted, bookmarks)
+	sort.Slice(sorted, func(i, j int) bool {
+		if sorted[i].Order != sorted[j].Order {
+			return sorted[i].Order < sorted[j].Order
+		}
+		return strings.ToLower(sorted[i].Name) < strings.ToLower(sorted[j].Name)
+	})
+
 	groupIdx := make(map[string]int)
 	var groups []bookmarkGroup
-	for _, bm := range bookmarks {
+	for _, bm := range sorted {
 		cat := bm.Category
 		if _, ok := groupIdx[cat]; !ok {
 			groupIdx[cat] = len(groups)

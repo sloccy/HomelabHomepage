@@ -35,6 +35,7 @@ type Bookmark struct {
 	URL      string `json:"url"`
 	Icon     string `json:"icon,omitempty"`
 	Category string `json:"category,omitempty"`
+	Order    int    `json:"order,omitempty"`
 }
 
 // IgnoredService is a discovered service the user has chosen to suppress.
@@ -545,6 +546,22 @@ func (s *Store) UpdateBookmark(id string, updated *Bookmark) bool {
 		}
 	}
 	return false
+}
+
+// ReorderBookmarks sets the Order field on each bookmark based on the provided
+// slice of IDs (index 0 = first). Bookmarks not in the list keep their
+// current Order value.
+func (s *Store) ReorderBookmarks(ids []string) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	for i, id := range ids {
+		for _, bm := range s.d.Bookmarks {
+			if bm.ID == id {
+				bm.Order = i
+				break
+			}
+		}
+	}
 }
 
 func (s *Store) DeleteBookmark(id string) bool {
