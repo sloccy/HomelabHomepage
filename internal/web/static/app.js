@@ -11,33 +11,6 @@ function closeModal() {
   document.body.dispatchEvent(new CustomEvent('closemodal'));
 }
 
-// ── Search / filter ───────────────────────────────────────────────────────────
-
-document.addEventListener('alpine:init', () => {
-  Alpine.data('search', () => ({
-    query: '',
-    filter() {
-      const q = this.query.toLowerCase().trim();
-      const filterRoot = root => {
-        if (!root) return;
-        root.querySelectorAll('.service-card').forEach(card => {
-          const name = (card.dataset.name || '').toLowerCase();
-          const sub  = (card.dataset.sub  || '').toLowerCase();
-          card.style.display = (!q || name.includes(q) || sub.includes(q)) ? '' : 'none';
-        });
-        root.querySelectorAll('.category-group').forEach(group => {
-          const grid = group.querySelector('.grid');
-          if (!grid) return;
-          const anyVisible = [...grid.querySelectorAll('.service-card')].some(c => c.style.display !== 'none');
-          group.style.display = anyVisible ? '' : 'none';
-        });
-      };
-      filterRoot(document.getElementById('services-grid'));
-      filterRoot(document.getElementById('bookmarks-home'));
-    }
-  }));
-});
-
 // ── Keyboard shortcuts ────────────────────────────────────────────────────────
 
 document.addEventListener('keydown', e => {
@@ -64,8 +37,7 @@ document.addEventListener('keydown', e => {
 
   if (e.key >= '1' && e.key <= '9') {
     const n = parseInt(e.key, 10);
-    const cards = [...document.querySelectorAll('#services-grid .service-card')]
-      .filter(c => c.style.display !== 'none');
+    const cards = [...document.querySelectorAll('#services-grid .service-card')];
     if (cards[n - 1]) cards[n - 1].click();
   }
 });

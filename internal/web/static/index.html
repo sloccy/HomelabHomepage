@@ -25,7 +25,7 @@
     <span class="logo-text">Lantern</span>
   </div>
   <input id="search-input" class="search-input" type="search"
-         x-data="search()" x-model="query" @input="filter()"
+         name="q"
          placeholder="Search… ( / )" autocomplete="off">
   <div class="header-right">
     <span id="header-clock" class="header-clock"
@@ -52,14 +52,16 @@
 
 <div id="services-grid" class="grid-root"
      hx-get="/fragments/services"
-     hx-trigger="load"
+     hx-trigger="load, input from:#search-input delay:200ms"
+     hx-include="#search-input"
      hx-swap="innerHTML">
   <div class="htmx-indicator section-spinner"></div>
 </div>
 
 <div id="bookmarks-home"
      hx-get="/fragments/bookmarks"
-     hx-trigger="load"
+     hx-trigger="load, input from:#search-input delay:200ms"
+     hx-include="#search-input"
      hx-swap="innerHTML">
   <div class="htmx-indicator section-spinner"></div>
 </div>

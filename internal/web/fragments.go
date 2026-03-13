@@ -6,6 +6,7 @@ import (
 	"net"
 	"net/http"
 	"sort"
+	"strings"
 	"time"
 
 	"lantern/internal/store"
@@ -15,11 +16,36 @@ import (
 // ---- Fragment handlers (GET /fragments/*) -----------------------------------
 
 func (s *Server) fragServicesGrid(w http.ResponseWriter, r *http.Request) {
-	renderTemplate(w, "services-grid.html", buildServicesGrid(s.store.GetAllServices(), s.cfg.Domain, s.healthSnapshot()))
+	q := strings.ToLower(r.URL.Query().Get("q"))
+	services := s.store.GetAllServices()
+	if q != "" {
+		filtered := services[:0]
+		for _, svc := range services {
+			if strings.Contains(strings.ToLower(svc.Name), q) ||
+				strings.Contains(strings.ToLower(svc.Subdomain), q) ||
+				strings.Contains(strings.ToLower(svc.Target), q) {
+				filtered = append(filtered, svc)
+			}
+		}
+		services = filtered
+	}
+	renderTemplate(w, "services-grid.html", buildServicesGrid(services, s.cfg.Domain, s.healthSnapshot()))
 }
 
 func (s *Server) fragBookmarksGrid(w http.ResponseWriter, r *http.Request) {
-	renderTemplate(w, "bookmarks-grid.html", buildBookmarksGrid(s.store.GetAllBookmarks()))
+	q := strings.ToLower(r.URL.Query().Get("q"))
+	bookmarks := s.store.GetAllBookmarks()
+	if q != "" {
+		filtered := bookmarks[:0]
+		for _, bm := range bookmarks {
+			if strings.Contains(strings.ToLower(bm.Name), q) ||
+				strings.Contains(strings.ToLower(bm.URL), q) {
+				filtered = append(filtered, bm)
+			}
+		}
+		bookmarks = filtered
+	}
+	renderTemplate(w, "bookmarks-grid.html", buildBookmarksGrid(bookmarks))
 }
 
 func (s *Server) fragSysinfo(w http.ResponseWriter, r *http.Request) {
