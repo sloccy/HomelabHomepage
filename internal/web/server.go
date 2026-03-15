@@ -336,6 +336,13 @@ func (s *Server) createService(w http.ResponseWriter, r *http.Request) {
 		subdomain = "_direct_" + svcID
 	}
 
+	maxOrder := 0
+	for _, existing := range s.store.GetAllServices() {
+		if existing.Order > maxOrder {
+			maxOrder = existing.Order
+		}
+	}
+
 	svc := &store.Service{
 		ID:            svcID,
 		Name:          name,
@@ -347,6 +354,7 @@ func (s *Server) createService(w http.ResponseWriter, r *http.Request) {
 		ContainerID:   containerID,
 		ContainerName: containerName,
 		DirectOnly:    req.DirectOnly,
+		Order:         maxOrder + 1,
 		CreatedAt:     time.Now(),
 	}
 

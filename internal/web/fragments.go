@@ -83,7 +83,7 @@ func (s *Server) fragSubnets(w http.ResponseWriter, r *http.Request) {
 func (s *Server) fragServicesTable(w http.ResponseWriter, r *http.Request) {
 	services := s.store.GetAllServices()
 	sort.Slice(services, func(i, j int) bool {
-		return services[i].Name < services[j].Name
+		return strings.ToLower(services[i].Name) < strings.ToLower(services[j].Name)
 	})
 	renderTemplate(w, "services-table.html", servicesTableData{
 		Services: services,
