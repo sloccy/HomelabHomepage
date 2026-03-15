@@ -1,5 +1,5 @@
 {{if .Services}}
-<div class="table-wrap">
+<div class="table-responsive">
   <table class="table table-hover mb-0">
     <thead>
       <tr>
@@ -26,10 +26,10 @@
         <td><code style="font-size:.8rem">{{.Target}}</code></td>
         <td>
           <span class="{{tagClass .Source}}">{{.Source}}</span>
-          {{if isTunneled .}}<span class="badge tag-tunnel">tunnel</span>{{end}}
+          {{if isTunneled .}}<span class="badge text-warning-emphasis bg-warning-subtle">tunnel</span>{{end}}
         </td>
         <td class="td-actions">
-          <div class="actions">
+          <div class="d-flex gap-2 align-items-center justify-content-end">
             <button class="btn btn-outline-secondary btn-sm"
                     hx-get="/fragments/service-form/{{.ID}}"
                     hx-target="#modal-content">Edit</button>

@@ -148,11 +148,11 @@ var funcMap = template.FuncMap{
 	"tagClass": func(source string) string {
 		switch source {
 		case "docker":
-			return "badge tag-docker"
+			return "badge text-info-emphasis bg-info-subtle"
 		case "network":
-			return "badge tag-network"
+			return "badge text-success-emphasis bg-success-subtle"
 		default:
-			return "badge tag-manual"
+			return "badge text-secondary-emphasis bg-secondary-subtle"
 		}
 	},
 

@@ -1,5 +1,5 @@
 {{if .}}
-<div class="table-wrap">
+<div class="table-responsive">
   <table class="table table-hover mb-0">
     <thead>
       <tr><th>Name</th><th>URL</th><th>Category</th><th></th></tr>
@@ -13,7 +13,7 @@
         </td>
         <td>{{if .Category}}{{.Category}}{{else}}—{{end}}</td>
         <td>
-          <div class="actions">
+          <div class="d-flex gap-2 align-items-center justify-content-end">
             <button class="btn btn-outline-secondary btn-sm"
                     hx-get="/fragments/bookmark-form/{{.ID}}"
                     hx-target="#modal-content">Edit</button>

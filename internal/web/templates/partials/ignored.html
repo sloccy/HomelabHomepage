@@ -1,5 +1,5 @@
 {{if .}}
-<div class="table-wrap">
+<div class="table-responsive">
   <table class="table table-hover mb-0">
     <thead><tr><th>IP:Port</th><th>Title</th><th>Ignored At</th><th></th></tr></thead>
     <tbody>
@@ -8,7 +8,7 @@
         <td><code>{{.IP}}:{{.Port}}</code></td>
         <td>{{if .Title}}{{.Title}}{{else}}—{{end}}</td>
         <td>{{fmtTime .IgnoredAt}}</td>
-        <td class="actions">
+        <td class="td-actions d-flex gap-2 align-items-center justify-content-end">
           <button class="btn btn-outline-secondary btn-sm"
                   hx-delete="/api/ignored/{{.ID}}"
                   hx-target="closest tr"

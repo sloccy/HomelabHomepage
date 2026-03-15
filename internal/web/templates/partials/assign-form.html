@@ -18,7 +18,7 @@
       <label class="form-label">Subdomain</label>
       <div x-data="{sub: '{{or .Discovered.SuggestedSubdomain .Discovered.ServiceName}}'}">
         <input class="form-control" name="subdomain" x-model="sub" required placeholder="myservice">
-        <div class="input-hint" x-text="sub ? sub + '.{{.Domain}}' : ''"></div>
+        <div class="form-text" x-text="sub ? sub + '.{{.Domain}}' : ''"></div>
       </div>
     </div>
     <div class="mb-3">

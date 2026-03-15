@@ -1,6 +1,6 @@
 {{if .}}
 {{range .}}
-<div class="disc-item">
+<div class="disc-item d-flex align-items-center gap-3 px-4 py-3 border-bottom flex-wrap">
   <div style="flex-shrink:0">
     {{if .Icon}}{{iconEl .Icon "" "card-icon"}}{{else}}<div class="card-icon-placeholder">🔍</div>{{end}}
   </div>
@@ -14,7 +14,7 @@
       {{if .ContainerName}} · {{.ContainerName}}{{end}}
     </div>
   </div>
-  <div class="disc-actions">
+  <div class="d-flex gap-2 flex-shrink-0">
     <a href="http://{{.IP}}:{{.Port}}" target="_blank" rel="noopener"
        class="btn btn-outline-secondary btn-sm">↗</a>
     <button class="btn btn-warning btn-sm"

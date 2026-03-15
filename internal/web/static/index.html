@@ -14,8 +14,9 @@
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/js/bootstrap.bundle.min.js"></script>
 </head>
 <body x-data="{
-        modalOpen: false,
+        _modal: null,
         editMode: false,
+        init() { this._modal = new bootstrap.Modal(document.getElementById('app-modal')); },
         focusSearch(e) {
           const tag = document.activeElement.tagName;
           if (tag==='INPUT'||tag==='TEXTAREA'||tag==='SELECT') return;
@@ -32,8 +33,8 @@
       :class="{'edit-layout-mode': editMode}"
       @keydown.window="$event.key==='/'&&focusSearch($event)"
       @keydown.escape.window="clearSearch()"
-      @closeModal.window="modalOpen = false"
-      @openModal.window="modalOpen = true">
+      @closemodal.window="_modal.hide()"
+      @openmodal.window="_modal.show()">
 
 <div id="htmx-topbar"></div>
 
@@ -42,7 +43,7 @@
     <img src="/logo.png" class="logo-img" alt="Lantern">
     <span class="logo-text">Lantern</span>
   </div>
-  <input id="search-input" class="search-input form-control" type="search"
+  <input id="search-input" class="search-input form-control flex-fill rounded-pill" type="search"
          name="q"
          placeholder="Search… ( / )" autocomplete="off">
   <div class="header-right">
@@ -65,7 +66,7 @@
      hx-get="/fragments/sysinfo"
      hx-trigger="load, every 5s"
      hx-swap="innerHTML">
-  <div class="htmx-indicator section-spinner"></div>
+  <div class="htmx-indicator section-spinner"><div class="spinner-border spinner-border-sm" role="status"></div></div>
 </div>
 
 <div id="services-grid" class="grid-root"
@@ -73,7 +74,7 @@
      hx-trigger="load, input from:#search-input delay:200ms"
      hx-include="#search-input"
      hx-swap="innerHTML">
-  <div class="htmx-indicator section-spinner"></div>
+  <div class="htmx-indicator section-spinner"><div class="spinner-border spinner-border-sm" role="status"></div></div>
 </div>
 
 <div id="bookmarks-home"
@@ -81,26 +82,38 @@
      hx-trigger="load, input from:#search-input delay:200ms"
      hx-include="#search-input"
      hx-swap="innerHTML">
-  <div class="htmx-indicator section-spinner"></div>
+  <div class="htmx-indicator section-spinner"><div class="spinner-border spinner-border-sm" role="status"></div></div>
 </div>
 
 <!-- Modal -->
-<div class="modal-backdrop" x-show="modalOpen" style="display:none"
-     @click.self="modalOpen = false">
-  <div class="modal" @keydown.escape.window="modalOpen = false">
-    <button class="modal-close" @click="modalOpen = false">✕</button>
-    <div id="modal-content"></div>
+<div class="modal fade" id="app-modal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-body position-relative">
+        <button type="button" class="btn-close position-absolute top-0 end-0 m-3"
+                data-bs-dismiss="modal" aria-label="Close"></button>
+        <div id="modal-content"></div>
+      </div>
+    </div>
   </div>
 </div>
 
 <!-- Toast -->
-<div x-data="{show:false, msg:'', type:'success', _t:null}"
-     @showToast.window="
-       clearTimeout(_t);
-       msg=event.detail.msg; type=event.detail.type||'success';
-       show=true; _t=setTimeout(()=>show=false, 3500)"
-     x-show="show" :class="'toast '+type" x-text="msg"
-     style="display:none"></div>
+<div class="toast-container position-fixed bottom-0 end-0 p-3"
+     x-data="{msg:'', type:'success',
+       init() { this._el = new bootstrap.Toast(this.$refs.toast, {autohide:true, delay:3500}); }
+     }"
+     @showtoast.window="msg=$event.detail.msg; type=$event.detail.type||'success'; _el.show();">
+  <div class="toast align-items-center border-0"
+       :class="type==='error' ? 'text-bg-danger' : 'text-bg-success'"
+       role="alert" x-ref="toast">
+    <div class="d-flex">
+      <div class="toast-body" x-text="msg"></div>
+      <button type="button" class="btn-close btn-close-white me-2 m-auto"
+              data-bs-dismiss="toast" aria-label="Close"></button>
+    </div>
+  </div>
+</div>
 
 <script src="/app.js"></script>
 <script>

@@ -40,7 +40,7 @@
       <label class="form-label">Subdomain</label>
       <div x-data="{sub: '{{.Service.Subdomain}}'}" class="subdomain-wrap">
         <input class="form-control" name="subdomain" x-model="sub">
-        <div class="input-hint" x-text="sub + '.{{.Domain}}'"></div>
+        <div class="form-text" x-text="sub + '.{{.Domain}}'"></div>
       </div>
     </div>
     <div class="mb-3">
@@ -95,7 +95,7 @@
       <label class="form-label">Subdomain</label>
       <div x-data="{sub: ''}" class="subdomain-wrap">
         <input class="form-control" name="subdomain" x-model="sub" placeholder="myservice">
-        <div class="input-hint" x-text="sub ? sub + '.{{.Domain}}' : ''"></div>
+        <div class="form-text" x-text="sub ? sub + '.{{.Domain}}' : ''"></div>
       </div>
     </div>
     <div class="mb-3">
