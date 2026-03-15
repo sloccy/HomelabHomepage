@@ -1,6 +1,6 @@
 {{if .Subnets}}
 <div class="table-wrap">
-  <table>
+  <table class="table table-hover mb-0">
     <thead><tr><th>CIDR</th><th></th></tr></thead>
     <tbody>
       {{range .Subnets}}
@@ -19,15 +19,15 @@
   </table>
 </div>
 {{else}}
-<p class="empty-small">No subnets configured — local /24 is auto-detected.</p>
+<p class="text-center text-secondary p-4">No subnets configured — local /24 is auto-detected.</p>
 {{end}}
-<div class="subnet-add-form">
+<div class="p-3 border-top">
   <form hx-post="/api/scan/subnets"
         hx-target="#subnets-list"
         hx-swap="innerHTML"
-        class="subnet-form-row"
+        class="d-flex gap-2 align-items-center"
         hx-on::after-request="this.reset()">
-    <input class="subnet-input" name="cidr" placeholder="10.0.1.0/24" required>
-    <button class="btn btn-primary btn-sm" type="submit">+ Add</button>
+    <input class="form-control" name="cidr" placeholder="10.0.1.0/24" required>
+    <button class="btn btn-warning btn-sm" type="submit">+ Add</button>
   </form>
 </div>

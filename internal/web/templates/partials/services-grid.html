@@ -3,7 +3,7 @@
   <img src="/logo.png" class="logo-img-lg" alt="Lantern">
   <h2>Welcome to Lantern</h2>
   <p>No services assigned yet. Add services from the manage view.</p>
-  <a href="/manage" class="btn btn-primary">Get Started →</a>
+  <a href="/manage" class="btn btn-warning">Get Started →</a>
 </div>
 {{else if not .IsEmpty}}
 {{range .Groups}}
@@ -28,13 +28,13 @@
       <div class="card-name">{{.Name}}</div>
       <div class="card-url">{{if .DirectOnly}}{{.Target}}{{else}}{{.Subdomain}}.{{$.Domain}}{{end}}</div>
       <div class="reorder-btns">
-        <button class="btn btn-ghost btn-sm reorder-btn"
+        <button class="btn btn-outline-secondary btn-sm reorder-btn"
                 hx-post="/api/services/{{.ID}}/move"
                 hx-vals='{"direction":"left"}'
                 hx-target="#services-grid"
                 hx-swap="innerHTML"
                 onclick="event.preventDefault(); event.stopPropagation()">←</button>
-        <button class="btn btn-ghost btn-sm reorder-btn"
+        <button class="btn btn-outline-secondary btn-sm reorder-btn"
                 hx-post="/api/services/{{.ID}}/move"
                 hx-vals='{"direction":"right"}'
                 hx-target="#services-grid"

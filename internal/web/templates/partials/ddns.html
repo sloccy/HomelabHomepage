@@ -1,6 +1,6 @@
 {{if .Domains}}
 <div class="table-wrap">
-  <table>
+  <table class="table table-hover mb-0">
     <thead><tr><th>Domain</th><th>Points To</th><th></th></tr></thead>
     <tbody>
       {{range .Domains}}
@@ -20,16 +20,16 @@
   </table>
 </div>
 {{else}}
-<p class="empty-small">No DDNS domains configured.</p>
+<p class="text-center text-secondary p-4">No DDNS domains configured.</p>
 {{end}}
-<div class="subnet-add-form">
+<div class="p-3 border-top">
   <form hx-post="/api/ddns"
         hx-target="#ddns-list"
         hx-swap="innerHTML"
-        class="subnet-form-row"
+        class="d-flex gap-2 align-items-center"
         hx-on::after-request="if(event.detail.successful) this.reset()">
-    <input class="subnet-input" name="domain"
+    <input class="form-control" name="domain"
            placeholder="home.example.com" required>
-    <button class="btn btn-primary btn-sm" type="submit">+ Add</button>
+    <button class="btn btn-warning btn-sm" type="submit">+ Add</button>
   </form>
 </div>

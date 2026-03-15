@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en" data-theme="dark">
+<html lang="en" data-bs-theme="dark">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -7,11 +7,12 @@
   <link rel="icon" type="image/png" href="/logo.png">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@picocss/pico@2/css/pico.classless.min.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css">
   <link rel="stylesheet" href="/style.css">
   <script src="https://cdn.jsdelivr.net/npm/htmx.org@2.0.8/dist/htmx.min.js"></script>
   <script src="/app.js"></script>
   <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.15.8/dist/cdn.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 </head>
 <body x-data="{modalOpen: false}" @openModal="modalOpen = true" @closeModal="modalOpen = false">
 
@@ -21,15 +22,15 @@
   <div class="logo">
     <img src="/logo.png" class="logo-img" alt="Lantern">
     <span class="logo-text">Lantern</span>
-    <span class="badge">Manage</span>
+    <span class="badge bg-warning text-dark">Manage</span>
   </div>
-  <a href="/" class="btn btn-ghost">← Home</a>
+  <a href="/" class="btn btn-outline-secondary">← Home</a>
 </header>
 
-<main class="manage-container">
+<main class="container py-4 d-flex flex-column gap-4">
 
   <!-- Status -->
-  <section class="section" id="status-section"
+  <section class="card" id="status-section"
            hx-get="/fragments/status"
            hx-trigger="load"
            hx-swap="innerHTML">
@@ -43,12 +44,12 @@
        hx-swap="outerHTML"></div>
 
   <!-- Scan Subnets -->
-  <section class="section">
-    <div class="section-header">
-      <h2 class="section-title">Scan Subnets</h2>
+  <section class="card">
+    <div class="card-header d-flex align-items-center justify-content-between">
+      <h5 class="mb-0">Scan Subnets</h5>
     </div>
-    <p class="section-desc">Subnets to scan for services (CIDR notation, e.g.
-      <code>10.0.1.0/24</code>). If none are configured, the local /24 is auto-detected.</p>
+    <div class="card-body py-2 border-bottom text-secondary small mb-0">Subnets to scan for services (CIDR notation, e.g.
+      <code>10.0.1.0/24</code>). If none are configured, the local /24 is auto-detected.</div>
     <div id="subnets-list"
          hx-get="/fragments/subnets"
          hx-trigger="load"
@@ -58,10 +59,10 @@
   </section>
 
   <!-- Assigned Services -->
-  <section class="section">
-    <div class="section-header">
-      <h2 class="section-title">Services</h2>
-      <button class="btn btn-primary btn-sm"
+  <section class="card">
+    <div class="card-header d-flex align-items-center justify-content-between">
+      <h5 class="mb-0">Services</h5>
+      <button class="btn btn-warning btn-sm"
               hx-get="/fragments/service-form"
               hx-target="#modal-content">+ Add Service</button>
     </div>
@@ -74,14 +75,14 @@
   </section>
 
   <!-- Bookmarks -->
-  <section class="section">
-    <div class="section-header">
-      <h2 class="section-title">Bookmarks</h2>
-      <button class="btn btn-primary btn-sm"
+  <section class="card">
+    <div class="card-header d-flex align-items-center justify-content-between">
+      <h5 class="mb-0">Bookmarks</h5>
+      <button class="btn btn-warning btn-sm"
               hx-get="/fragments/bookmark-form"
               hx-target="#modal-content">+ Add Bookmark</button>
     </div>
-    <p class="section-desc">External links shown on the home view. No proxy or DNS — just shortcuts.</p>
+    <div class="card-body py-2 border-bottom text-secondary small mb-0">External links shown on the home view. No proxy or DNS — just shortcuts.</div>
     <div id="bookmarks-table"
          hx-get="/fragments/bookmarks-table"
          hx-trigger="load, refreshBookmarksTable from:body"
@@ -91,16 +92,16 @@
   </section>
 
   <!-- Discovered -->
-  <section class="section" x-data="{ignoredOpen: false}">
-    <div class="section-header">
-      <h2 class="section-title">Discovered</h2>
-      <div class="section-actions">
-        <button class="btn btn-ghost btn-sm"
+  <section class="card" x-data="{ignoredOpen: false}">
+    <div class="card-header d-flex align-items-center justify-content-between">
+      <h5 class="mb-0">Discovered</h5>
+      <div class="d-flex gap-2 align-items-center">
+        <button class="btn btn-outline-secondary btn-sm"
                 @click="ignoredOpen = !ignoredOpen"
                 x-text="ignoredOpen ? '✕ Close' : 'Ignored'">Ignored</button>
       </div>
     </div>
-    <p class="section-desc">Services found by network scan or Docker that haven't been assigned a subdomain.</p>
+    <div class="card-body py-2 border-bottom text-secondary small mb-0">Services found by network scan or Docker that haven't been assigned a subdomain.</div>
     <div id="discovered-list"
          hx-get="/fragments/discovered"
          hx-trigger="load, refreshDiscovered from:body"
@@ -109,11 +110,11 @@
     </div>
     <!-- Ignored section — toggled by Alpine, content loaded eagerly on page load -->
     <div id="ignored-section" x-show="ignoredOpen">
-      <div class="section-header section-header--bordered">
-        <h2 class="section-title">Ignored Services</h2>
-        <button class="btn btn-ghost btn-sm" @click="ignoredOpen = false">✕ Close</button>
+      <div class="card-header d-flex align-items-center justify-content-between border-top">
+        <h5 class="mb-0">Ignored Services</h5>
+        <button class="btn btn-outline-secondary btn-sm" @click="ignoredOpen = false">✕ Close</button>
       </div>
-      <p class="section-desc">These IP:port pairs are permanently suppressed from discovery results.</p>
+      <div class="card-body py-2 border-bottom text-secondary small mb-0">These IP:port pairs are permanently suppressed from discovery results.</div>
       <div hx-get="/fragments/ignored"
            hx-trigger="load, refreshIgnored from:body"
            hx-swap="innerHTML"></div>
@@ -121,11 +122,11 @@
   </section>
 
   <!-- Dynamic DNS -->
-  <section class="section">
-    <div class="section-header">
-      <h2 class="section-title">Dynamic DNS</h2>
+  <section class="card">
+    <div class="card-header d-flex align-items-center justify-content-between">
+      <h5 class="mb-0">Dynamic DNS</h5>
     </div>
-    <p class="section-desc">These domains will automatically update to your current public IP address.</p>
+    <div class="card-body py-2 border-bottom text-secondary small mb-0">These domains will automatically update to your current public IP address.</div>
     <div id="ddns-list"
          hx-get="/fragments/ddns"
          hx-trigger="load"

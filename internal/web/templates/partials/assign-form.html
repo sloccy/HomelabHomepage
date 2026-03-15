@@ -1,5 +1,5 @@
 <h3>Assign Service</h3>
-<div style="background:var(--surface2);border-radius:6px;padding:.75rem;margin-bottom:1.25rem;font-size:.85rem">
+<div class="bg-body-secondary rounded p-3 mb-4 small">
   <strong>{{.Discovered.IP}}:{{.Discovered.Port}}</strong>
   {{if .Discovered.Title}} · {{.Discovered.Title}}{{end}}
   {{if .Discovered.ServiceName}} · <em>{{.Discovered.ServiceName}}</em>{{end}}
@@ -9,44 +9,44 @@
 
   <input type="hidden" name="discovered_id" value="{{.Discovered.ID}}">
 
-  <div class="form-group">
-    <label>Service Name</label>
-    <input name="name" value="{{.Discovered.Title}}" placeholder="My Service">
+  <div class="mb-3">
+    <label class="form-label">Service Name</label>
+    <input class="form-control" name="name" value="{{.Discovered.Title}}" placeholder="My Service">
   </div>
   <div x-data="{direct: false}">
-    <div class="form-group" x-show="!direct">
-      <label>Subdomain</label>
+    <div class="mb-3" x-show="!direct">
+      <label class="form-label">Subdomain</label>
       <div x-data="{sub: '{{or .Discovered.SuggestedSubdomain .Discovered.ServiceName}}'}">
-        <input name="subdomain" x-model="sub" required placeholder="myservice">
+        <input class="form-control" name="subdomain" x-model="sub" required placeholder="myservice">
         <div class="input-hint" x-text="sub ? sub + '.{{.Domain}}' : ''"></div>
       </div>
     </div>
-    <div class="form-group">
-      <label>Category</label>
-      <input name="category" list="categories-list" placeholder="Optional">
+    <div class="mb-3">
+      <label class="form-label">Category</label>
+      <input class="form-control" name="category" list="categories-list" placeholder="Optional">
       <datalist id="categories-list">
         {{range .Categories}}<option value="{{.}}">{{end}}
       </datalist>
     </div>
-    <div class="checkbox-row">
-      <label class="checkbox-label">
-        <input type="checkbox" name="direct_only" x-model="direct">
-        Direct link
-      </label>
+    <div class="d-flex flex-wrap gap-3 mb-3 align-items-center">
+      <div class="form-check">
+        <input class="form-check-input" type="checkbox" id="cb-direct" name="direct_only" x-model="direct">
+        <label class="form-check-label" for="cb-direct">Direct link</label>
+      </div>
       {{if .TunnelEnabled}}
-      <label class="checkbox-label">
-        <input type="checkbox" name="tunnel">
-        Cloudflare Tunnel
-      </label>
+      <div class="form-check">
+        <input class="form-check-input" type="checkbox" id="cb-tunnel" name="tunnel">
+        <label class="form-check-label" for="cb-tunnel">Cloudflare Tunnel</label>
+      </div>
       {{end}}
-      <label class="checkbox-label">
-        <input type="checkbox" name="skip_health">
-        Skip health check
-      </label>
+      <div class="form-check">
+        <input class="form-check-input" type="checkbox" id="cb-skip-health" name="skip_health">
+        <label class="form-check-label" for="cb-skip-health">Skip health check</label>
+      </div>
     </div>
   </div>
-  <div class="form-actions">
-    <button type="button" class="btn btn-ghost" @click="$dispatch('closemodal')">Cancel</button>
-    <button type="submit" class="btn btn-primary">Assign</button>
+  <div class="d-flex gap-2 justify-content-end mt-3">
+    <button type="button" class="btn btn-outline-secondary" @click="$dispatch('closemodal')">Cancel</button>
+    <button type="submit" class="btn btn-warning">Assign</button>
   </div>
 </form>

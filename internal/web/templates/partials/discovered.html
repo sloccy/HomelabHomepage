@@ -16,16 +16,16 @@
   </div>
   <div class="disc-actions">
     <a href="http://{{.IP}}:{{.Port}}" target="_blank" rel="noopener"
-       class="btn btn-ghost btn-sm">↗</a>
-    <button class="btn btn-primary btn-sm"
+       class="btn btn-outline-secondary btn-sm">↗</a>
+    <button class="btn btn-warning btn-sm"
             hx-get="/fragments/assign-form/{{.ID}}"
             hx-target="#modal-content">Assign</button>
-    <button class="btn btn-ghost btn-sm"
+    <button class="btn btn-outline-secondary btn-sm"
             hx-post="/api/discovered/{{.ID}}/ignore"
             hx-target="closest .disc-item"
             hx-swap="delete"
             hx-confirm="Ignore {{.IP}}:{{.Port}} permanently?">Ignore</button>
-    <button class="btn btn-ghost btn-sm"
+    <button class="btn btn-outline-secondary btn-sm"
             hx-delete="/api/discovered/{{.ID}}"
             hx-target="closest .disc-item"
             hx-swap="delete">Dismiss</button>
@@ -33,5 +33,5 @@
 </div>
 {{end}}
 {{else}}
-<p class="empty-small">No discovered services.</p>
+<p class="text-center text-secondary p-4">No discovered services.</p>
 {{end}}

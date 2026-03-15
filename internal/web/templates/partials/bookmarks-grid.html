@@ -21,13 +21,13 @@
         <div class="card-name">{{.Name}}</div>
         <div class="card-url">{{.URL}}</div>
         <div class="reorder-btns">
-          <button class="btn btn-ghost btn-sm reorder-btn"
+          <button class="btn btn-outline-secondary btn-sm reorder-btn"
                   hx-post="/api/bookmarks/{{.ID}}/move"
                   hx-vals='{"direction":"left"}'
                   hx-target="#bookmarks-home"
                   hx-swap="innerHTML"
                   onclick="event.preventDefault(); event.stopPropagation()">←</button>
-          <button class="btn btn-ghost btn-sm reorder-btn"
+          <button class="btn btn-outline-secondary btn-sm reorder-btn"
                   hx-post="/api/bookmarks/{{.ID}}/move"
                   hx-vals='{"direction":"right"}'
                   hx-target="#bookmarks-home"

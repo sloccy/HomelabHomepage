@@ -1,6 +1,6 @@
-<div class="section-header">
-  <h2 class="section-title">Status</h2>
-  <button class="btn btn-primary"
+<div class="card-header d-flex align-items-center justify-content-between">
+  <h5 class="mb-0">Status</h5>
+  <button class="btn btn-warning"
           {{if not .Scanning}}
           hx-post="/api/scan"
           hx-target="#status-section"
