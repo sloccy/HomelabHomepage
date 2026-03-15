@@ -6,20 +6,17 @@
   <a href="/manage" class="btn btn-warning">Get Started →</a>
 </div>
 {{else if not .IsEmpty}}
-{{range .Groups}}
-<div class="category-group" data-cat="{{.Name}}"
-     x-data="{open: true}"
-     x-init="open = localStorage.getItem('cat:' + $root.getAttribute('data-cat')) !== '0'">
-  {{if .Name}}
-  <div class="category-header"
-       @click="open = !open; localStorage.setItem('cat:' + $root.getAttribute('data-cat'), open ? '1' : '0')">
-    <span class="category-arrow" x-text="open ? '▾' : '▸'">▾</span>
-    <span class="category-name">{{.Name}}</span>
-    <span class="category-count">{{len .Services}}</span>
+{{range $i, $g := .Groups}}
+<div class="category-group" data-cat="{{$g.Name}}">
+  {{if $g.Name}}
+  <div class="category-header" data-bs-toggle="collapse" data-bs-target="#cat-{{$i}}">
+    <span class="category-arrow">▾</span>
+    <span class="category-name">{{$g.Name}}</span>
+    <span class="category-count">{{len $g.Services}}</span>
   </div>
   {{end}}
-  <div class="grid" x-show="open">
-    {{range .Services}}
+  <div class="grid collapse show" id="cat-{{$i}}" data-storage-key="cat:{{$g.Name}}">
+    {{range $g.Services}}
     {{$h := healthStatus .ID $.Health}}
     <a class="service-card" href="{{cardURL . $.Domain}}"
        target="_blank" rel="noopener" data-name="{{.Name}}">

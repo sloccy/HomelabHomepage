@@ -10,31 +10,9 @@
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/css/bootstrap.min.css">
   <link rel="stylesheet" href="/style.css">
   <script src="https://cdn.jsdelivr.net/npm/htmx.org@2.0.8/dist/htmx.min.js"></script>
-  <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.15.8/dist/cdn.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/js/bootstrap.bundle.min.js"></script>
 </head>
-<body x-data="{
-        _modal: null,
-        editMode: false,
-        init() { this._modal = new bootstrap.Modal(document.getElementById('app-modal')); },
-        focusSearch(e) {
-          const tag = document.activeElement.tagName;
-          if (tag==='INPUT'||tag==='TEXTAREA'||tag==='SELECT') return;
-          e.preventDefault();
-          document.getElementById('search-input')?.focus();
-        },
-        clearSearch() {
-          const tag = document.activeElement.tagName;
-          if (tag==='INPUT'||tag==='TEXTAREA'||tag==='SELECT') return;
-          const s = document.getElementById('search-input');
-          if (s && s.value) { s.value=''; s.dispatchEvent(new Event('input',{bubbles:true})); s.blur(); }
-        }
-      }"
-      :class="{'edit-layout-mode': editMode}"
-      @keydown.window="$event.key==='/'&&focusSearch($event)"
-      @keydown.escape.window="clearSearch()"
-      @closemodal.window="_modal.hide()"
-      @openmodal.window="_modal.show()">
+<body>
 
 <div id="htmx-topbar"></div>
 
@@ -47,17 +25,11 @@
          name="q"
          placeholder="Search… ( / )" autocomplete="off">
   <div class="header-right">
-    <span id="header-clock" class="header-clock"
-          x-data="{
-            t: '',
-            init() { this.tick(); setInterval(() => this.tick(), 1000); },
-            tick() {
-              const d = new Date();
-              this.t = d.toLocaleDateString('en',{weekday:'short',day:'numeric',month:'short'})
-                     + '\u2002' + d.toLocaleTimeString('en-GB');
-            }
-          }" x-text="t"></span>
-    <button @click="editMode = !editMode" :class="editMode ? 'btn btn-warning' : 'btn btn-outline-secondary'">✎ Edit Layout</button>
+    <span id="header-clock" class="header-clock"></span>
+    <button id="edit-layout-btn" class="btn btn-outline-secondary"
+            onclick="document.body.classList.toggle('edit-layout-mode');
+                     this.classList.toggle('btn-warning');
+                     this.classList.toggle('btn-outline-secondary')">✎ Edit Layout</button>
     <a href="/manage" class="btn btn-outline-secondary">⚙ Manage</a>
   </div>
 </header>
@@ -99,16 +71,10 @@
 </div>
 
 <!-- Toast -->
-<div class="toast-container position-fixed bottom-0 end-0 p-3"
-     x-data="{msg:'', type:'success',
-       init() { this._el = new bootstrap.Toast(this.$refs.toast, {autohide:true, delay:3500}); }
-     }"
-     @showtoast.window="msg=$event.detail.msg; type=$event.detail.type||'success'; _el.show();">
-  <div class="toast align-items-center border-0"
-       :class="type==='error' ? 'text-bg-danger' : 'text-bg-success'"
-       role="alert" x-ref="toast">
+<div class="toast-container position-fixed bottom-0 end-0 p-3">
+  <div class="toast align-items-center border-0" id="app-toast" role="alert">
     <div class="d-flex">
-      <div class="toast-body" x-text="msg"></div>
+      <div class="toast-body" id="toast-msg"></div>
       <button type="button" class="btn-close btn-close-white me-2 m-auto"
               data-bs-dismiss="toast" aria-label="Close"></button>
     </div>

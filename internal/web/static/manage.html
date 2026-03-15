@@ -10,12 +10,10 @@
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/css/bootstrap.min.css">
   <link rel="stylesheet" href="/style.css">
   <script src="https://cdn.jsdelivr.net/npm/htmx.org@2.0.8/dist/htmx.min.js"></script>
-  <script src="/app.js"></script>
-  <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.15.8/dist/cdn.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/js/bootstrap.bundle.min.js"></script>
+  <script src="/app.js"></script>
 </head>
-<body x-data="{_modal: null, init() { this._modal = new bootstrap.Modal(document.getElementById('app-modal')); }}"
-      @openmodal.window="_modal.show()" @closemodal.window="_modal.hide()">
+<body>
 
 <div id="htmx-topbar"></div>
 
@@ -93,13 +91,15 @@
   </section>
 
   <!-- Discovered -->
-  <section class="card" x-data="{ignoredOpen: false}">
+  <section class="card">
     <div class="card-header d-flex align-items-center justify-content-between">
       <h5 class="mb-0">Discovered</h5>
       <div class="d-flex gap-2 align-items-center">
-        <button class="btn btn-outline-secondary btn-sm"
-                @click="ignoredOpen = !ignoredOpen"
-                x-text="ignoredOpen ? '✕ Close' : 'Ignored'">Ignored</button>
+        <button class="btn btn-outline-secondary btn-sm collapsed"
+                data-bs-toggle="collapse" data-bs-target="#ignored-section">
+          <span class="when-collapsed">Ignored</span>
+          <span class="when-expanded">✕ Close</span>
+        </button>
       </div>
     </div>
     <div class="card-body py-2 border-bottom text-secondary small mb-0">Services found by network scan or Docker that haven't been assigned a subdomain.</div>
@@ -109,11 +109,10 @@
          hx-swap="innerHTML">
       <div class="htmx-indicator section-spinner"><div class="spinner-border spinner-border-sm" role="status"></div></div>
     </div>
-    <!-- Ignored section — toggled by Alpine, content loaded eagerly on page load -->
-    <div id="ignored-section" x-show="ignoredOpen">
+    <!-- Ignored section — toggled by Bootstrap collapse -->
+    <div id="ignored-section" class="collapse">
       <div class="card-header d-flex align-items-center justify-content-between border-top">
         <h5 class="mb-0">Ignored Services</h5>
-        <button class="btn btn-outline-secondary btn-sm" @click="ignoredOpen = false">✕ Close</button>
       </div>
       <div class="card-body py-2 border-bottom text-secondary small mb-0">These IP:port pairs are permanently suppressed from discovery results.</div>
       <div hx-get="/fragments/ignored"
@@ -152,16 +151,10 @@
 </div>
 
 <!-- Toast -->
-<div class="toast-container position-fixed bottom-0 end-0 p-3"
-     x-data="{msg:'', type:'success',
-       init() { this._el = new bootstrap.Toast(this.$refs.toast, {autohide:true, delay:3500}); }
-     }"
-     @showtoast.window="msg=$event.detail.msg; type=$event.detail.type||'success'; _el.show();">
-  <div class="toast align-items-center border-0"
-       :class="type==='error' ? 'text-bg-danger' : 'text-bg-success'"
-       role="alert" x-ref="toast">
+<div class="toast-container position-fixed bottom-0 end-0 p-3">
+  <div class="toast align-items-center border-0" id="app-toast" role="alert">
     <div class="d-flex">
-      <div class="toast-body" x-text="msg"></div>
+      <div class="toast-body" id="toast-msg"></div>
       <button type="button" class="btn-close btn-close-white me-2 m-auto"
               data-bs-dismiss="toast" aria-label="Close"></button>
     </div>

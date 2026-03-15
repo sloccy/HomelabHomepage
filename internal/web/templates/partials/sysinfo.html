@@ -1,14 +1,13 @@
-<div class="sysinfo-bar"
-     x-data="{m:{{.MemUsedMB}},mt:{{.MemTotalMB}},d:{{.DiskUsedGB}},dt:{{.DiskTotalGB}}}">
+<div class="sysinfo-bar">
   <span class="sysinfo-label">CPU</span>
   <div class="mini-bar"><div class="mini-bar-fill" style="width:{{printf "%.0f" .CPUPercent}}%"></div></div>
   {{printf "%.0f" .CPUPercent}}%
   <span class="sysinfo-sep">|</span>
   <span class="sysinfo-label">RAM</span>
-  <div class="mini-bar"><div class="mini-bar-fill" :style="'width:'+Math.round(m/mt*100)+'%'"></div></div>
+  <div class="mini-bar"><div class="mini-bar-fill" style="width:{{printf "%.0f" .MemPercent}}%"></div></div>
   {{fmtMem .MemUsedMB}} / {{fmtMem .MemTotalMB}}
   <span class="sysinfo-sep">|</span>
   <span class="sysinfo-label">Disk</span>
-  <div class="mini-bar"><div class="mini-bar-fill" :style="'width:'+Math.round(d/dt*100)+'%'"></div></div>
+  <div class="mini-bar"><div class="mini-bar-fill" style="width:{{printf "%.0f" .DiskPercent}}%"></div></div>
   {{.DiskUsedGB}} / {{.DiskTotalGB}} GB
 </div>

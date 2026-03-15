@@ -215,7 +215,13 @@ button.htmx-request::after {
   width: .75rem;
   text-align: center;
   transition: transform .2s;
+  display: inline-block;
 }
+.category-header.collapsed .category-arrow { transform: rotate(-90deg); }
+
+/* ── Collapse toggle button text ────────────────────────────────────────────── */
+[data-bs-toggle="collapse"]:not(.collapsed) .when-collapsed { display: none; }
+[data-bs-toggle="collapse"].collapsed .when-expanded { display: none; }
 .category-name {
   font-size: .8rem;
   font-weight: 600;

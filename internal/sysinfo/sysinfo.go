@@ -14,8 +14,10 @@ type Stats struct {
 	CPUPercent  float64 `json:"cpu_percent"`
 	MemUsedMB   uint64  `json:"mem_used_mb"`
 	MemTotalMB  uint64  `json:"mem_total_mb"`
+	MemPercent  float64 `json:"mem_percent"`
 	DiskUsedGB  uint64  `json:"disk_used_gb"`
 	DiskTotalGB uint64  `json:"disk_total_gb"`
+	DiskPercent float64 `json:"disk_percent"`
 }
 
 // Get returns current CPU, memory, and disk stats.
@@ -36,12 +38,21 @@ func Get() (*Stats, error) {
 		// Fall back to root if /data is unavailable.
 		diskUsed, diskTotal, _ = diskInfo("/")
 	}
+	var memPercent, diskPercent float64
+	if memTotal > 0 {
+		memPercent = 100 * float64(memUsed) / float64(memTotal)
+	}
+	if diskTotal > 0 {
+		diskPercent = 100 * float64(diskUsed) / float64(diskTotal)
+	}
 	return &Stats{
 		CPUPercent:  cpu,
 		MemUsedMB:   memUsed,
 		MemTotalMB:  memTotal,
+		MemPercent:  memPercent,
 		DiskUsedGB:  diskUsed,
 		DiskTotalGB: diskTotal,
+		DiskPercent: diskPercent,
 	}, nil
 }
 
