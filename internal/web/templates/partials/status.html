@@ -55,7 +55,9 @@
      hx-get="/fragments/status"
      hx-trigger="every 1.5s"
      hx-target="#status-section"
-     hx-swap="innerHTML show:none">
+     hx-swap="innerHTML show:none"
+     hx-on::before-request="window._scanLogScroll = this.scrollTop"
+     hx-on::after-settle="let el = document.querySelector('.scan-log'); if(el && window._scanLogScroll !== undefined) el.scrollTop = window._scanLogScroll">
   {{range .ScanLog}}<div class="{{logClass .}}">{{.}}</div>{{end}}
 </div>
 {{else if .ScanLog}}
