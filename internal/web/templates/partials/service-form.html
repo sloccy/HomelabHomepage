@@ -38,9 +38,8 @@
     <input type="hidden" name="direct_only_present" value="1">
     <div class="mb-3 subdomain-group"{{if .Service.DirectOnly}} style="display:none"{{end}}>
       <label class="form-label">Subdomain</label>
-      <div class="subdomain-wrap">
-        <input class="form-control" name="subdomain" value="{{.Service.Subdomain}}"
-               oninput="this.closest('.subdomain-wrap').querySelector('.form-text').textContent = this.value ? this.value + '.{{.Domain}}' : ''">
+      <div class="subdomain-wrap" data-domain="{{.Domain}}">
+        <input class="form-control" name="subdomain" value="{{.Service.Subdomain}}">
         <div class="form-text">{{if .Service.Subdomain}}{{.Service.Subdomain}}.{{.Domain}}{{end}}</div>
       </div>
     </div>
@@ -59,8 +58,7 @@
     <input type="hidden" name="skip_health_present" value="1">
     <div class="d-flex flex-wrap gap-3 mb-3 align-items-center">
       <div class="form-check">
-        <input class="form-check-input" type="checkbox" id="cb-direct-only" name="direct_only" {{if .Service.DirectOnly}}checked{{end}}
-               onchange="this.closest('form').querySelector('.subdomain-group').style.display = this.checked ? 'none' : ''">
+        <input class="form-check-input" type="checkbox" id="cb-direct-only" name="direct_only" {{if .Service.DirectOnly}}checked{{end}}>
         <label class="form-check-label" for="cb-direct-only">Direct link</label>
       </div>
       {{if .TunnelEnabled}}
@@ -95,9 +93,8 @@
   <div>
     <div class="mb-3 subdomain-group">
       <label class="form-label">Subdomain</label>
-      <div class="subdomain-wrap">
-        <input class="form-control" name="subdomain" placeholder="myservice"
-               oninput="this.closest('.subdomain-wrap').querySelector('.form-text').textContent = this.value ? this.value + '.{{.Domain}}' : ''">
+      <div class="subdomain-wrap" data-domain="{{.Domain}}">
+        <input class="form-control" name="subdomain" placeholder="myservice">
         <div class="form-text"></div>
       </div>
     </div>
@@ -115,8 +112,7 @@
     {{if .TunnelEnabled}}
     <div class="d-flex flex-wrap gap-3 mb-3 align-items-center">
       <div class="form-check">
-        <input class="form-check-input" type="checkbox" id="cb-direct" name="direct_only"
-               onchange="this.closest('form').querySelector('.subdomain-group').style.display = this.checked ? 'none' : ''">
+        <input class="form-check-input" type="checkbox" id="cb-direct" name="direct_only">
         <label class="form-check-label" for="cb-direct">Direct link</label>
       </div>
       <div class="form-check">
@@ -127,8 +123,7 @@
     {{else}}
     <div class="d-flex flex-wrap gap-3 mb-3 align-items-center">
       <div class="form-check">
-        <input class="form-check-input" type="checkbox" id="cb-direct" name="direct_only"
-               onchange="this.closest('form').querySelector('.subdomain-group').style.display = this.checked ? 'none' : ''">
+        <input class="form-check-input" type="checkbox" id="cb-direct" name="direct_only">
         <label class="form-check-label" for="cb-direct">Direct link</label>
       </div>
     </div>
