@@ -34,6 +34,30 @@ document.addEventListener('DOMContentLoaded', () => {
     tick(); setInterval(tick, 1000);
   }
 
+  // ── Edit layout toggle ────────────────────────────────────────────────────
+  document.getElementById('edit-layout-btn')?.addEventListener('click', function() {
+    document.body.classList.toggle('edit-layout-mode');
+    this.classList.toggle('btn-warning');
+    this.classList.toggle('btn-outline-secondary');
+  });
+
+  // ── Form: subdomain preview ───────────────────────────────────────────────
+  document.body.addEventListener('input', e => {
+    if (e.target.matches('.subdomain-wrap input[name="subdomain"]')) {
+      const wrap = e.target.closest('.subdomain-wrap');
+      wrap.querySelector('.form-text').textContent =
+        e.target.value ? e.target.value + '.' + wrap.dataset.domain : '';
+    }
+  });
+
+  // ── Form: direct-link toggle ──────────────────────────────────────────────
+  document.body.addEventListener('change', e => {
+    if (e.target.matches('[name="direct_only"]')) {
+      e.target.closest('form').querySelector('.subdomain-group').style.display =
+        e.target.checked ? 'none' : '';
+    }
+  });
+
   // ── Category collapse persistence ─────────────────────────────────────────
   document.body.addEventListener('htmx:afterSettle', e => {
     e.target.querySelectorAll('.collapse[data-storage-key]').forEach(el => {
