@@ -424,13 +424,8 @@ func tcpSweep(ctx context.Context, ips []string, ports []int, logf func(string, 
 
 	// ── Pre-sweep debug summary ───────────────────────────────────────────────
 	start := time.Now()
-	portStrs := make([]string, len(ports))
-	for i, p := range ports {
-		portStrs[i] = strconv.Itoa(p)
-	}
 	logf("[TCP] Starting sweep: %d hosts × %d ports = %d combinations", len(ips), len(ports), len(ips)*len(ports))
 	logf("[TCP] Timeout: %v/conn, 4096 concurrent workers", timeout)
-	logf("[TCP] Ports: %s", strings.Join(portStrs, ", "))
 	if len(ips) == 0 {
 		logf("[TCP] ERROR: no hosts to scan — check subnet config")
 		return nil
