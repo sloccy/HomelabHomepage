@@ -627,6 +627,7 @@ func (s *Server) updateService(w http.ResponseWriter, r *http.Request) {
 
 func (s *Server) deleteService(w http.ResponseWriter, r *http.Request) {
 	id := r.PathValue("id")
+	svc := s.store.GetServiceByID(id)
 	_, dnsID, tunnelRoute := s.store.DeleteService(id)
 	if tunnelRoute != "" {
 		if err := s.cf.RemoveTunnelRoute(r.Context(), tunnelRoute, dnsID); err != nil {
@@ -636,6 +637,19 @@ func (s *Server) deleteService(w http.ResponseWriter, r *http.Request) {
 		if err := s.cf.DeleteRecord(r.Context(), dnsID); err != nil {
 			log.Printf("web: delete DNS record: %v", err)
 		}
+	}
+	if svc != nil && svc.Source == "docker" && svc.ContainerID != "" {
+		s.store.AddDiscovered(&store.DiscoveredService{
+			ID:            newID(),
+			IP:            "",
+			Port:          0,
+			Title:         svc.Name,
+			Source:        "docker",
+			ContainerID:   svc.ContainerID,
+			ContainerName: svc.ContainerName,
+			DiscoveredAt:  time.Now(),
+		})
+		hxTrigger(w, "refreshDiscovered", nil)
 	}
 	if err := s.store.Save(); err != nil {
 		log.Printf("web: save: %v", err)
@@ -791,7 +805,7 @@ func (s *Server) removeScanSubnet(w http.ResponseWriter, r *http.Request) {
 	if err := s.store.Save(); err != nil {
 		log.Printf("web: save: %v", err)
 	}
-	w.WriteHeader(http.StatusNoContent)
+	w.WriteHeader(http.StatusOK)
 }
 
 // ---- DDNS -------------------------------------------------------------------
@@ -845,7 +859,7 @@ func (s *Server) removeDDNS(w http.ResponseWriter, r *http.Request) {
 	if err := s.store.Save(); err != nil {
 		log.Printf("web: save: %v", err)
 	}
-	w.WriteHeader(http.StatusNoContent)
+	w.WriteHeader(http.StatusOK)
 }
 
 // ---- Favicon proxy ----------------------------------------------------------

@@ -463,7 +463,6 @@ func tcpSweep(ctx context.Context, ips []string, ports []int, logf func(string, 
 				if err == nil {
 					conn.Close()
 					countOpen.Add(1)
-					logf("[OPEN] %s:%d", j.ip, j.port)
 					results <- openPort{j.ip, j.port}
 				} else {
 					errStr := err.Error()
@@ -481,9 +480,9 @@ func tcpSweep(ctx context.Context, ips []string, ports []int, logf func(string, 
 					n := done.Add(1)
 					prev := (n - 1) * 100 / total
 					curr := n * 100 / total
-					if curr/5 > prev/5 && curr < 100 {
+					if curr/25 > prev/25 && curr < 100 {
 						logf("[TCP] %d%% (%d/%d) — open:%d refused:%d timeout:%d other:%d",
-							(curr/5)*5, n, total,
+							(curr/25)*25, n, total,
 							countOpen.Load(), countRefused.Load(), countTimeouts.Load(), countOther.Load())
 					}
 				}
