@@ -282,7 +282,7 @@ func (s *Server) createService(w http.ResponseWriter, r *http.Request) {
 	req.Target = r.FormValue("target")
 	req.Category = r.FormValue("category")
 	req.Tunnel = r.FormValue("tunnel") == "on" || r.FormValue("tunnel") == "true" || r.FormValue("tunnel") == "1"
-	req.DirectOnly = r.FormValue("direct_only") == "on" || r.FormValue("direct_only") == "true"
+	req.DirectOnly = r.FormValue("direct_only") == "on" || r.FormValue("direct_only") == "true" || r.FormValue("direct_only") == "1"
 	req.SkipHealth = r.FormValue("skip_health") == "on" || r.FormValue("skip_health") == "true" || r.FormValue("skip_health") == "1"
 
 	// Read uploaded icon if provided.
@@ -292,7 +292,7 @@ func (s *Server) createService(w http.ResponseWriter, r *http.Request) {
 			f, err := fh[0].Open()
 			if err == nil {
 				defer f.Close()
-				data, err := io.ReadAll(f)
+				data, err := io.ReadAll(io.LimitReader(f, 512*1024))
 				if err == nil && len(data) > 0 {
 					mime := fh[0].Header.Get("Content-Type")
 					if mime == "" {
