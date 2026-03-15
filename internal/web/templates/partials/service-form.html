@@ -81,9 +81,25 @@
 {{else}}
 <h3>Add Service</h3>
 <form hx-post="/api/services"
-      hx-swap="none">
+      hx-swap="none"
+      hx-encoding="multipart/form-data">
 
   <input type="hidden" name="discovered_id" value="">
+
+  <div class="mb-3">
+    <label class="form-label">Icon</label>
+    <div id="icon-preview">
+      <div style="width:64px;height:64px;background:var(--bs-tertiary-bg);border-radius:10px;
+                  display:flex;align-items:center;justify-content:center;font-size:2rem">📦</div>
+    </div>
+    <div class="icon-edit-row">
+      <label class="btn btn-outline-secondary btn-sm" style="cursor:pointer">
+        Upload
+        <input type="file" name="icon" accept="image/*" style="display:none"
+               onchange="const f=this.files[0];if(f){const r=new FileReader();r.onload=e=>{const p=document.getElementById('icon-preview');p.innerHTML='<img src=\''+e.target.result+'\' width=64 height=64 style=\'border-radius:10px;object-fit:contain;background:var(--bs-tertiary-bg)\'>'};r.readAsDataURL(f)}">
+      </label>
+    </div>
+  </div>
 
   <div class="mb-3">
     <label class="form-label">Name</label>
@@ -109,25 +125,22 @@
         {{range .Categories}}<option value="{{.}}">{{end}}
       </datalist>
     </div>
-    {{if .TunnelEnabled}}
     <div class="d-flex flex-wrap gap-3 mb-3 align-items-center">
       <div class="form-check">
         <input class="form-check-input" type="checkbox" id="cb-direct" name="direct_only">
         <label class="form-check-label" for="cb-direct">Direct link</label>
       </div>
+      {{if .TunnelEnabled}}
       <div class="form-check">
         <input class="form-check-input" type="checkbox" id="cb-tunnel" name="tunnel">
         <label class="form-check-label" for="cb-tunnel">Cloudflare Tunnel</label>
       </div>
-    </div>
-    {{else}}
-    <div class="d-flex flex-wrap gap-3 mb-3 align-items-center">
+      {{end}}
       <div class="form-check">
-        <input class="form-check-input" type="checkbox" id="cb-direct" name="direct_only">
-        <label class="form-check-label" for="cb-direct">Direct link</label>
+        <input class="form-check-input" type="checkbox" id="cb-skip-health" name="skip_health">
+        <label class="form-check-label" for="cb-skip-health">Skip health check</label>
       </div>
     </div>
-    {{end}}
   </div>
   <div class="d-flex gap-2 justify-content-end mt-3">
     <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>

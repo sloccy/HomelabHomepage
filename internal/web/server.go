@@ -263,13 +263,17 @@ type createServiceRequest struct {
 	Category     string `json:"category"`
 	Tunnel       bool   `json:"tunnel"`       // route via CF tunnel instead of A record
 	DirectOnly   bool   `json:"direct_only"`  // no subdomain/DNS; link directly to target
+	SkipHealth   bool   `json:"skip_health"`  // skip health check polling
 }
 
 func (s *Server) createService(w http.ResponseWriter, r *http.Request) {
-	if err := r.ParseForm(); err != nil {
-		errorTrigger(w, "invalid form data")
-		w.WriteHeader(http.StatusBadRequest)
-		return
+	const maxUpload = 5 << 20 // 5 MB
+	if err := r.ParseMultipartForm(maxUpload); err != nil {
+		if err := r.ParseForm(); err != nil {
+			errorTrigger(w, "invalid form data")
+			w.WriteHeader(http.StatusBadRequest)
+			return
+		}
 	}
 	var req createServiceRequest
 	req.DiscoveredID = r.FormValue("discovered_id")
@@ -279,6 +283,26 @@ func (s *Server) createService(w http.ResponseWriter, r *http.Request) {
 	req.Category = r.FormValue("category")
 	req.Tunnel = r.FormValue("tunnel") == "on" || r.FormValue("tunnel") == "true" || r.FormValue("tunnel") == "1"
 	req.DirectOnly = r.FormValue("direct_only") == "on" || r.FormValue("direct_only") == "true"
+	req.SkipHealth = r.FormValue("skip_health") == "on" || r.FormValue("skip_health") == "true" || r.FormValue("skip_health") == "1"
+
+	// Read uploaded icon if provided.
+	var uploadedIcon string
+	if r.MultipartForm != nil {
+		if fh := r.MultipartForm.File["icon"]; len(fh) > 0 {
+			f, err := fh[0].Open()
+			if err == nil {
+				defer f.Close()
+				data, err := io.ReadAll(f)
+				if err == nil && len(data) > 0 {
+					mime := fh[0].Header.Get("Content-Type")
+					if mime == "" {
+						mime = "image/png"
+					}
+					uploadedIcon = "data:" + mime + ";base64," + base64.StdEncoding.EncodeToString(data)
+				}
+			}
+		}
+	}
 	req.Subdomain = sanitiseSubdomain(req.Subdomain)
 	if !req.DirectOnly {
 		if req.Subdomain == "" {
@@ -343,17 +367,23 @@ func (s *Server) createService(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
+	icon := uploadedIcon
+	if icon == "" {
+		icon = discoveredIcon
+	}
+
 	svc := &store.Service{
 		ID:            svcID,
 		Name:          name,
 		Subdomain:     subdomain,
 		Target:        target,
-		Icon:          discoveredIcon,
+		Icon:          icon,
 		Category:      req.Category,
 		Source:        source,
 		ContainerID:   containerID,
 		ContainerName: containerName,
 		DirectOnly:    req.DirectOnly,
+		SkipHealth:    req.SkipHealth,
 		Order:         maxOrder + 1,
 		CreatedAt:     time.Now(),
 	}
