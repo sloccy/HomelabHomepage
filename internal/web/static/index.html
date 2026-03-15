@@ -31,7 +31,7 @@
   </div>
 </header>
 
-<div id="sysinfo-wrapper"
+<div id="sysinfo-wrapper" class="bg-poll"
      hx-get="/fragments/sysinfo"
      hx-trigger="load, every 5s"
      hx-swap="innerHTML">
@@ -81,8 +81,10 @@
 <script src="/app.js"></script>
 <script>
   const _topbar = document.getElementById('htmx-topbar');
-  htmx.on('htmx:beforeRequest', () => _topbar.classList.add('active'));
-  htmx.on('htmx:afterRequest',  () => _topbar.classList.remove('active'));
+  htmx.on('htmx:beforeRequest', (e) => {
+    if (!e.detail.elt.classList.contains('bg-poll')) _topbar.classList.add('active');
+  });
+  htmx.on('htmx:afterRequest', () => _topbar.classList.remove('active'));
 </script>
 </body>
 </html>
