@@ -4,7 +4,7 @@
           {{if not .Scanning}}
           hx-post="/api/scan"
           hx-target="#status-section"
-          hx-swap="innerHTML"
+          hx-swap="innerHTML show:none"
           {{end}}
           {{if .Scanning}}disabled{{end}}>
     {{if .Scanning}}⟳ Scanning…{{else}}⟳ Scan Now{{end}}
@@ -55,7 +55,7 @@
      hx-get="/fragments/status"
      hx-trigger="every 1.5s"
      hx-target="#status-section"
-     hx-swap="innerHTML">
+     hx-swap="innerHTML show:none">
   {{range .ScanLog}}<div class="{{logClass .}}">{{.}}</div>{{end}}
 </div>
 {{else if .ScanLog}}
