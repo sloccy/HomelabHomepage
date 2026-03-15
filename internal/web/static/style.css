@@ -277,6 +277,14 @@ button.htmx-request::after {
 .edit-layout-mode .reorder-btns {
   display: flex;
 }
+.edit-layout-mode .service-card {
+  cursor: default;
+}
+.edit-layout-mode .service-card.selected {
+  border-color: var(--accent);
+  box-shadow: var(--glow);
+  outline: 2px solid var(--accent);
+}
 .reorder-btn {
   padding: .3rem .6rem;
   font-size: 1.1rem;
