@@ -1,5 +1,5 @@
 {{if .}}
-<div class="overflow-x-auto px-4">
+<div class="overflow-x-auto">
   <table class="table table-sm table-zebra table-pin-rows">
     <thead>
       <tr><th>Name</th><th>URL</th><th>Category</th><th></th></tr>
@@ -12,7 +12,7 @@
           <a href="{{.URL}}" target="_blank" rel="noopener">{{.URL}}</a>
         </td>
         <td>{{if .Category}}{{.Category}}{{else}}—{{end}}</td>
-        <td>
+        <td class="td-actions">
           <div class="flex gap-2 items-center justify-end">
             <button class="btn btn-outline btn-sm"
                     hx-get="/fragments/bookmark-form/{{.ID}}"
