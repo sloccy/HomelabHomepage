@@ -1,14 +1,14 @@
 {{if .Domains}}
-<div class="table-responsive">
-  <table class="table table-hover mb-0">
+<div class="overflow-x-auto">
+  <table class="table mb-0">
     <thead><tr><th>Domain</th><th>Points To</th><th></th></tr></thead>
     <tbody>
       {{range .Domains}}
       <tr>
         <td><code>{{.}}</code></td>
         <td>{{$.PublicIP}}</td>
-        <td class="td-actions"><div class="d-flex gap-2 align-items-center justify-content-end">
-          <button class="btn btn-danger btn-sm"
+        <td class="td-actions"><div class="flex gap-2 items-center justify-end">
+          <button class="btn btn-error btn-sm"
                   hx-delete="/api/ddns/{{.}}"
                   hx-target="closest tr"
                   hx-swap="delete"
@@ -20,15 +20,15 @@
   </table>
 </div>
 {{else}}
-<p class="text-center text-secondary p-4">No DDNS domains configured.</p>
+<p class="text-center opacity-60 p-4">No DDNS domains configured.</p>
 {{end}}
-<div class="p-3 border-top">
+<div class="p-3 border-t border-base-300">
   <form hx-post="/api/ddns"
         hx-target="#ddns-list"
         hx-swap="innerHTML"
-        class="d-flex gap-2 align-items-center"
+        class="flex gap-2 items-center"
         hx-on::after-request="if(event.detail.successful) this.reset()">
-    <input class="form-control" name="domain"
+    <input class="input input-bordered" name="domain"
            placeholder="home.example.com" required>
     <button class="btn btn-warning btn-sm" type="submit">+ Add</button>
   </form>

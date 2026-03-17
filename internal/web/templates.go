@@ -20,6 +20,8 @@ import (
 var templateFS embed.FS
 
 var tmpl *template.Template
+var indexTmpl *template.Template
+var manageTmpl *template.Template
 
 func init() {
 	entries, err := fs.ReadDir(templateFS, "templates/partials")
@@ -33,12 +35,24 @@ func init() {
 		}
 	}
 	tmpl = template.Must(template.New("").Funcs(funcMap).ParseFS(templateFS, files...))
+	indexTmpl = template.Must(template.New("").Funcs(funcMap).ParseFS(templateFS,
+		"templates/base.html", "templates/index.html"))
+	manageTmpl = template.Must(template.New("").Funcs(funcMap).ParseFS(templateFS,
+		"templates/base.html", "templates/manage.html"))
 }
 
 func renderTemplate(w http.ResponseWriter, name string, data any) {
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	if err := tmpl.ExecuteTemplate(w, name, data); err != nil {
 		log.Printf("web: render %s: %v", name, err)
+		http.Error(w, "template error", http.StatusInternalServerError)
+	}
+}
+
+func renderPage(w http.ResponseWriter, t *template.Template) {
+	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+	if err := t.ExecuteTemplate(w, "base", nil); err != nil {
+		log.Printf("web: render page: %v", err)
 		http.Error(w, "template error", http.StatusInternalServerError)
 	}
 }
@@ -148,11 +162,11 @@ var funcMap = template.FuncMap{
 	"tagClass": func(source string) string {
 		switch source {
 		case "docker":
-			return "badge text-info-emphasis bg-info-subtle"
+			return "badge badge-info"
 		case "network":
-			return "badge text-success-emphasis bg-success-subtle"
+			return "badge badge-success"
 		default:
-			return "badge text-secondary-emphasis bg-secondary-subtle"
+			return "badge badge-ghost"
 		}
 	},
 

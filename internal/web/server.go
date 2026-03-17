@@ -97,9 +97,12 @@ func (s *Server) routes() {
 	fileServer := http.FileServer(http.FS(sub))
 	s.mux.Handle("GET /", fileServer)
 
-	// Manage page (separate static HTML shell).
+	// Page templates (more specific than the file server catch-all).
+	s.mux.HandleFunc("GET /{$}", func(w http.ResponseWriter, r *http.Request) {
+		renderPage(w, indexTmpl)
+	})
 	s.mux.HandleFunc("GET /manage", func(w http.ResponseWriter, r *http.Request) {
-		http.ServeFileFS(w, r, sub, "manage.html")
+		renderPage(w, manageTmpl)
 	})
 
 	// Fragment endpoints — return HTML for htmx.

@@ -1,19 +1,19 @@
 /* ── Variables ─────────────────────────────────────────────────────────── */
 :root {
   font-size: 15px;
-  --accent:     var(--bs-warning);
+  --accent:     var(--color-warning);
   --accent-h:   #b08a1a;
   --accent-dim: rgba(201,162,39,.15);
-  --bg:         var(--bs-body-bg);
-  --surface:    var(--bs-tertiary-bg);
-  --surface2:   var(--bs-secondary-bg);
-  --surface3:   var(--bs-primary-bg-subtle);
-  --border:     var(--bs-border-color);
-  --text:       var(--bs-body-color);
-  --muted:      var(--bs-secondary-color);
-  --success:    var(--bs-success);
-  --danger:     var(--bs-danger);
-  --warn:       var(--bs-warning);
+  --bg:         var(--color-base-100);
+  --surface:    var(--color-base-200);
+  --surface2:   var(--color-base-200);
+  --surface3:   var(--color-base-300);
+  --border:     var(--color-base-300);
+  --text:       var(--color-base-content);
+  --muted:      color-mix(in oklch, var(--color-base-content) 60%, transparent);
+  --success:    var(--color-success);
+  --danger:     var(--color-error);
+  --warn:       var(--color-warning);
   --radius:     10px;
   --radius-sm:  6px;
   --radius-lg:  14px;
@@ -44,7 +44,8 @@
   opacity: 0;
   transition: opacity .15s;
 }
-#htmx-topbar.active::after {
+#htmx-topbar.active::after,
+#htmx-topbar.htmx-request::after {
   opacity: 1;
   animation: progress-slide 1.2s ease-in-out infinite;
 }
@@ -62,7 +63,7 @@
   width: 100%;
   max-width: none;
   box-sizing: border-box;
-  background: rgba(var(--bs-body-bg-rgb), 0.88);
+  background: color-mix(in srgb, var(--color-base-100) 88%, transparent);
   backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
   border-bottom: 1px solid var(--border);
@@ -129,7 +130,17 @@ button.htmx-request::after {
   opacity: 1;
 }
 .section-spinner { display: flex; justify-content: center; padding: 2rem; }
-.section-spinner .spinner-border { color: var(--accent); }
+.section-spinner .spinner { color: var(--accent); }
+
+/* ── Spinner ────────────────────────────────────────────────────────────── */
+.spinner {
+  width: 1rem; height: 1rem;
+  border: 2px solid currentColor;
+  border-top-color: transparent;
+  border-radius: 50%;
+  animation: spin .6s linear infinite;
+  display: inline-block;
+}
 
 /* ── Sysinfo bar ────────────────────────────────────────────────────────── */
 .sysinfo-bar {
@@ -203,7 +214,9 @@ button.htmx-request::after {
   margin-bottom: .25rem;
   border-radius: var(--radius-sm) 0 0 0;
   transition: var(--transition);
+  list-style: none;
 }
+.category-header::-webkit-details-marker { display: none; }
 .category-header:hover {
   background: var(--accent-dim);
   border-left-color: var(--accent);
@@ -217,11 +230,11 @@ button.htmx-request::after {
   transition: transform .2s;
   display: inline-block;
 }
-.category-header.collapsed .category-arrow { transform: rotate(-90deg); }
+details:not([open]) .category-arrow { transform: rotate(-90deg); }
 
 /* ── Collapse toggle button text ────────────────────────────────────────────── */
-[data-bs-toggle="collapse"]:not(.collapsed) .when-collapsed { display: none; }
-[data-bs-toggle="collapse"].collapsed .when-expanded { display: none; }
+details:not([open]) .when-expanded { display: none; }
+details[open] .when-collapsed { display: none; }
 .category-name {
   font-size: .8rem;
   font-weight: 600;
@@ -266,6 +279,10 @@ button.htmx-request::after {
 }
 .health-dot.up   { background: #22c55e; box-shadow: 0 0 6px rgba(34,197,94,.5); }
 .health-dot.down { background: #ef4444; box-shadow: 0 0 6px rgba(239,68,68,.5); }
+.card-wrapper {
+  position: relative;
+  display: grid;
+}
 .reorder-btns {
   display: none;
   gap: .25rem;
@@ -274,13 +291,18 @@ button.htmx-request::after {
   left: 50%;
   transform: translate(-50%, -50%);
 }
-.edit-layout-mode .reorder-btns {
+body:has(#edit-layout-toggle:checked) .reorder-btns {
   display: flex;
 }
-.edit-layout-mode .service-card {
+body:has(#edit-layout-toggle:checked) .service-card {
   cursor: default;
 }
-.edit-layout-mode .service-card.selected {
+body:has(#edit-layout-toggle:checked) #edit-layout-btn {
+  color: #000;
+  background-color: var(--color-warning);
+  border-color: var(--color-warning);
+}
+.service-card.selected {
   border-color: var(--accent);
   box-shadow: var(--glow);
   outline: 2px solid var(--accent);
@@ -362,10 +384,13 @@ button.htmx-request::after {
 .disc-title { font-weight: 500; }
 .disc-meta  { font-size: .8rem; color: var(--muted); }
 
-/* ── Modal ─────────────────────────────────────────────────────────────── */
-.modal-content { border-color: rgba(201,162,39,.2); box-shadow: var(--shadow-lg), 0 0 0 1px rgba(201,162,39,.08); }
-.modal-body h3 { font-size: 1.1rem; margin-bottom: 1.25rem; }
-.modal-backdrop.show { backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px); }
+/* ── Dialog modal ──────────────────────────────────────────────────────── */
+dialog#app-modal .modal-box {
+  border: 1px solid rgba(201,162,39,.2);
+  box-shadow: var(--shadow-lg), 0 0 0 1px rgba(201,162,39,.08);
+}
+dialog#app-modal h3 { font-size: 1.1rem; margin-bottom: 1.25rem; }
+.modal-backdrop { backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px); }
 
 /* ── Form helpers ──────────────────────────────────────────────────────── */
 
@@ -378,7 +403,7 @@ button.htmx-request::after {
 }
 
 /* ── Toast ──────────────────────────────────────────────────────────────── */
-.toast-container { z-index: 2000; }
+#app-toast.showing { display: flex !important; animation: fadeIn .3s ease; }
 
 /* ── Scan log ───────────────────────────────────────────────────────────── */
 .scan-log {
@@ -402,6 +427,7 @@ button.htmx-request::after {
 
 /* ── Subdomain wrap ─────────────────────────────────────────────────────── */
 .subdomain-wrap { position: relative; }
+form:has([name="direct_only"]:checked) .subdomain-group { display: none !important; }
 
 /* ── Animations ─────────────────────────────────────────────────────────── */
 @keyframes fadeIn {

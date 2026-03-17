@@ -7,24 +7,24 @@ let _selectedCardName = null;
 
 document.addEventListener('DOMContentLoaded', () => {
   // ── Modal ─────────────────────────────────────────────────────────────────
-  const modalEl = document.getElementById('app-modal');
-  if (modalEl) {
-    const appModal = new bootstrap.Modal(modalEl);
-    document.body.addEventListener('openmodal', () => appModal.show());
-    document.body.addEventListener('closemodal', () => appModal.hide());
+  const dialog = document.getElementById('app-modal');
+  if (dialog) {
+    document.body.addEventListener('openmodal', () => dialog.showModal());
+    document.body.addEventListener('closemodal', () => dialog.close());
   }
 
   // ── Toast ─────────────────────────────────────────────────────────────────
   const toastEl = document.getElementById('app-toast');
+  const toastMsg = document.getElementById('toast-msg');
   if (toastEl) {
-    const appToast = new bootstrap.Toast(toastEl, {autohide: true, delay: 3500});
-    const showToast = (msg, type = 'success') => {
-      document.getElementById('toast-msg').textContent = msg;
-      toastEl.className = 'toast align-items-center border-0 ' +
-        (type === 'error' ? 'text-bg-danger' : 'text-bg-success');
-      appToast.show();
-    };
-    document.body.addEventListener('showtoast', e => showToast(e.detail.msg, e.detail.type));
+    let toastTimer;
+    document.body.addEventListener('showtoast', e => {
+      toastMsg.textContent = e.detail.msg;
+      toastEl.className = 'alert ' + (e.detail.type === 'error' ? 'alert-error' : 'alert-success');
+      toastEl.classList.add('showing');
+      clearTimeout(toastTimer);
+      toastTimer = setTimeout(() => { toastEl.classList.remove('showing'); }, 3500);
+    });
   }
 
   // ── Clock ─────────────────────────────────────────────────────────────────
@@ -39,12 +39,9 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   // ── Edit layout toggle ────────────────────────────────────────────────────
-  document.getElementById('edit-layout-btn')?.addEventListener('click', function() {
-    document.body.classList.toggle('edit-layout-mode');
-    this.classList.toggle('btn-warning');
-    this.classList.toggle('btn-outline-secondary');
+  document.getElementById('edit-layout-toggle')?.addEventListener('change', function() {
     // Deselect card when exiting edit mode
-    if (!document.body.classList.contains('edit-layout-mode')) {
+    if (!this.checked) {
       if (_selectedCard) _selectedCard.classList.remove('selected');
       _selectedCard = null;
       _selectedCardName = null;
@@ -53,7 +50,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // ── Edit mode: intercept card clicks to select instead of navigate ─────────
   document.body.addEventListener('click', e => {
-    if (!document.body.classList.contains('edit-layout-mode')) return;
+    if (!document.getElementById('edit-layout-toggle')?.checked) return;
     const card = e.target.closest('.service-card');
     if (!card || e.target.closest('.reorder-btns')) return;
     e.preventDefault();
@@ -68,29 +65,18 @@ document.addEventListener('DOMContentLoaded', () => {
   document.body.addEventListener('input', e => {
     if (e.target.matches('.subdomain-wrap input[name="subdomain"]')) {
       const wrap = e.target.closest('.subdomain-wrap');
-      wrap.querySelector('.form-text').textContent =
+      wrap.querySelector('.subdomain-hint').textContent =
         e.target.value ? e.target.value + '.' + wrap.dataset.domain : '';
-    }
-  });
-
-  // ── Form: direct-link toggle ──────────────────────────────────────────────
-  document.body.addEventListener('change', e => {
-    if (e.target.matches('[name="direct_only"]')) {
-      e.target.closest('form').querySelector('.subdomain-group').style.display =
-        e.target.checked ? 'none' : '';
     }
   });
 
   // ── Category collapse persistence + re-select card after htmx swap ────────
   document.body.addEventListener('htmx:afterSettle', e => {
-    e.target.querySelectorAll('.collapse[data-storage-key]').forEach(el => {
-      if (localStorage.getItem(el.dataset.storageKey) === '0') {
-        el.classList.remove('show');
-        el.previousElementSibling?.classList.add('collapsed');
-      }
+    e.target.querySelectorAll('details[data-storage-key]').forEach(el => {
+      if (localStorage.getItem(el.dataset.storageKey) === '0') el.removeAttribute('open');
     });
     // Re-apply selection after grid re-render
-    if (_selectedCardName && document.body.classList.contains('edit-layout-mode')) {
+    if (_selectedCardName && document.getElementById('edit-layout-toggle')?.checked) {
       const card = document.querySelector(`.service-card[data-name="${CSS.escape(_selectedCardName)}"]`);
       if (card) {
         _selectedCard = card;
@@ -98,12 +84,12 @@ document.addEventListener('DOMContentLoaded', () => {
       }
     }
   });
-  document.body.addEventListener('shown.bs.collapse', e => {
-    if (e.target.dataset.storageKey) localStorage.setItem(e.target.dataset.storageKey, '1');
-  });
-  document.body.addEventListener('hidden.bs.collapse', e => {
-    if (e.target.dataset.storageKey) localStorage.setItem(e.target.dataset.storageKey, '0');
-  });
+
+  // Persist details open/closed state (toggle doesn't bubble, use capture)
+  document.body.addEventListener('toggle', e => {
+    const key = e.target.dataset?.storageKey;
+    if (key) localStorage.setItem(key, e.target.open ? '1' : '0');
+  }, true);
 });
 
 // ── Keyboard shortcuts ────────────────────────────────────────────────────────
@@ -112,12 +98,12 @@ document.addEventListener('keydown', e => {
   if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return;
 
   // Arrow keys: move selected card in edit mode
-  if (document.body.classList.contains('edit-layout-mode') && _selectedCard) {
+  if (document.getElementById('edit-layout-toggle')?.checked && _selectedCard) {
     if (e.key === 'ArrowLeft' || e.key === 'ArrowRight' ||
         e.key === 'ArrowUp'   || e.key === 'ArrowDown') {
       e.preventDefault();
       const dir = (e.key === 'ArrowLeft' || e.key === 'ArrowUp') ? 'left' : 'right';
-      _selectedCard.querySelector(`.reorder-btn[hx-vals*='"direction":"${dir}"']`)?.click();
+      _selectedCard.closest('.card-wrapper')?.querySelector(`.reorder-btn[hx-vals*='"direction":"${dir}"']`)?.click();
       return;
     }
   }
@@ -137,7 +123,7 @@ document.addEventListener('keydown', e => {
     if (s && s.value) { s.value = ''; s.dispatchEvent(new Event('input', {bubbles: true})); s.blur(); }
   } else if (e.key >= '1' && e.key <= '9') {
     // Disable quick-nav shortcuts while in edit mode
-    if (document.body.classList.contains('edit-layout-mode')) return;
+    if (document.getElementById('edit-layout-toggle')?.checked) return;
     const n = parseInt(e.key, 10);
     const cards = [...document.querySelectorAll('#services-grid .service-card')];
     if (cards[n - 1]) cards[n - 1].click();

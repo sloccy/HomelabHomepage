@@ -4,36 +4,40 @@
   {{range $i, $g := .Groups}}
   <div class="category-group" data-cat="{{$g.Name}}">
     {{if $g.Name}}
-    <div class="category-header" data-bs-toggle="collapse" data-bs-target="#bcat-{{$i}}">
-      <span class="category-arrow">▾</span>
-      <span class="category-name">{{$g.Name}}</span>
-      <span class="category-count">{{len $g.Bookmarks}}</span>
-    </div>
+    <details open data-storage-key="bcat:{{$g.Name}}">
+      <summary class="category-header">
+        <span class="category-arrow">▾</span>
+        <span class="category-name">{{$g.Name}}</span>
+        <span class="category-count">{{len $g.Bookmarks}}</span>
+      </summary>
+      <div class="grid">
+    {{else}}
+    <div class="grid">
     {{end}}
-    <div class="grid collapse show" id="bcat-{{$i}}" data-storage-key="bcat:{{$g.Name}}">
       {{range $g.Bookmarks}}
-      <a class="bookmark-card service-card" href="{{.URL}}"
-         target="_blank" rel="noopener" data-name="{{.Name}}">
-        {{iconEl .Icon .URL "card-icon"}}
-        <div class="card-name">{{.Name}}</div>
-        <div class="card-url">{{.URL}}</div>
+      <div class="card-wrapper">
+        <a class="bookmark-card service-card" href="{{.URL}}"
+           target="_blank" rel="noopener" data-name="{{.Name}}">
+          {{iconEl .Icon .URL "card-icon"}}
+          <div class="card-name">{{.Name}}</div>
+          <div class="card-url">{{.URL}}</div>
+        </a>
         <div class="reorder-btns">
-          <button class="btn btn-outline-secondary btn-sm reorder-btn"
+          <button class="btn btn-ghost btn-sm reorder-btn"
                   hx-post="/api/bookmarks/{{.ID}}/move"
                   hx-vals='{"direction":"left"}'
                   hx-target="#bookmarks-home"
-                  hx-swap="innerHTML"
-                  onclick="event.preventDefault(); event.stopPropagation()">←</button>
-          <button class="btn btn-outline-secondary btn-sm reorder-btn"
+                  hx-swap="innerHTML">←</button>
+          <button class="btn btn-ghost btn-sm reorder-btn"
                   hx-post="/api/bookmarks/{{.ID}}/move"
                   hx-vals='{"direction":"right"}'
                   hx-target="#bookmarks-home"
-                  hx-swap="innerHTML"
-                  onclick="event.preventDefault(); event.stopPropagation()">→</button>
+                  hx-swap="innerHTML">→</button>
         </div>
-      </a>
+      </div>
       {{end}}
     </div>
+    {{if $g.Name}}</details>{{end}}
   </div>
   {{end}}
 </div>

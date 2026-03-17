@@ -1,5 +1,5 @@
 {{if and .IsEmpty (not .Searching)}}
-<div class="empty-state d-flex flex-column align-items-center justify-content-center text-center gap-3 p-4">
+<div class="empty-state flex flex-col items-center justify-center text-center gap-3 p-4">
   <img src="/logo.png" class="logo-img-lg" alt="Lantern">
   <h2>Welcome to Lantern</h2>
   <p>No services assigned yet. Add services from the manage view.</p>
@@ -9,38 +9,42 @@
 {{range $i, $g := .Groups}}
 <div class="category-group" data-cat="{{$g.Name}}">
   {{if $g.Name}}
-  <div class="category-header" data-bs-toggle="collapse" data-bs-target="#cat-{{$i}}">
-    <span class="category-arrow">▾</span>
-    <span class="category-name">{{$g.Name}}</span>
-    <span class="category-count">{{len $g.Services}}</span>
-  </div>
+  <details open data-storage-key="cat:{{$g.Name}}">
+    <summary class="category-header">
+      <span class="category-arrow">▾</span>
+      <span class="category-name">{{$g.Name}}</span>
+      <span class="category-count">{{len $g.Services}}</span>
+    </summary>
+    <div class="grid">
+  {{else}}
+  <div class="grid">
   {{end}}
-  <div class="grid collapse show" id="cat-{{$i}}" data-storage-key="cat:{{$g.Name}}">
     {{range $g.Services}}
     {{$h := healthStatus .ID $.Health}}
-    <a class="service-card" href="{{cardURL . $.Domain}}"
-       target="_blank" rel="noopener" data-name="{{.Name}}">
-      {{if $h}}<span class="health-dot {{$h}}"></span>{{end}}
-      {{iconEl .Icon .Target "card-icon"}}
-      <div class="card-name">{{.Name}}</div>
-      <div class="card-url">{{if .DirectOnly}}{{.Target}}{{else}}{{.Subdomain}}.{{$.Domain}}{{end}}</div>
+    <div class="card-wrapper">
+      <a class="service-card" href="{{cardURL . $.Domain}}"
+         target="_blank" rel="noopener" data-name="{{.Name}}">
+        {{if $h}}<span class="health-dot {{$h}}"></span>{{end}}
+        {{iconEl .Icon .Target "card-icon"}}
+        <div class="card-name">{{.Name}}</div>
+        <div class="card-url">{{if .DirectOnly}}{{.Target}}{{else}}{{.Subdomain}}.{{$.Domain}}{{end}}</div>
+      </a>
       <div class="reorder-btns">
-        <button class="btn btn-outline-secondary btn-sm reorder-btn"
+        <button class="btn btn-ghost btn-sm reorder-btn"
                 hx-post="/api/services/{{.ID}}/move"
                 hx-vals='{"direction":"left"}'
                 hx-target="#services-grid"
-                hx-swap="innerHTML"
-                onclick="event.preventDefault(); event.stopPropagation()">←</button>
-        <button class="btn btn-outline-secondary btn-sm reorder-btn"
+                hx-swap="innerHTML">←</button>
+        <button class="btn btn-ghost btn-sm reorder-btn"
                 hx-post="/api/services/{{.ID}}/move"
                 hx-vals='{"direction":"right"}'
                 hx-target="#services-grid"
-                hx-swap="innerHTML"
-                onclick="event.preventDefault(); event.stopPropagation()">→</button>
+                hx-swap="innerHTML">→</button>
       </div>
-    </a>
+    </div>
     {{end}}
   </div>
+  {{if $g.Name}}</details>{{end}}
 </div>
 {{end}}
 {{end}}

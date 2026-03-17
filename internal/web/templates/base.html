@@ -1,0 +1,43 @@
+{{define "base"}}
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{{block "title" .}}Lantern{{end}}</title>
+  <link rel="icon" type="image/png" href="/logo.png">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/daisyui@5/daisyui.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/daisyui@5/themes.css">
+  <link rel="stylesheet" href="/style.css">
+  <script src="https://cdn.jsdelivr.net/npm/htmx.org@2.0.8/dist/htmx.min.js"></script>
+  <script src="/app.js"></script>
+</head>
+<body{{block "body-attrs" .}}{{end}}>
+
+<div id="htmx-topbar"></div>
+
+{{block "content" .}}{{end}}
+
+<!-- Modal -->
+<dialog id="app-modal" class="modal">
+  <div class="modal-box relative">
+    <button class="btn btn-sm btn-circle btn-ghost absolute right-2 top-2"
+            onclick="this.closest('dialog').close()">✕</button>
+    <div id="modal-content"></div>
+  </div>
+  <form method="dialog" class="modal-backdrop"><button>close</button></form>
+</dialog>
+
+<!-- Toast -->
+<div id="toast-container" class="toast toast-end toast-bottom z-50">
+  <div id="app-toast" class="alert" role="alert" style="display:none">
+    <span id="toast-msg"></span>
+  </div>
+</div>
+
+{{block "scripts" .}}{{end}}
+</body>
+</html>
+{{end}}
