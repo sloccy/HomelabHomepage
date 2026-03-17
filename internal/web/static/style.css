@@ -10,7 +10,7 @@
   --surface3:   var(--color-base-300);
   --border:     var(--color-base-300);
   --text:       var(--color-base-content);
-  --muted:      color-mix(in oklch, var(--color-base-content) 60%, transparent);
+  --muted:      color-mix(in oklch, var(--color-base-content) 70%, transparent);
   --success:    var(--color-success);
   --danger:     var(--color-error);
   --warn:       var(--color-warning);
@@ -368,6 +368,14 @@ body:has(#edit-layout-toggle:checked) #edit-layout-btn {
 .status-value.ok       { color: var(--success); }
 
 /* ── Tables ────────────────────────────────────────────────────────────── */
+.table thead th {
+  text-transform: uppercase;
+  font-size: .7rem;
+  letter-spacing: .06em;
+  color: var(--muted);
+  font-weight: 600;
+}
+.table-zebra tbody tr:nth-child(even) { background: var(--surface3); }
 .table tbody tr:hover { background: var(--surface3); }
 .td-icon { width: 40px; }
 .svc-icon { width: 28px; height: 28px; border-radius: 6px; object-fit: contain; }
