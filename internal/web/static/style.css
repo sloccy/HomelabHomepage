@@ -370,10 +370,21 @@ body:has(#edit-layout-toggle:checked) #edit-layout-btn {
 /* ── Tables ────────────────────────────────────────────────────────────── */
 .table thead th {
   text-transform: uppercase;
-  font-size: .7rem;
+  font-size: .75rem;
   letter-spacing: .06em;
   color: var(--muted);
   font-weight: 600;
+}
+.table tbody td {
+  font-size: .9rem;
+}
+.table th, .table td {
+  padding: 0.75rem 1rem;
+}
+.overflow-x-auto {
+  padding-left: 2rem;
+  padding-right: 2rem;
+  padding-bottom: 0.5rem;
 }
 .table-zebra tbody tr:nth-child(even) { background: var(--surface3); }
 .table tbody tr:hover { background: var(--surface3); }
@@ -387,6 +398,18 @@ body:has(#edit-layout-toggle:checked) #edit-layout-btn {
 
 .td-actions { text-align: right; white-space: nowrap; }
 .link-cell a { color: var(--accent); font-family: monospace; font-size: .85rem; }
+
+/* ── Manage page card headers ──────────────────────────────────────────── */
+.card h2.card-title {
+  font-size: 1.25rem !important;
+  font-weight: 700;
+}
+.card > div.bg-base-300 {
+  padding-left: 2rem;
+  padding-right: 2rem;
+  padding-top: 1rem;
+  padding-bottom: 1rem;
+}
 
 /* ── Discovered items ──────────────────────────────────────────────────── */
 .disc-info { flex: 1; min-width: 0; }
