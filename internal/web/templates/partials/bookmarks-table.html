@@ -1,6 +1,6 @@
 {{if .}}
 <div class="overflow-x-auto">
-  <table class="table table-zebra table-sm">
+  <table class="table table-sm">
     <thead>
       <tr><th>Name</th><th>URL</th><th>Category</th><th></th></tr>
     </thead>
@@ -14,7 +14,7 @@
         <td>{{if .Category}}{{.Category}}{{else}}—{{end}}</td>
         <td>
           <div class="flex gap-2 items-center justify-end">
-            <button class="btn btn-ghost btn-sm"
+            <button class="btn btn-outline btn-sm"
                     hx-get="/fragments/bookmark-form/{{.ID}}"
                     hx-target="#modal-content">Edit</button>
             <button class="btn btn-error btn-sm"

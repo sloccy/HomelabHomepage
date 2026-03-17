@@ -368,6 +368,7 @@ body:has(#edit-layout-toggle:checked) #edit-layout-btn {
 .status-value.ok       { color: var(--success); }
 
 /* ── Tables ────────────────────────────────────────────────────────────── */
+.table tbody tr:hover { background: var(--surface3); }
 .td-icon { width: 40px; }
 .svc-icon { width: 28px; height: 28px; border-radius: 6px; object-fit: contain; }
 .svc-icon-placeholder {

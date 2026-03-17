@@ -32,12 +32,10 @@
 
   <!-- Scan Subnets -->
   <section class="card card-border bg-base-200">
-    <div class="card-body py-3 gap-1">
-      <div class="flex items-center justify-between">
-        <h2 class="card-title text-base">Scan Subnets</h2>
-      </div>
-      <p class="text-sm opacity-60">Subnets to scan for services (CIDR notation, e.g. <code>10.0.1.0/24</code>). If none are configured, the local /24 is auto-detected.</p>
+    <div class="bg-base-300 px-4 py-3 flex items-center justify-between border-b border-base-300">
+      <h2 class="card-title text-base">Scan Subnets</h2>
     </div>
+    <div class="px-4 py-2 border-b border-base-300 text-sm opacity-60">Subnets to scan for services (CIDR notation, e.g. <code>10.0.1.0/24</code>). If none are configured, the local /24 is auto-detected.</div>
     <div id="subnets-list"
          hx-get="/fragments/subnets"
          hx-trigger="load"
@@ -48,14 +46,12 @@
 
   <!-- Assigned Services -->
   <section class="card card-border bg-base-200">
-    <div class="card-body py-3 gap-1">
-      <div class="flex items-center justify-between">
-        <h2 class="card-title text-base">Services</h2>
-        <div class="card-actions">
-          <button class="btn btn-warning btn-sm"
-                  hx-get="/fragments/service-form"
-                  hx-target="#modal-content">+ Add Service</button>
-        </div>
+    <div class="bg-base-300 px-4 py-3 flex items-center justify-between border-b border-base-300">
+      <h2 class="card-title text-base">Services</h2>
+      <div>
+        <button class="btn btn-warning btn-sm"
+                hx-get="/fragments/service-form"
+                hx-target="#modal-content">+ Add Service</button>
       </div>
     </div>
     <div id="services-table"
@@ -68,17 +64,15 @@
 
   <!-- Bookmarks -->
   <section class="card card-border bg-base-200">
-    <div class="card-body py-3 gap-1">
-      <div class="flex items-center justify-between">
-        <h2 class="card-title text-base">Bookmarks</h2>
-        <div class="card-actions">
-          <button class="btn btn-warning btn-sm"
-                  hx-get="/fragments/bookmark-form"
-                  hx-target="#modal-content">+ Add Bookmark</button>
-        </div>
+    <div class="bg-base-300 px-4 py-3 flex items-center justify-between border-b border-base-300">
+      <h2 class="card-title text-base">Bookmarks</h2>
+      <div>
+        <button class="btn btn-warning btn-sm"
+                hx-get="/fragments/bookmark-form"
+                hx-target="#modal-content">+ Add Bookmark</button>
       </div>
-      <p class="text-sm opacity-60">External links shown on the home view. No proxy or DNS — just shortcuts.</p>
     </div>
+    <div class="px-4 py-2 border-b border-base-300 text-sm opacity-60">External links shown on the home view. No proxy or DNS — just shortcuts.</div>
     <div id="bookmarks-table"
          hx-get="/fragments/bookmarks-table"
          hx-trigger="load, refreshBookmarksTable from:body"
@@ -89,16 +83,14 @@
 
   <!-- Discovered -->
   <section class="card card-border bg-base-200">
-    <div class="card-body py-3 gap-1">
-      <div class="flex items-center justify-between">
-        <h2 class="card-title text-base">Discovered</h2>
-        <div class="card-actions">
-          <button class="btn btn-ghost btn-sm"
-                  onclick="const d=document.getElementById('ignored-section');d.open=!d.open">Ignored</button>
-        </div>
+    <div class="bg-base-300 px-4 py-3 flex items-center justify-between border-b border-base-300">
+      <h2 class="card-title text-base">Discovered</h2>
+      <div>
+        <button class="btn btn-ghost btn-sm"
+                onclick="const d=document.getElementById('ignored-section');d.open=!d.open">Ignored</button>
       </div>
-      <p class="text-sm opacity-60">Services found by network scan or Docker that haven't been assigned a subdomain.</p>
     </div>
+    <div class="px-4 py-2 border-b border-base-300 text-sm opacity-60">Services found by network scan or Docker that haven't been assigned a subdomain.</div>
     <div id="discovered-list"
          hx-get="/fragments/discovered"
          hx-trigger="load, refreshDiscovered from:body"
@@ -108,10 +100,10 @@
     <!-- Ignored section — toggled by button above -->
     <details id="ignored-section">
       <summary class="hidden"></summary>
-      <div class="card-body py-3 gap-1 border-t border-base-300">
+      <div class="bg-base-300 px-4 py-3 flex items-center justify-between border-t border-base-300 border-b">
         <h2 class="card-title text-base">Ignored Services</h2>
-        <p class="text-sm opacity-60">These IP:port pairs are permanently suppressed from discovery results.</p>
       </div>
+      <div class="px-4 py-2 border-b border-base-300 text-sm opacity-60">These IP:port pairs are permanently suppressed from discovery results.</div>
       <div hx-get="/fragments/ignored"
            hx-trigger="load, refreshIgnored from:body"
            hx-swap="innerHTML"></div>
@@ -120,12 +112,10 @@
 
   <!-- Dynamic DNS -->
   <section class="card card-border bg-base-200">
-    <div class="card-body py-3 gap-1">
-      <div class="flex items-center justify-between">
-        <h2 class="card-title text-base">Dynamic DNS</h2>
-      </div>
-      <p class="text-sm opacity-60">These domains will automatically update to your current public IP address.</p>
+    <div class="bg-base-300 px-4 py-3 flex items-center justify-between border-b border-base-300">
+      <h2 class="card-title text-base">Dynamic DNS</h2>
     </div>
+    <div class="px-4 py-2 border-b border-base-300 text-sm opacity-60">These domains will automatically update to your current public IP address.</div>
     <div id="ddns-list"
          hx-get="/fragments/ddns"
          hx-trigger="load"
