@@ -5,7 +5,7 @@
   </div>
   <div class="px-8 py-2 border-b border-base-300 text-sm opacity-60">Create a Cloudflare Tunnel managed by Lantern. The tunnel runs as a subprocess and restarts automatically. Individual services can be routed through it via the tunnel checkbox.</div>
   {{if .Status.TunnelID}}
-  <div style="padding:1rem 1.5rem;display:flex;flex-direction:column;gap:.75rem">
+  <div style="padding:1rem 2rem;display:flex;flex-direction:column;gap:.75rem">
     <div>
       <span class="status-label">Tunnel ID</span>
       <span class="status-value" style="display:inline;margin-left:.5rem">{{.Status.TunnelID}}</span>
@@ -33,7 +33,7 @@
     </div>
   </div>
   {{else}}
-  <div style="padding:1rem 1.5rem">
+  <div style="padding:1rem 2rem">
     <button class="btn btn-warning"
             hx-post="/api/tunnel"
             hx-target="#tunnel-section"

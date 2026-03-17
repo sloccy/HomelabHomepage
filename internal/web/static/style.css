@@ -405,14 +405,27 @@ body:has(#edit-layout-toggle:checked) #edit-layout-btn {
   box-shadow: 0 2px 10px rgba(0,0,0,.35);
 }
 .card h2.card-title {
-  font-size: 1.25rem !important;
+  font-size: 1.15rem !important;
   font-weight: 700;
+  margin: 0;
 }
-.card > div.bg-base-300 {
-  padding-left: 2rem;
-  padding-right: 2rem;
-  padding-top: 1rem;
-  padding-bottom: 1rem;
+/* Card section headers: force flex layout — cannot rely on Tailwind cdn utilities */
+.card > div.bg-base-300,
+.card details > div.bg-base-300 {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.875rem 2rem;
+}
+/* Card description/subtitle rows */
+.card > div.border-b:not(.bg-base-300),
+.card details > div.border-b:not(.bg-base-300) {
+  padding: 0.5rem 2rem;
+}
+/* Card form/input rows (border-t sections at bottom of card) */
+.card > div.border-t {
+  padding: 0.75rem 2rem;
 }
 
 /* ── Discovered items ──────────────────────────────────────────────────── */
