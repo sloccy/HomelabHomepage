@@ -8,6 +8,44 @@
   <link rel="icon" type="image/png" href="/logo.png">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <!--
+    CSS STACK — READ BEFORE EDITING TEMPLATES OR style.css
+    =======================================================
+    We use DaisyUI v5 as a plain CDN stylesheet with NO Tailwind CSS.
+    daisyui.css  →  DaisyUI component classes only (btn, card, table, badge,
+                    modal, alert, etc.) plus DaisyUI CSS variables (--color-*).
+    themes.css   →  DaisyUI theme definitions (dark theme active via data-theme).
+
+    WHAT WORKS (DaisyUI component classes):
+      btn, btn-sm, btn-warning, btn-error, btn-ghost, btn-outline
+      card, card-border, card-title, card-body
+      table, table-sm, table-zebra, table-pin-rows
+      badge, modal, modal-box, alert, toast, input, input-bordered
+      bg-base-100/200/300, text-base-content, border-base-300
+      text-sm, opacity-*, border-b, border-t  (bundled with DaisyUI)
+
+    WHAT DOES NOT WORK (Tailwind utility classes — not included):
+      Layout:   flex, grid, items-center, justify-between, justify-end,
+                gap-*, flex-col, flex-row, flex-wrap, shrink-0, grow
+      Spacing:  px-*, py-*, p-*, mx-*, my-*, m-*, space-*  (px-8, py-3 etc.)
+      Sizing:   w-*, h-*, max-w-*, min-w-*
+      Display:  hidden, block, inline, inline-flex
+      Other:    container, overflow-x-auto, whitespace-nowrap
+
+    RULE: All layout, spacing, and sizing that cannot use a DaisyUI component
+    class MUST be written in style.css as plain CSS rules. Never rely on
+    Tailwind utility class names like px-8, flex, gap-2, etc. in templates —
+    they will silently do nothing.
+
+    The one exception: Tailwind classes on <form> and deeply-nested elements
+    inside components sometimes appear to work because they don't conflict with
+    any higher-specificity CSS rule. Don't rely on this behaviour.
+
+    NOTE: We also use --border-color (not --border) for our custom border color
+    variable, because DaisyUI v5 internally uses --border as a numeric width
+    (e.g. border-width: calc(var(--border) * 1px)) and overriding it breaks
+    all card-border, btn, and other DaisyUI components that draw borders.
+  -->
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/daisyui@5/daisyui.css">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/daisyui@5/themes.css">
   <link rel="stylesheet" href="/style.css">
