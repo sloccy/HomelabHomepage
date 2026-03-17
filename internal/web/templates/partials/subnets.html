@@ -1,13 +1,13 @@
 {{if .Subnets}}
-<div class="table-responsive">
-  <table class="table table-hover mb-0">
+<div class="overflow-x-auto">
+  <table class="table mb-0">
     <thead><tr><th>CIDR</th><th></th></tr></thead>
     <tbody>
       {{range .Subnets}}
       <tr>
         <td><code>{{.}}</code></td>
-        <td class="td-actions"><div class="d-flex gap-2 align-items-center justify-content-end">
-          <button class="btn btn-danger btn-sm"
+        <td class="td-actions"><div class="flex gap-2 items-center justify-end">
+          <button class="btn btn-error btn-sm"
                   hx-delete="/api/scan/subnets?cidr={{qesc .}}"
                   hx-target="closest tr"
                   hx-swap="delete"
@@ -19,15 +19,15 @@
   </table>
 </div>
 {{else}}
-<p class="text-center text-secondary p-4">No subnets configured — local /24 is auto-detected.</p>
+<p class="text-center opacity-60 p-4">No subnets configured — local /24 is auto-detected.</p>
 {{end}}
-<div class="p-3 border-top">
+<div class="p-3 border-t border-base-300">
   <form hx-post="/api/scan/subnets"
         hx-target="#subnets-list"
         hx-swap="innerHTML"
-        class="d-flex gap-2 align-items-center"
+        class="flex gap-2 items-center"
         hx-on::after-request="this.reset()">
-    <input class="form-control" name="cidr" placeholder="10.0.1.0/24" required>
+    <input class="input input-bordered" name="cidr" placeholder="10.0.1.0/24" required>
     <button class="btn btn-warning btn-sm" type="submit">+ Add</button>
   </form>
 </div>

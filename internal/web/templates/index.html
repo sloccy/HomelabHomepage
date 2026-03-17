@@ -1,0 +1,54 @@
+{{template "base" .}}
+
+{{define "title"}}Lantern{{end}}
+
+{{define "content"}}
+<header class="header">
+  <div class="logo">
+    <img src="/logo.png" class="logo-img" alt="Lantern">
+    <span class="logo-text">Lantern</span>
+  </div>
+  <input id="search-input" class="search-input input input-bordered flex-1 rounded-full" type="search"
+         name="q"
+         placeholder="Search… ( / )" autocomplete="off">
+  <div class="header-right">
+    <span id="header-clock" class="header-clock"></span>
+    <input type="checkbox" id="edit-layout-toggle" class="sr-only">
+    <label for="edit-layout-toggle" class="btn btn-ghost" id="edit-layout-btn">✎ Edit Layout</label>
+    <a href="/manage" class="btn btn-ghost">⚙ Manage</a>
+  </div>
+</header>
+
+<div id="sysinfo-wrapper" class="bg-poll"
+     hx-get="/fragments/sysinfo"
+     hx-trigger="load, every 5s"
+     hx-swap="innerHTML">
+  <div class="htmx-indicator section-spinner"><div class="spinner" role="status"></div></div>
+</div>
+
+<div id="services-grid" class="grid-root"
+     hx-get="/fragments/services"
+     hx-trigger="load, input from:#search-input delay:200ms"
+     hx-include="#search-input"
+     hx-swap="innerHTML">
+  <div class="htmx-indicator section-spinner"><div class="spinner" role="status"></div></div>
+</div>
+
+<div id="bookmarks-home"
+     hx-get="/fragments/bookmarks"
+     hx-trigger="load, input from:#search-input delay:200ms"
+     hx-include="#search-input"
+     hx-swap="innerHTML">
+  <div class="htmx-indicator section-spinner"><div class="spinner" role="status"></div></div>
+</div>
+{{end}}
+
+{{define "scripts"}}
+<script>
+  const _topbar = document.getElementById('htmx-topbar');
+  htmx.on('htmx:beforeRequest', (e) => {
+    if (!e.detail.elt.classList.contains('bg-poll')) _topbar.classList.add('active');
+  });
+  htmx.on('htmx:afterRequest', () => _topbar.classList.remove('active'));
+</script>
+{{end}}

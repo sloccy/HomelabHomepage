@@ -1,6 +1,6 @@
 {{if .}}
-<div class="table-responsive">
-  <table class="table table-hover mb-0">
+<div class="overflow-x-auto">
+  <table class="table mb-0">
     <thead><tr><th>IP:Port</th><th>Title</th><th>Ignored At</th><th></th></tr></thead>
     <tbody>
       {{range .}}
@@ -8,11 +8,13 @@
         <td><code>{{.IP}}:{{.Port}}</code></td>
         <td>{{if .Title}}{{.Title}}{{else}}—{{end}}</td>
         <td>{{fmtTime .IgnoredAt}}</td>
-        <td class="td-actions d-flex gap-2 align-items-center justify-content-end">
-          <button class="btn btn-outline-secondary btn-sm"
-                  hx-delete="/api/ignored/{{.ID}}"
-                  hx-target="closest tr"
-                  hx-swap="delete">Un-ignore</button>
+        <td class="td-actions">
+          <div class="flex gap-2 items-center justify-end">
+            <button class="btn btn-ghost btn-sm"
+                    hx-delete="/api/ignored/{{.ID}}"
+                    hx-target="closest tr"
+                    hx-swap="delete">Un-ignore</button>
+          </div>
         </td>
       </tr>
       {{end}}
@@ -20,5 +22,5 @@
   </table>
 </div>
 {{else}}
-<p class="text-center text-secondary p-4">No ignored services.</p>
+<p class="text-center opacity-60 p-4">No ignored services.</p>
 {{end}}

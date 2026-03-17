@@ -3,22 +3,22 @@
 <form hx-put="/api/bookmarks/{{.Bookmark.ID}}"
       hx-swap="none">
   <div class="mb-3">
-    <label class="form-label">Name</label>
-    <input class="form-control" name="name" value="{{.Bookmark.Name}}" placeholder="My Bookmark">
+    <label>Name</label>
+    <input class="input input-bordered w-full" name="name" value="{{.Bookmark.Name}}" placeholder="My Bookmark">
   </div>
   <div class="mb-3">
-    <label class="form-label">URL</label>
-    <input class="form-control" name="url" type="url" value="{{.Bookmark.URL}}" required placeholder="https://example.com">
+    <label>URL</label>
+    <input class="input input-bordered w-full" name="url" type="url" value="{{.Bookmark.URL}}" required placeholder="https://example.com">
   </div>
   <div class="mb-3">
-    <label class="form-label">Category</label>
-    <input class="form-control" name="category" value="{{.Bookmark.Category}}" list="categories-list" placeholder="Optional">
+    <label>Category</label>
+    <input class="input input-bordered w-full" name="category" value="{{.Bookmark.Category}}" list="categories-list" placeholder="Optional">
     <datalist id="categories-list">
       {{range .Categories}}<option value="{{.}}">{{end}}
     </datalist>
   </div>
-  <div class="d-flex gap-2 justify-content-end mt-3">
-    <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
+  <div class="flex gap-2 justify-end mt-3">
+    <button type="button" class="btn btn-ghost" onclick="this.closest('dialog').close()">Cancel</button>
     <button type="submit" class="btn btn-warning">Save</button>
   </div>
 </form>
@@ -27,22 +27,22 @@
 <form hx-post="/api/bookmarks"
       hx-swap="none">
   <div class="mb-3">
-    <label class="form-label">Name</label>
-    <input class="form-control" name="name" placeholder="My Bookmark">
+    <label>Name</label>
+    <input class="input input-bordered w-full" name="name" placeholder="My Bookmark">
   </div>
   <div class="mb-3">
-    <label class="form-label">URL</label>
-    <input class="form-control" name="url" type="url" required placeholder="https://example.com">
+    <label>URL</label>
+    <input class="input input-bordered w-full" name="url" type="url" required placeholder="https://example.com">
   </div>
   <div class="mb-3">
-    <label class="form-label">Category</label>
-    <input class="form-control" name="category" list="categories-list" placeholder="Optional">
+    <label>Category</label>
+    <input class="input input-bordered w-full" name="category" list="categories-list" placeholder="Optional">
     <datalist id="categories-list">
       {{range .Categories}}<option value="{{.}}">{{end}}
     </datalist>
   </div>
-  <div class="d-flex gap-2 justify-content-end mt-3">
-    <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
+  <div class="flex gap-2 justify-end mt-3">
+    <button type="button" class="btn btn-ghost" onclick="this.closest('dialog').close()">Cancel</button>
     <button type="submit" class="btn btn-warning">Add Bookmark</button>
   </div>
 </form>

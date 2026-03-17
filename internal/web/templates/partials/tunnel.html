@@ -1,9 +1,9 @@
 {{if .Available}}
 <section class="card" id="tunnel-section">
-  <div class="card-header d-flex align-items-center justify-content-between">
+  <div class="card-body py-3 flex items-center justify-between">
     <h5 class="mb-0">Cloudflare Tunnel</h5>
   </div>
-  <div class="card-body py-2 border-bottom text-secondary small mb-0">Create a Cloudflare Tunnel managed by Lantern. The tunnel runs as a subprocess and restarts automatically. Individual services can be routed through it via the tunnel checkbox.</div>
+  <div class="card-body py-2 border-b border-base-300 text-sm opacity-60 mb-0">Create a Cloudflare Tunnel managed by Lantern. The tunnel runs as a subprocess and restarts automatically. Individual services can be routed through it via the tunnel checkbox.</div>
   {{if .Status.TunnelID}}
   <div style="padding:1rem 1.5rem;display:flex;flex-direction:column;gap:.75rem">
     <div>
@@ -23,7 +23,7 @@
     </div>
     {{end}}
     <div>
-      <button class="btn btn-danger btn-sm"
+      <button class="btn btn-error btn-sm"
               hx-delete="/api/tunnel"
               hx-target="#tunnel-section"
               hx-swap="outerHTML"
