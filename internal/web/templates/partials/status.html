@@ -1,14 +1,18 @@
-<div class="card-body py-3 flex items-center justify-between">
-  <h5 class="mb-0">Status</h5>
-  <button class="btn btn-warning"
-          {{if not .Scanning}}
-          hx-post="/api/scan"
-          hx-target="#status-section"
-          hx-swap="innerHTML show:none"
-          {{end}}
-          {{if .Scanning}}disabled{{end}}>
-    {{if .Scanning}}⟳ Scanning…{{else}}⟳ Scan Now{{end}}
-  </button>
+<div class="card-body py-3 gap-1">
+  <div class="flex items-center justify-between">
+    <h2 class="card-title text-base">Status</h2>
+    <div class="card-actions">
+      <button class="btn btn-warning"
+              {{if not .Scanning}}
+              hx-post="/api/scan"
+              hx-target="#status-section"
+              hx-swap="innerHTML show:none"
+              {{end}}
+              {{if .Scanning}}disabled{{end}}>
+        {{if .Scanning}}⟳ Scanning…{{else}}⟳ Scan Now{{end}}
+      </button>
+    </div>
+  </div>
 </div>
 <div class="status-grid">
   <div class="status-cell">
