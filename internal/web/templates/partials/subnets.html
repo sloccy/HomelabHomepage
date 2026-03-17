@@ -1,5 +1,5 @@
 {{if .Subnets}}
-<div class="overflow-x-auto px-4">
+<div class="overflow-x-auto">
   <table class="table table-sm table-zebra table-pin-rows">
     <thead><tr><th>CIDR</th><th></th></tr></thead>
     <tbody>
@@ -21,7 +21,7 @@
 {{else}}
 <p class="text-center opacity-60 p-4">No subnets configured — local /24 is auto-detected.</p>
 {{end}}
-<div class="p-3 border-t border-base-300">
+<div class="px-8 py-3 border-t border-base-300">
   <form hx-post="/api/scan/subnets"
         hx-target="#subnets-list"
         hx-swap="innerHTML"

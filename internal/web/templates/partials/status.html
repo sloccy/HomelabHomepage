@@ -1,7 +1,7 @@
 <div class="bg-base-300 px-4 py-3 flex items-center justify-between border-b border-base-300">
   <h2 class="card-title text-base">Status</h2>
   <div>
-    <button class="btn btn-warning"
+    <button class="btn btn-warning btn-sm"
             {{if not .Scanning}}
             hx-post="/api/scan"
             hx-target="#status-section"
