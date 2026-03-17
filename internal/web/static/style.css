@@ -1,3 +1,29 @@
+/*
+ * ╔══════════════════════════════════════════════════════════════════════════╗
+ * ║  IMPORTANT: DaisyUI CDN — NO TAILWIND CSS                               ║
+ * ╠══════════════════════════════════════════════════════════════════════════╣
+ * ║  This project loads DaisyUI v5 via CDN (daisyui.css + themes.css).      ║
+ * ║  There is NO Tailwind CSS stylesheet included. This means:              ║
+ * ║                                                                          ║
+ * ║  • DaisyUI component classes work: btn, card, table, badge, modal, etc. ║
+ * ║  • DaisyUI color helpers work: bg-base-100/200/300, border-base-300     ║
+ * ║  • Some DaisyUI-bundled utilities work: text-sm, border-b, opacity-*    ║
+ * ║                                                                          ║
+ * ║  • Tailwind layout/spacing utilities DO NOT WORK:                       ║
+ * ║      flex, grid, items-center, justify-between, gap-*, px-*, py-*,     ║
+ * ║      p-*, mx-*, my-*, w-*, h-*, hidden, container, overflow-x-auto     ║
+ * ║                                                                          ║
+ * ║  ALL layout, spacing, and sizing must be written as CSS rules here.     ║
+ * ║  Do not add Tailwind utility classes to templates expecting them to     ║
+ * ║  provide layout — they will silently have no effect.                    ║
+ * ║                                                                          ║
+ * ║  CSS VARIABLE NOTE: Use --border-color (not --border) for border colors.║
+ * ║  DaisyUI v5 reserves --border as a numeric px width for its own         ║
+ * ║  component borders. Overriding --border with a color value breaks       ║
+ * ║  card-border, btn borders, and any component using that variable.       ║
+ * ╚══════════════════════════════════════════════════════════════════════════╝
+ */
+
 /* ── Variables ─────────────────────────────────────────────────────────── */
 :root {
   font-size: 15px;
