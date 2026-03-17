@@ -19,7 +19,7 @@
   </table>
 </div>
 {{else}}
-<p class="text-center opacity-60 p-4">No subnets configured — local /24 is auto-detected.</p>
+<p class="opacity-60" style="text-align:center;padding:1rem 2rem">No subnets configured — local /24 is auto-detected.</p>
 {{end}}
 <div class="px-8 py-3 border-t border-base-300">
   <form hx-post="/api/scan/subnets"

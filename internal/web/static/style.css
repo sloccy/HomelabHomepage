@@ -450,11 +450,30 @@ body:has(#edit-layout-toggle:checked) #edit-layout-btn {
   padding: 0.5rem 2rem;
 }
 /* Card form/input rows (border-t sections at bottom of card) */
-.card > div.border-t {
+/* Use descendant selector (not >) so it matches divs nested inside wrapper like #ddns-list */
+.card div.border-t {
   padding: 0.75rem 2rem;
 }
 
+/* Empty-state messages inside cards */
+.card p.opacity-60 {
+  text-align: center;
+  padding: 1rem 2rem;
+}
+
 /* ── Discovered items ──────────────────────────────────────────────────── */
+.disc-item {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.75rem 2rem;
+  flex-wrap: wrap;
+}
+.disc-item > div:last-child {
+  display: flex;
+  gap: 0.5rem;
+  flex-shrink: 0;
+}
 .disc-info { flex: 1; min-width: 0; }
 .disc-title { font-weight: 500; }
 .disc-meta  { font-size: .8rem; color: var(--muted); }
