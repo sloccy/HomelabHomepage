@@ -1,6 +1,6 @@
 {{if .Services}}
 <div class="overflow-x-auto">
-  <table class="table table-zebra table-sm">
+  <table class="table table-sm">
     <thead>
       <tr>
         <th class="td-icon"></th>
@@ -30,7 +30,7 @@
         </td>
         <td class="td-actions">
           <div class="flex gap-2 items-center justify-end">
-            <button class="btn btn-ghost btn-sm"
+            <button class="btn btn-outline btn-sm"
                     hx-get="/fragments/service-form/{{.ID}}"
                     hx-target="#modal-content">Edit</button>
             <button class="btn btn-error btn-sm"

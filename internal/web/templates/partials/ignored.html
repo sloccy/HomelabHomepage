@@ -1,6 +1,6 @@
 {{if .}}
 <div class="overflow-x-auto">
-  <table class="table table-zebra table-sm">
+  <table class="table table-sm">
     <thead><tr><th>IP:Port</th><th>Title</th><th>Ignored At</th><th></th></tr></thead>
     <tbody>
       {{range .}}
@@ -10,7 +10,7 @@
         <td>{{fmtTime .IgnoredAt}}</td>
         <td class="td-actions">
           <div class="flex gap-2 items-center justify-end">
-            <button class="btn btn-ghost btn-sm"
+            <button class="btn btn-outline btn-sm"
                     hx-delete="/api/ignored/{{.ID}}"
                     hx-target="closest tr"
                     hx-swap="delete">Un-ignore</button>
