@@ -124,6 +124,7 @@
   font-size: 1.25rem;
   font-weight: 700;
   letter-spacing: -.02em;
+  flex: 1;
 }
 .logo-img    { height: 1.75rem; width: auto; object-fit: contain; }
 .logo-img-lg { height: 5rem;   width: auto; object-fit: contain; }
@@ -131,22 +132,17 @@
   display: flex;
   align-items: center;
   gap: 1rem;
+  flex: 1;
+  justify-content: flex-end;
 }
 .search-input {
-  max-width: 320px;
-  flex: 1;
+  width: 320px;
+  flex: none;
   border-radius: 9999px;
 }
 .search-input:focus {
   border-color: var(--accent);
   box-shadow: 0 0 0 3px rgba(201,162,39,.12);
-}
-.header-clock {
-  font-size: .8rem;
-  color: var(--muted);
-  font-variant-numeric: tabular-nums;
-  white-space: nowrap;
-  letter-spacing: .03em;
 }
 
 /* ── Button HTMX loading state ──────────────────────────────────────────── */
