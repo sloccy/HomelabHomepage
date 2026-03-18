@@ -27,18 +27,7 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   }
 
-  // ── Clock ─────────────────────────────────────────────────────────────────
-  const clockEl = document.getElementById('header-clock');
-  if (clockEl) {
-    const tick = () => {
-      const d = new Date();
-      clockEl.textContent = d.toLocaleDateString('en', {weekday: 'short', day: 'numeric', month: 'short'})
-        + '\u2002' + d.toLocaleTimeString('en-GB');
-    };
-    tick(); setInterval(tick, 1000);
-  }
-
-  // ── Optimistic reorder: swap card-wrappers immediately, sync server async ──
+// ── Optimistic reorder: swap card-wrappers immediately, sync server async ──
   document.body.addEventListener('click', e => {
     const btn = e.target.closest('.reorder-btn');
     if (!btn) return;
