@@ -7,13 +7,13 @@
       <tr>
         <td><code>{{.}}</code></td>
         <td>{{$.PublicIP}}</td>
-        <td class="td-actions"><div class="flex gap-2 items-center justify-end">
+        <td class="td-actions">
           <button class="btn btn-error btn-sm"
                   hx-delete="/api/ddns/{{.}}"
                   hx-target="closest tr"
                   hx-swap="delete"
                   hx-confirm="Delete {{.}}?">Delete</button>
-        </div></td>
+        </td>
       </tr>
       {{end}}
     </tbody>
@@ -22,11 +22,10 @@
 {{else}}
 <p class="opacity-60" style="text-align:center;padding:1rem 2rem">No DDNS domains configured.</p>
 {{end}}
-<div class="px-8 py-3 border-t border-base-300">
+<div class="border-t border-base-300">
   <form hx-post="/api/ddns"
         hx-target="#ddns-list"
         hx-swap="innerHTML"
-        class="flex gap-2 items-center"
         hx-on::after-request="if(event.detail.successful) this.reset()">
     <input class="input input-bordered" name="domain"
            placeholder="home.example.com" required>

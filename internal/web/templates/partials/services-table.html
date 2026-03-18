@@ -29,16 +29,14 @@
           {{if isTunneled .}}<span class="badge badge-warning">tunnel</span>{{end}}
         </td>
         <td class="td-actions">
-          <div class="flex gap-2 items-center justify-end">
-            <button class="btn btn-outline btn-sm"
-                    hx-get="/fragments/service-form/{{.ID}}"
-                    hx-target="#modal-content">Edit</button>
-            <button class="btn btn-error btn-sm"
-                    hx-delete="/api/services/{{.ID}}"
-                    hx-target="closest tr"
-                    hx-swap="delete"
-                    hx-confirm="Delete {{.Name}}?">Delete</button>
-          </div>
+          <button class="btn btn-outline btn-sm"
+                  hx-get="/fragments/service-form/{{.ID}}"
+                  hx-target="#modal-content">Edit</button>
+          <button class="btn btn-error btn-sm"
+                  hx-delete="/api/services/{{.ID}}"
+                  hx-target="closest tr"
+                  hx-swap="delete"
+                  hx-confirm="Delete {{.Name}}?">Delete</button>
         </td>
       </tr>
       {{end}}
@@ -46,5 +44,5 @@
   </table>
 </div>
 {{else}}
-<p class="text-center opacity-60 p-4">No services assigned yet.</p>
+<p class="opacity-60">No services assigned yet.</p>
 {{end}}

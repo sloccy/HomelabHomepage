@@ -21,8 +21,28 @@
  * ║  DaisyUI v5 reserves --border as a numeric px width for its own         ║
  * ║  component borders. Overriding --border with a color value breaks       ║
  * ║  card-border, btn borders, and any component using that variable.       ║
+ * ╠══════════════════════════════════════════════════════════════════════════╣
+ * ║  TOOL-USE HIERARCHY (prefer higher over lower):                         ║
+ * ║    1. Semantic HTML                                                      ║
+ * ║    2. DaisyUI CSS CDN component classes                                 ║
+ * ║    3. Custom CSS rules in style.css  ← this file                        ║
+ * ║    4. HTMX for server interactions                                      ║
+ * ║    5. Vanilla JS only when absolutely necessary                         ║
  * ╚══════════════════════════════════════════════════════════════════════════╝
  */
+
+/* ── Screen-reader only ─────────────────────────────────────────────────── */
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border-width: 0;
+}
 
 /* ── Variables ─────────────────────────────────────────────────────────── */
 :root {
@@ -114,6 +134,8 @@
 }
 .search-input {
   max-width: 320px;
+  flex: 1;
+  border-radius: 9999px;
 }
 .search-input:focus {
   border-color: var(--accent);
@@ -372,7 +394,17 @@ body:has(#edit-layout-toggle:checked) #edit-layout-btn {
 }
 
 /* ── Empty State (homepage) ────────────────────────────────────────────── */
-.empty-state { min-height: 60vh; animation: fadeIn .4s ease; }
+.empty-state {
+  min-height: 60vh;
+  animation: fadeIn .4s ease;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  gap: 0.75rem;
+  padding: 1rem;
+}
 .empty-icon  { font-size: 4rem; }
 
 /* ── Status Grid ───────────────────────────────────────────────────────── */
@@ -422,7 +454,14 @@ body:has(#edit-layout-toggle:checked) #edit-layout-btn {
   align-items: center; justify-content: center; font-size: 1rem;
 }
 
-.td-actions { text-align: right; white-space: nowrap; }
+.td-actions {
+  text-align: right;
+  white-space: nowrap;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 0.5rem;
+}
 .link-cell a { color: var(--accent); font-family: monospace; font-size: .85rem; }
 
 /* ── Manage page cards ─────────────────────────────────────────────────── */
@@ -448,11 +487,18 @@ body:has(#edit-layout-toggle:checked) #edit-layout-btn {
 .card > div.border-b:not(.bg-base-300),
 .card details > div.border-b:not(.bg-base-300) {
   padding: 0.5rem 2rem;
+  font-size: 0.875rem;
+  opacity: 0.7;
 }
 /* Card form/input rows (border-t sections at bottom of card) */
 /* Use descendant selector (not >) so it matches divs nested inside wrapper like #ddns-list */
 .card div.border-t {
   padding: 0.75rem 2rem;
+}
+.card div.border-t form {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
 }
 
 /* Empty-state messages inside cards */
@@ -492,6 +538,13 @@ body:has(#edit-layout-toggle:checked) #edit-layout-btn {
 dialog#app-modal .modal-box {
   border: 1px solid rgba(201,162,39,.2);
   box-shadow: var(--shadow-lg), 0 0 0 1px rgba(201,162,39,.08);
+  position: relative;
+}
+/* Modal close button — replaces absolute/right-2/top-2 Tailwind classes */
+dialog#app-modal .modal-box > button:first-child {
+  position: absolute;
+  right: 0.5rem;
+  top: 0.5rem;
 }
 dialog#app-modal h3 { font-size: 1.1rem; margin-bottom: 1.25rem; }
 .modal-backdrop { backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px); }
@@ -508,6 +561,16 @@ dialog#app-modal .items-center { align-items: center; }
 dialog#app-modal .justify-end { justify-content: flex-end; }
 
 /* ── Form helpers ──────────────────────────────────────────────────────── */
+label.cursor-pointer { cursor: pointer; }
+
+/* Info box inside assign-form (replaces inline Tailwind rounded-lg/p-3/mb-4/text-sm) */
+.assign-info {
+  background: var(--surface);
+  border-radius: var(--radius-sm);
+  padding: 0.75rem;
+  margin-bottom: 1rem;
+  font-size: 0.875rem;
+}
 
 /* ── Icon edit row ──────────────────────────────────────────────────────── */
 .icon-edit-row {
@@ -518,6 +581,7 @@ dialog#app-modal .justify-end { justify-content: flex-end; }
 }
 
 /* ── Toast ──────────────────────────────────────────────────────────────── */
+#toast-container { z-index: 50; }
 #app-toast.showing { display: flex !important; animation: fadeIn .3s ease; }
 
 /* ── Scan log ───────────────────────────────────────────────────────────── */

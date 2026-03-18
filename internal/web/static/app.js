@@ -38,6 +38,35 @@ document.addEventListener('DOMContentLoaded', () => {
     tick(); setInterval(tick, 1000);
   }
 
+  // ── Optimistic reorder: swap card-wrappers immediately, sync server async ──
+  document.body.addEventListener('click', e => {
+    const btn = e.target.closest('.reorder-btn');
+    if (!btn) return;
+    let dir;
+    try { dir = JSON.parse(btn.getAttribute('hx-vals') || '{}').direction; } catch(_) {}
+    if (!dir) return;
+
+    const wrapper = btn.closest('.card-wrapper');
+    if (!wrapper) return;
+    const grid = wrapper.parentElement;
+    const siblings = [...grid.children].filter(el => el.classList.contains('card-wrapper'));
+    const idx = siblings.indexOf(wrapper);
+    const targetIdx = dir === 'left' ? idx - 1 : idx + 1;
+    if (targetIdx < 0 || targetIdx >= siblings.length) return;
+
+    const other = siblings[targetIdx];
+    if (dir === 'left') grid.insertBefore(wrapper, other);
+    else grid.insertBefore(other, wrapper);
+
+    const url = btn.getAttribute('hx-post');
+    if (url) {
+      const body = new URLSearchParams();
+      try { Object.entries(JSON.parse(btn.getAttribute('hx-vals') || '{}')).forEach(([k,v]) => body.set(k, v)); } catch(_) {}
+      fetch(url, { method: 'POST', body }).catch(() => {});
+    }
+    e.stopPropagation(); // prevent HTMX full re-render
+  }, true); // capture phase — fires before HTMX bubble-phase listeners
+
   // ── Edit layout toggle ────────────────────────────────────────────────────
   document.getElementById('edit-layout-toggle')?.addEventListener('change', function() {
     // Deselect card when exiting edit mode
