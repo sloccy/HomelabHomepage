@@ -53,17 +53,23 @@
   {{end}}
 </div>
 {{if .Scanning}}
-<div class="scan-log bg-poll"
-     hx-get="/fragments/status"
-     hx-trigger="every 1.5s"
-     hx-target="#status-section"
-     hx-swap="innerHTML show:none"
-     hx-on::before-request="window._scanLogScroll = this.scrollTop"
-     hx-on::after-settle="let el = document.querySelector('.scan-log'); if(el && window._scanLogScroll !== undefined) el.scrollTop = window._scanLogScroll">
-  {{range .ScanLog}}<div class="{{logClass .}}">{{.}}</div>{{end}}
-</div>
+<details class="scan-log-details" open
+         hx-on::before-request="window._scanLogScroll = document.querySelector('.scan-log') && document.querySelector('.scan-log').scrollTop; window._scanLogOpen = this.open"
+         hx-on::after-settle="let d = document.querySelector('.scan-log-details'); if(d && window._scanLogOpen !== undefined) { if(window._scanLogOpen) d.setAttribute('open',''); else d.removeAttribute('open'); } let el = document.querySelector('.scan-log'); if(el && window._scanLogScroll !== undefined) el.scrollTop = window._scanLogScroll">
+  <summary class="scan-log-summary">Scan Log</summary>
+  <div class="scan-log bg-poll"
+       hx-get="/fragments/status"
+       hx-trigger="every 1.5s"
+       hx-target="#status-section"
+       hx-swap="innerHTML show:none">
+    {{range .ScanLog}}<div class="{{logClass .}}">{{.}}</div>{{end}}
+  </div>
+</details>
 {{else if .ScanLog}}
-<div class="scan-log">
-  {{range .ScanLog}}<div class="{{logClass .}}">{{.}}</div>{{end}}
-</div>
+<details class="scan-log-details" open>
+  <summary class="scan-log-summary">Scan Log</summary>
+  <div class="scan-log">
+    {{range .ScanLog}}<div class="{{logClass .}}">{{.}}</div>{{end}}
+  </div>
+</details>
 {{end}}

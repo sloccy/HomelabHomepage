@@ -683,9 +683,22 @@ label.cursor-pointer { cursor: pointer; }
 #app-toast.showing { display: flex !important; animation: fadeIn .3s ease; }
 
 /* ── Scan log ───────────────────────────────────────────────────────────── */
+.scan-log-summary {
+  padding: .5rem 1.5rem;
+  border-top: 1px solid var(--border-color);
+  font-family: "JetBrains Mono", "Fira Code", "Cascadia Code", ui-monospace, monospace;
+  font-size: .8rem;
+  color: var(--accent);
+  cursor: pointer;
+  user-select: none;
+  list-style: none;
+}
+.scan-log-summary::-webkit-details-marker { display: none; }
+.scan-log-summary::before { content: '▶  '; font-size: .65rem; }
+.scan-log-details[open] .scan-log-summary::before { content: '▼  '; }
 .scan-log {
   padding: .75rem 1.5rem;
-  border-top: 1px solid var(--border-color);
+  border-top: none;
   font-family: "JetBrains Mono", "Fira Code", "Cascadia Code", ui-monospace, monospace;
   font-size: .75rem;
   color: var(--muted);
