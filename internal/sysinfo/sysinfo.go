@@ -2,9 +2,11 @@ package sysinfo
 
 import (
 	"bufio"
+	"context"
 	"os"
 	"strconv"
 	"strings"
+	"sync/atomic"
 	"syscall"
 	"time"
 )
@@ -20,11 +22,44 @@ type Stats struct {
 	DiskPercent float64 `json:"disk_percent"`
 }
 
-// Get returns current CPU, memory, and disk stats.
-// CPU is computed by sampling /proc/stat twice 200ms apart.
-// Memory is read from /proc/meminfo.
-// Disk is statfs on /data (the mounted data volume).
+// cached holds the latest sampled Stats pointer (atomically swapped).
+var cached atomic.Pointer[Stats]
+
+// Start launches a background goroutine that samples stats every 2 seconds.
+// Call this once from main after the app context is created.
+func Start(ctx context.Context) {
+	go func() {
+		// Prime the cache immediately with a blocking sample.
+		if s, err := sample(); err == nil {
+			cached.Store(s)
+		}
+		ticker := time.NewTicker(2 * time.Second)
+		defer ticker.Stop()
+		for {
+			select {
+			case <-ctx.Done():
+				return
+			case <-ticker.C:
+				if s, err := sample(); err == nil {
+					cached.Store(s)
+				}
+			}
+		}
+	}()
+}
+
+// Get returns the latest cached Stats. If the background sampler has not yet
+// produced a value (e.g., called before Start), it falls back to a blocking
+// sample (200 ms) so the first request always returns real data.
 func Get() (*Stats, error) {
+	if s := cached.Load(); s != nil {
+		return s, nil
+	}
+	return sample()
+}
+
+// sample collects a full Stats snapshot. CPU measurement blocks ~200ms.
+func sample() (*Stats, error) {
 	cpu, err := cpuPercent()
 	if err != nil {
 		return nil, err
@@ -35,7 +70,6 @@ func Get() (*Stats, error) {
 	}
 	diskUsed, diskTotal, err := diskInfo("/data")
 	if err != nil {
-		// Fall back to root if /data is unavailable.
 		diskUsed, diskTotal, _ = diskInfo("/")
 	}
 	var memPercent, diskPercent float64

@@ -3,7 +3,6 @@ package discovery
 import (
 	"context"
 	"crypto/tls"
-	"encoding/base64"
 	"fmt"
 	"io"
 	"net"
@@ -41,6 +40,16 @@ var (
 	reFaviconHref  = regexp.MustCompile(`(?i)<link[^>]+rel=["'][^"']*icon[^"']*["'][^>]+href=["']([^"']+)["']`)
 	reFaviconHref2 = regexp.MustCompile(`(?i)<link[^>]+href=["']([^"']+)["'][^>]+rel=["'][^"']*icon[^"']*["']`)
 )
+
+// allPorts is the full 1-65535 range used during TCP sweeps.
+// Initialised once at startup to avoid a 512 KB allocation per scan.
+var allPorts = func() []int {
+	p := make([]int, 65535)
+	for i := range p {
+		p[i] = i + 1
+	}
+	return p
+}()
 
 // ── Stage 3: Fingerprint engine ───────────────────────────────────────────────
 
@@ -616,7 +625,8 @@ type probeResult struct {
 	port        int
 	url         string
 	title       string
-	icon        string
+	icon        string // emoji fallback or "file" (when iconBytes is set)
+	iconBytes   []byte // raw image bytes for icon file; nil when icon is emoji/empty
 	serviceName string
 	confidence  float32
 }
@@ -715,10 +725,6 @@ func (d *Discoverer) scanNetwork(ctx context.Context, cidrs []string, withTCP bo
 					d.logf("[ARP] No live hosts via ARP (unavailable or all dead) — scanning all %d IPs", len(ips))
 				}
 
-				allPorts := make([]int, 65535)
-				for i := range allPorts {
-					allPorts[i] = i + 1
-				}
 				d.logf("[TCP] Handing off to tcpSweep: %d hosts × %d ports", len(ips), len(allPorts))
 				open := tcpSweep(ctx, ips, allPorts, d.logf, d.cfg.ScanTimeout)
 				d.logf("[TCP] tcpSweep returned: %d open ports total", len(open))
@@ -844,9 +850,10 @@ func probeHTTP(ctx context.Context, ip string, port int) *probeResult {
 	svcName, confidence, svcIcon := fingerprint(resp.Header, bodyStr, title)
 
 	// Always try to fetch a real favicon; use fingerprint emoji only as fallback.
-	icon := fetchFaviconBase64(ctx, extractFaviconURL(bodyStr, rawURL))
-	if icon == "" {
-		icon = svcIcon
+	iconData := fetchFaviconBytes(ctx, extractFaviconURL(bodyStr, rawURL))
+	iconStr := svcIcon // emoji fallback
+	if len(iconData) > 0 {
+		iconStr = "file"
 	}
 
 	return &probeResult{
@@ -854,7 +861,8 @@ func probeHTTP(ctx context.Context, ip string, port int) *probeResult {
 		port:        port,
 		url:         rawURL,
 		title:       title,
-		icon:        icon,
+		icon:        iconStr,
+		iconBytes:   iconData,
 		serviceName: svcName,
 		confidence:  confidence,
 	}
@@ -904,43 +912,42 @@ func resolveRef(ref, base string) string {
 }
 
 // FetchFaviconForTarget fetches the page at targetURL, extracts the favicon
-// link, fetches the favicon, and returns a base64 data URI.
-// Returns empty string if no favicon is found or fetch fails.
-func FetchFaviconForTarget(ctx context.Context, targetURL string) string {
+// link, fetches the favicon, and returns the raw image bytes.
+// Returns nil if no favicon is found or the fetch fails.
+func FetchFaviconForTarget(ctx context.Context, targetURL string) []byte {
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, targetURL, nil)
 	if err != nil {
-		return ""
+		return nil
 	}
 	resp, err := httpClient.Do(req)
 	if err != nil {
-		return ""
+		return nil
 	}
 	defer resp.Body.Close()
 	body, err := io.ReadAll(io.LimitReader(resp.Body, 64*1024))
 	if err != nil {
-		return ""
+		return nil
 	}
 	faviconURL := extractFaviconURL(string(body), targetURL)
-	return fetchFaviconBase64(ctx, faviconURL)
+	return fetchFaviconBytes(ctx, faviconURL)
 }
 
-func fetchFaviconBase64(ctx context.Context, faviconURL string) string {
+func fetchFaviconBytes(ctx context.Context, faviconURL string) []byte {
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, faviconURL, nil)
 	if err != nil {
-		return ""
+		return nil
 	}
 	resp, err := httpClient.Do(req)
 	if err != nil || resp.StatusCode != http.StatusOK {
-		return ""
+		if resp != nil {
+			resp.Body.Close()
+		}
+		return nil
 	}
 	defer resp.Body.Close()
 	data, err := io.ReadAll(io.LimitReader(resp.Body, 64*1024))
 	if err != nil || len(data) == 0 {
-		return ""
+		return nil
 	}
-	ct := resp.Header.Get("Content-Type")
-	if ct == "" {
-		ct = "image/x-icon"
-	}
-	return "data:" + ct + ";base64," + base64.StdEncoding.EncodeToString(data)
+	return data
 }

@@ -25,7 +25,7 @@
       <a class="service-card" href="{{cardURL . $.Domain}}"
          target="_blank" rel="noopener" data-name="{{.Name}}">
         {{if $h}}<span class="health-dot {{$h}}"></span>{{end}}
-        {{iconEl .Icon .Target "card-icon"}}
+        {{iconEl .ID .Icon .Target "card-icon"}}
         <div class="card-name">{{.Name}}</div>
         <div class="card-url">{{if .DirectOnly}}{{.Target}}{{else}}{{.Subdomain}}.{{$.Domain}}{{end}}</div>
       </a>

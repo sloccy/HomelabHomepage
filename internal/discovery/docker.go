@@ -363,11 +363,14 @@ func (d *Discoverer) addDockerDiscovered(id, name, target, suggestedSub string) 
 	go func(id, target string) {
 		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 		defer cancel()
-		icon := FetchFaviconForTarget(ctx, target)
-		if icon == "" {
+		data := FetchFaviconForTarget(ctx, target)
+		if len(data) == 0 {
 			return
 		}
-		d.store.UpdateDiscoveredIcon(id, icon)
+		if err := d.store.WriteIcon(id, data); err != nil {
+			return
+		}
+		d.store.UpdateDiscoveredIcon(id, "file")
 		_ = d.store.Save()
 	}(disc.ID, target)
 }

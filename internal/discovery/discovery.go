@@ -132,7 +132,7 @@ func (d *Discoverer) runLightScan(ctx context.Context) {
 			assignedTargets[fmt.Sprintf("https://%s:%d", r.ip, r.port)] {
 			continue
 		}
-		d.store.UpsertNetworkDiscovered(&store.DiscoveredService{
+		actualID := d.store.UpsertNetworkDiscovered(&store.DiscoveredService{
 			ID:           newID(),
 			IP:           r.ip,
 			Port:         r.port,
@@ -143,6 +143,9 @@ func (d *Discoverer) runLightScan(ctx context.Context) {
 			Source:       "network",
 			DiscoveredAt: time.Now(),
 		})
+		if len(r.iconBytes) > 0 {
+			_ = d.store.WriteIcon(actualID, r.iconBytes)
+		}
 	}
 	_ = d.store.Save()
 }
@@ -198,7 +201,7 @@ func (d *Discoverer) runScan(ctx context.Context) {
 			assignedTargets[fmt.Sprintf("https://%s:%d", r.ip, r.port)] {
 			continue
 		}
-		d.store.UpsertNetworkDiscovered(&store.DiscoveredService{
+		actualID := d.store.UpsertNetworkDiscovered(&store.DiscoveredService{
 			ID:           newID(),
 			IP:           r.ip,
 			Port:         r.port,
@@ -209,6 +212,9 @@ func (d *Discoverer) runScan(ctx context.Context) {
 			Source:       "network",
 			DiscoveredAt: time.Now(),
 		})
+		if len(r.iconBytes) > 0 {
+			_ = d.store.WriteIcon(actualID, r.iconBytes)
+		}
 		count++
 		// Flush to disk every 10 results so the UI shows partial progress.
 		if count%10 == 0 {

@@ -2,7 +2,7 @@
 {{range .}}
 <div class="disc-item border-b border-base-300">
   <div style="flex-shrink:0">
-    {{if .Icon}}{{iconEl .Icon "" "card-icon"}}{{else}}<div class="card-icon-placeholder">🔍</div>{{end}}
+    {{if .Icon}}{{iconEl .ID .Icon "" "card-icon"}}{{else}}<div class="card-icon-placeholder">🔍</div>{{end}}
   </div>
   <div class="disc-info">
     <div class="disc-title">{{.Title}}</div>

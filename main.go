@@ -17,6 +17,7 @@ import (
 	"lantern/internal/discovery"
 	"lantern/internal/proxy"
 	"lantern/internal/store"
+	"lantern/internal/sysinfo"
 	"lantern/internal/tunnel"
 	"lantern/internal/web"
 )
@@ -100,6 +101,7 @@ func main() {
 	}
 	webSrv.SetTunnelManager(tunnelMgr)
 
+	sysinfo.Start(ctx)
 	go disco.DockerWatch(ctx)
 	go disco.ScheduledScan(ctx)
 	go webSrv.StartHealthChecker(ctx)

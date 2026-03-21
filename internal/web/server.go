@@ -6,7 +6,6 @@ import (
 	"crypto/rand"
 	"crypto/tls"
 	"embed"
-	"encoding/base64"
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
@@ -146,6 +145,7 @@ func (s *Server) routes() {
 
 	s.mux.HandleFunc("GET /api/favicon", s.getFavicon)
 	s.mux.HandleFunc("POST /api/services/reorder", s.reorderServices)
+	s.mux.HandleFunc("GET /api/icons/{id}", s.getIcon)
 	s.mux.HandleFunc("POST /api/services/{id}/icon", s.uploadServiceIcon)
 	s.mux.HandleFunc("POST /api/services/{id}/favicon", s.pullServiceFavicon)
 	s.mux.HandleFunc("DELETE /api/services/{id}/icon", s.clearServiceIcon)
@@ -294,8 +294,8 @@ func (s *Server) createService(w http.ResponseWriter, r *http.Request) {
 	req.DirectOnly = r.FormValue("direct_only") == "on" || r.FormValue("direct_only") == "true" || r.FormValue("direct_only") == "1"
 	req.SkipHealth = r.FormValue("skip_health") == "on" || r.FormValue("skip_health") == "true" || r.FormValue("skip_health") == "1"
 
-	// Read uploaded icon if provided.
-	var uploadedIcon string
+	// Read uploaded icon if provided (stored as a file after the service ID is known).
+	var uploadedIconData []byte
 	if r.MultipartForm != nil {
 		if fh := r.MultipartForm.File["icon"]; len(fh) > 0 {
 			f, err := fh[0].Open()
@@ -303,11 +303,7 @@ func (s *Server) createService(w http.ResponseWriter, r *http.Request) {
 				defer f.Close()
 				data, err := io.ReadAll(io.LimitReader(f, 512*1024))
 				if err == nil && len(data) > 0 {
-					mime := fh[0].Header.Get("Content-Type")
-					if mime == "" {
-						mime = "image/png"
-					}
-					uploadedIcon = "data:" + mime + ";base64," + base64.StdEncoding.EncodeToString(data)
+					uploadedIconData = data
 				}
 			}
 		}
@@ -376,8 +372,11 @@ func (s *Server) createService(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	icon := uploadedIcon
-	if icon == "" {
+	// Determine icon source: uploaded file > discovered icon > empty.
+	icon := ""
+	if len(uploadedIconData) > 0 {
+		icon = "file" // written to disk below after svcID is set
+	} else if discoveredIcon != "" {
 		icon = discoveredIcon
 	}
 
@@ -419,26 +418,43 @@ func (s *Server) createService(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
+	// Write uploaded icon file now that svcID is known.
+	if len(uploadedIconData) > 0 {
+		if err := s.store.WriteIcon(svcID, uploadedIconData); err != nil {
+			log.Printf("web: write icon %s: %v", svcID, err)
+			svc.Icon = "" // don't persist "file" marker if write failed
+		}
+	}
+
 	s.store.AddService(svc)
 	if req.DiscoveredID != "" {
+		// Copy icon file from discovered service to new service.
+		if discoveredIcon == "file" {
+			if data, err := s.store.ReadIcon(req.DiscoveredID); err == nil {
+				_ = s.store.WriteIcon(svcID, data)
+			}
+		}
 		s.store.RemoveDiscovered(req.DiscoveredID)
 	}
 	if err := s.store.Save(); err != nil {
 		log.Printf("web: save: %v", err)
 	}
 
-	// Asynchronously fetch favicon if not already a real image (empty or emoji fallback).
-	if !strings.HasPrefix(svc.Icon, "data:") {
+	// Asynchronously fetch favicon if no icon is set yet.
+	if svc.Icon == "" {
 		go func(id, target string) {
 			ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 			defer cancel()
-			icon := discovery.FetchFaviconForTarget(ctx, target)
-			if icon == "" {
+			data := discovery.FetchFaviconForTarget(ctx, target)
+			if len(data) == 0 {
+				return
+			}
+			if err := s.store.WriteIcon(id, data); err != nil {
 				return
 			}
 			if existing := s.store.GetServiceByID(id); existing != nil {
 				updated := *existing
-				updated.Icon = icon
+				updated.Icon = "file"
 				s.store.UpdateService(id, &updated)
 				_ = s.store.Save()
 			}
@@ -948,6 +964,21 @@ func (s *Server) getFavicon(w http.ResponseWriter, r *http.Request) {
 	_, _ = io.Copy(w, io.LimitReader(resp.Body, 64*1024))
 }
 
+// ---- Icon file serving ------------------------------------------------------
+
+func (s *Server) getIcon(w http.ResponseWriter, r *http.Request) {
+	id := r.PathValue("id")
+	data, err := s.store.ReadIcon(id)
+	if err != nil {
+		http.NotFound(w, r)
+		return
+	}
+	ct := http.DetectContentType(data)
+	w.Header().Set("Content-Type", ct)
+	w.Header().Set("Cache-Control", "public, max-age=86400")
+	_, _ = w.Write(data)
+}
+
 // ---- Service icon -----------------------------------------------------------
 
 func (s *Server) uploadServiceIcon(w http.ResponseWriter, r *http.Request) {
@@ -962,23 +993,23 @@ func (s *Server) uploadServiceIcon(w http.ResponseWriter, r *http.Request) {
 		apiError(w, http.StatusBadRequest, "file too large or invalid")
 		return
 	}
-	file, hdr, err := r.FormFile("icon")
+	file, _, err := r.FormFile("icon")
 	if err != nil {
 		apiError(w, http.StatusBadRequest, "icon file required")
 		return
 	}
 	defer file.Close()
-	ct := hdr.Header.Get("Content-Type")
-	if ct == "" {
-		ct = "image/png"
-	}
 	data, err := io.ReadAll(io.LimitReader(file, 512*1024))
 	if err != nil || len(data) == 0 {
 		apiError(w, http.StatusBadRequest, "could not read file")
 		return
 	}
+	if err := s.store.WriteIcon(id, data); err != nil {
+		apiError(w, http.StatusInternalServerError, "could not save icon")
+		return
+	}
 	updated := *svc
-	updated.Icon = "data:" + ct + ";base64," + base64.StdEncoding.EncodeToString(data)
+	updated.Icon = "file"
 	s.store.UpdateService(id, &updated)
 	if err := s.store.Save(); err != nil {
 		log.Printf("web: save: %v", err)
@@ -993,6 +1024,7 @@ func (s *Server) clearServiceIcon(w http.ResponseWriter, r *http.Request) {
 		apiError(w, http.StatusNotFound, "service not found")
 		return
 	}
+	s.store.DeleteIcon(id)
 	updated := *svc
 	updated.Icon = ""
 	s.store.UpdateService(id, &updated)
@@ -1030,14 +1062,19 @@ func (s *Server) pullServiceFavicon(w http.ResponseWriter, r *http.Request) {
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
-	icon := discovery.FetchFaviconForTarget(ctx, svc.Target)
-	if icon == "" {
+	data := discovery.FetchFaviconForTarget(ctx, svc.Target)
+	if len(data) == 0 {
 		errorTrigger(w, "no favicon found")
 		w.WriteHeader(http.StatusUnprocessableEntity)
 		return
 	}
+	if err := s.store.WriteIcon(id, data); err != nil {
+		errorTrigger(w, "could not save favicon")
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
 	updated := *svc
-	updated.Icon = icon
+	updated.Icon = "file"
 	s.store.UpdateService(id, &updated)
 	if err := s.store.Save(); err != nil {
 		log.Printf("web: save: %v", err)

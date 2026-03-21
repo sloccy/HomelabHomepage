@@ -1,5 +1,8 @@
 <div id="icon-preview">
-  {{if isDataIcon .Icon}}
+  {{if isFileIcon .Icon}}
+  <img src="/api/icons/{{.ID}}" width="64" height="64"
+       style="border-radius:10px;object-fit:contain;background:var(--surface)">
+  {{else if isDataIcon .Icon}}
   <img src="{{safeURL .Icon}}" width="64" height="64"
        style="border-radius:10px;object-fit:contain;background:var(--surface)">
   {{else if .Target}}
