@@ -92,6 +92,23 @@ body {
   min-height: 100vh;
 }
 
+/* ── Bulma dark-mode direct overrides (CSS vars alone can't beat Bulma specificity) */
+.input, .textarea, .select select {
+  background-color: var(--surface);
+  color: var(--text);
+  border-color: var(--border-color);
+}
+.input::placeholder, .textarea::placeholder { color: var(--muted); }
+.input:focus, .textarea:focus, .select select:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 0.125em rgba(var(--accent-rgb), .25);
+}
+.label { color: var(--text); }
+.button { color: var(--text); border-color: rgba(var(--accent-rgb), .35); }
+.button.is-outlined { background: transparent; border-color: rgba(var(--accent-rgb), .35); color: var(--text); }
+.button.is-ghost { background: transparent; border-color: transparent; color: var(--accent); }
+.button.is-ghost:hover { background: rgba(var(--accent-rgb), .08); }
+
 /* ── Gap utilities (not provided by Bulma 1.0) ──────────────────────────── */
 .gap-2 { gap: 0.5rem; }
 .gap-3 { gap: 0.75rem; }
