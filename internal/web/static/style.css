@@ -103,8 +103,9 @@ body {
   border-color: var(--accent);
   box-shadow: 0 0 0 0.125em rgba(var(--accent-rgb), .25);
 }
-.label { color: var(--text); }
+.label { color: var(--text) !important; }
 .button { color: var(--text); border-color: rgba(var(--accent-rgb), .35); }
+.button.is-warning, .button.is-warning:hover { color: #1a1200; }
 .button.is-outlined { background: transparent; border-color: rgba(var(--accent-rgb), .35); color: var(--text); }
 .button.is-ghost { background: transparent; border-color: transparent; color: var(--accent); }
 .button.is-ghost:hover { background: rgba(var(--accent-rgb), .08); }
@@ -675,6 +676,8 @@ dialog#app-modal .dialog-box {
   padding: 1.5rem;
   position: relative;
   z-index: 1; /* sit above .dialog-backdrop fixed overlay */
+  color: var(--text);
+  color-scheme: dark;
 }
 /* Close button positioning */
 dialog#app-modal .dialog-box > .delete:first-child {
