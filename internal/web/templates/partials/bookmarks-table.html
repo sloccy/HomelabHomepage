@@ -13,14 +13,16 @@
         </td>
         <td>{{if .Category}}{{.Category}}{{else}}—{{end}}</td>
         <td class="td-actions">
-          <button class="button is-outlined is-small"
-                  hx-get="/fragments/bookmark-form/{{.ID}}"
-                  hx-target="#modal-content">Edit</button>
-          <button class="button is-danger is-small"
-                  hx-delete="/api/bookmarks/{{.ID}}"
-                  hx-target="closest tr"
-                  hx-swap="delete"
-                  hx-confirm="Delete {{.Name}}?">Delete</button>
+          <div class="is-flex is-align-items-center is-justify-content-flex-end gap-2">
+            <button class="button is-outlined is-small"
+                    hx-get="/fragments/bookmark-form/{{.ID}}"
+                    hx-target="#modal-content">Edit</button>
+            <button class="button is-danger is-small"
+                    hx-delete="/api/bookmarks/{{.ID}}"
+                    hx-target="closest tr"
+                    hx-swap="delete"
+                    hx-confirm="Delete {{.Name}}?">Delete</button>
+          </div>
         </td>
       </tr>
       {{end}}

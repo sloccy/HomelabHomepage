@@ -9,10 +9,12 @@
         <td>{{if .Title}}{{.Title}}{{else}}—{{end}}</td>
         <td>{{fmtTime .IgnoredAt}}</td>
         <td class="td-actions">
-          <button class="button is-outlined is-small"
-                  hx-delete="/api/ignored/{{.ID}}"
-                  hx-target="closest tr"
-                  hx-swap="delete">Un-ignore</button>
+          <div class="is-flex is-align-items-center is-justify-content-flex-end gap-2">
+            <button class="button is-outlined is-small"
+                    hx-delete="/api/ignored/{{.ID}}"
+                    hx-target="closest tr"
+                    hx-swap="delete">Un-ignore</button>
+          </div>
         </td>
       </tr>
       {{end}}

@@ -44,20 +44,17 @@
   --glow:         0 0 0 1px rgba(var(--accent-rgb), .4), 0 8px 32px rgba(var(--accent-rgb), .2);
   --glow-bloom:   0 0 0 1px rgba(var(--accent-rgb), .5), 0 12px 40px rgba(var(--accent-rgb), .3), 0 0 80px rgba(var(--accent-rgb), .08);
   --transition:   background .2s var(--ease), border-color .2s var(--ease), color .2s var(--ease);
-  /* Bulma functional overrides — cosmetic theming deferred */
-  --bulma-body-background-color: var(--bg);
-  --bulma-body-color: var(--text);
-  --bulma-table-color: var(--text);
+  /* Bulma dark-mode tuning — warm gold scheme (data-theme="dark" activates base) */
+  --bulma-scheme-h: 36;
+  --bulma-scheme-s: 24%;
+  --bulma-primary-h: 43;
+  --bulma-primary-s: 66%;
+  --bulma-primary-l: 51%;
+  --bulma-primary: var(--accent);
+  /* Table overrides Bulma dark doesn't fully handle */
   --bulma-table-background-color: transparent;
-  --bulma-table-head-cell-color: var(--muted);
   --bulma-table-striped-row-even-background-color: var(--surface3);
   --bulma-table-row-hover-background-color: rgba(var(--accent-rgb), .04);
-  --bulma-input-background-color: var(--surface);
-  --bulma-input-color: var(--text);
-  --bulma-input-border-color: var(--border-color);
-  --bulma-input-focus-border-color: var(--accent);
-  --bulma-input-placeholder-color: var(--muted);
-  --bulma-border-color: var(--border-color);
 }
 
 body {
@@ -530,10 +527,7 @@ body.edit-mode #edit-layout-btn {
 .td-actions {
   text-align: right;
   white-space: nowrap;
-  display: flex;
-  align-items: center;
-  justify-content: flex-end;
-  gap: 0.5rem;
+  vertical-align: middle;
 }
 .link-cell a { color: var(--accent); font-family: monospace; font-size: .85rem; }
 
