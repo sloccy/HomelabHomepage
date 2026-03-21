@@ -379,10 +379,18 @@ details[open] .when-collapsed { display: none; }
   width: 8px; height: 8px;
   border-radius: 50%;
 }
-.health-dot.up   {
+.health-dot.up {
   background: #22c55e;
   box-shadow: 0 0 6px rgba(34,197,94,.5);
+}
+.health-dot.up::after {
+  content: '';
+  position: absolute;
+  inset: -3px;
+  border-radius: 50%;
+  border: 2px solid rgba(34,197,94,.5);
   animation: healthPulse 2.5s ease-in-out infinite;
+  will-change: transform, opacity;
 }
 .health-dot.down { background: #ef4444; box-shadow: 0 0 6px rgba(239,68,68,.5); }
 
@@ -464,7 +472,10 @@ body:has(#edit-layout-toggle:checked) #edit-layout-btn {
   }
 }
 
+/* Only animate on initial page load — suppress on HTMX fragment swaps. */
 .card-wrapper .service-card        { animation: cardEnter .4s var(--ease) both; }
+.htmx-settling .card-wrapper .service-card,
+.htmx-swapping .card-wrapper .service-card { animation: none; }
 .card-wrapper:nth-child(1)  .service-card { animation-delay: 0ms; }
 .card-wrapper:nth-child(2)  .service-card { animation-delay: 40ms; }
 .card-wrapper:nth-child(3)  .service-card { animation-delay: 80ms; }
@@ -728,8 +739,8 @@ form:has([name="direct_only"]:checked) .subdomain-group { display: none !importa
   to { transform: rotate(360deg); }
 }
 @keyframes healthPulse {
-  0%, 100% { box-shadow: 0 0 6px rgba(34,197,94,.5); }
-  50%       { box-shadow: 0 0 12px rgba(34,197,94,.8), 0 0 20px rgba(34,197,94,.3); }
+  0%, 100% { transform: scale(1);   opacity: .6; }
+  50%      { transform: scale(1.8); opacity: 0;  }
 }
 
 /* ── Responsive ─────────────────────────────────────────────────────────── */

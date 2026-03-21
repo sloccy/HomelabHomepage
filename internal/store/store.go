@@ -1,10 +1,13 @@
 package store
 
 import (
+	"encoding/base64"
 	"encoding/json"
 	"fmt"
+	"log"
 	"os"
 	"path/filepath"
+	"strings"
 	"sync"
 	"time"
 )
@@ -87,17 +90,23 @@ type data struct {
 
 // Store is a thread-safe, JSON-backed persistence layer.
 type Store struct {
-	mu   sync.RWMutex
-	d    data
-	path string
+	mu      sync.RWMutex
+	d       data
+	path    string
+	iconDir string
 }
 
 func New(dataDir string) (*Store, error) {
 	if err := os.MkdirAll(dataDir, 0o755); err != nil {
 		return nil, fmt.Errorf("create data dir: %w", err)
 	}
+	iconDir := filepath.Join(dataDir, "icons")
+	if err := os.MkdirAll(iconDir, 0o755); err != nil {
+		return nil, fmt.Errorf("create icon dir: %w", err)
+	}
 	s := &Store{
-		path: filepath.Join(dataDir, "config.json"),
+		path:    filepath.Join(dataDir, "config.json"),
+		iconDir: iconDir,
 		d: data{
 			Services:    make(map[string]*Service),
 			Discovered:  []*DiscoveredService{},
@@ -110,6 +119,7 @@ func New(dataDir string) (*Store, error) {
 	if err := s.load(); err != nil && !os.IsNotExist(err) {
 		return nil, fmt.Errorf("load store: %w", err)
 	}
+	s.migrateIcons()
 	return s, nil
 }
 
@@ -124,7 +134,7 @@ func (s *Store) load() error {
 // Save flushes the store to disk. Safe to call concurrently.
 func (s *Store) Save() error {
 	s.mu.RLock()
-	raw, err := json.MarshalIndent(s.d, "", "  ")
+	raw, err := json.Marshal(s.d)
 	s.mu.RUnlock()
 	if err != nil {
 		return err
@@ -134,6 +144,85 @@ func (s *Store) Save() error {
 		return err
 	}
 	return os.Rename(tmp, s.path)
+}
+
+// ---- Icon file storage ------------------------------------------------------
+
+// iconPath returns the filesystem path for an entity's icon file.
+func (s *Store) iconPath(id string) string {
+	return filepath.Join(s.iconDir, id)
+}
+
+// WriteIcon writes raw icon bytes to disk for the given entity ID.
+func (s *Store) WriteIcon(id string, data []byte) error {
+	return os.WriteFile(s.iconPath(id), data, 0o644)
+}
+
+// ReadIcon reads the raw icon bytes for the given entity ID.
+func (s *Store) ReadIcon(id string) ([]byte, error) {
+	return os.ReadFile(s.iconPath(id))
+}
+
+// DeleteIcon removes the icon file for the given entity ID (best-effort).
+func (s *Store) DeleteIcon(id string) {
+	_ = os.Remove(s.iconPath(id))
+}
+
+// HasIcon reports whether an icon file exists for the given entity ID.
+func (s *Store) HasIcon(id string) bool {
+	_, err := os.Stat(s.iconPath(id))
+	return err == nil
+}
+
+// migrateIcons converts any base64 data URIs stored in the Icon field to on-disk
+// files and clears the field. Called once at startup after loading the JSON store.
+func (s *Store) migrateIcons() {
+	migrated := 0
+	for _, svc := range s.d.Services {
+		if strings.HasPrefix(svc.Icon, "data:") {
+			if writeDataURI(s.iconPath(svc.ID), svc.Icon) {
+				svc.Icon = "file"
+				migrated++
+			}
+		}
+	}
+	for _, bm := range s.d.Bookmarks {
+		if strings.HasPrefix(bm.Icon, "data:") {
+			if writeDataURI(s.iconPath(bm.ID), bm.Icon) {
+				bm.Icon = "file"
+				migrated++
+			}
+		}
+	}
+	for _, d := range s.d.Discovered {
+		if strings.HasPrefix(d.Icon, "data:") {
+			if writeDataURI(s.iconPath(d.ID), d.Icon) {
+				d.Icon = "file"
+				migrated++
+			}
+		}
+	}
+	if migrated > 0 {
+		log.Printf("store: migrated %d base64 icons to files", migrated)
+		if err := s.Save(); err != nil {
+			log.Printf("store: save after icon migration: %v", err)
+		}
+	}
+}
+
+// writeDataURI decodes a base64 data URI and writes the bytes to path.
+// Returns true on success.
+func writeDataURI(path, dataURI string) bool {
+	// Format: data:<mime>;base64,<data>
+	comma := strings.IndexByte(dataURI, ',')
+	if comma < 0 {
+		return false
+	}
+	data, err := base64.StdEncoding.DecodeString(dataURI[comma+1:])
+	if err != nil || len(data) == 0 {
+		return false
+	}
+	return os.WriteFile(path, data, 0o644) == nil
 }
 
 // ---- Services ---------------------------------------------------------------
@@ -357,7 +446,8 @@ func (s *Store) ClearNetworkDiscovered() {
 
 // UpsertNetworkDiscovered updates an existing network entry by IP+port if found,
 // otherwise appends it. Preserves the existing ID to avoid UI flicker.
-func (s *Store) UpsertNetworkDiscovered(svc *DiscoveredService) {
+// Returns the ID of the entry that was created or updated.
+func (s *Store) UpsertNetworkDiscovered(svc *DiscoveredService) string {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	for _, existing := range s.d.Discovered {
@@ -367,10 +457,11 @@ func (s *Store) UpsertNetworkDiscovered(svc *DiscoveredService) {
 			existing.ServiceName = svc.ServiceName
 			existing.Confidence = svc.Confidence
 			existing.DiscoveredAt = svc.DiscoveredAt
-			return
+			return existing.ID
 		}
 	}
 	s.d.Discovered = append(s.d.Discovered, svc)
+	return svc.ID
 }
 
 // UpdateDiscoveredIcon sets the icon for a discovered service by ID.

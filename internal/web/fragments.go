@@ -280,7 +280,7 @@ func (s *Server) moveService(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	s.fragServicesGrid(w, r)
+	w.WriteHeader(http.StatusNoContent)
 }
 
 // ---- Move bookmark (reorder by direction) ------------------------------------
@@ -329,7 +329,7 @@ func (s *Server) moveBookmark(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	s.fragBookmarksGrid(w, r)
+	w.WriteHeader(http.StatusNoContent)
 }
 
 // ---- Helpers ----------------------------------------------------------------

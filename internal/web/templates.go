@@ -1,6 +1,7 @@
 package web
 
 import (
+	"bytes"
 	"embed"
 	"fmt"
 	"html/template"
@@ -10,11 +11,14 @@ import (
 	"net/url"
 	"sort"
 	"strings"
+	"sync"
 	"time"
 
 	"lantern/internal/store"
 	"lantern/internal/tunnel"
 )
+
+var bufPool = sync.Pool{New: func() any { return new(bytes.Buffer) }}
 
 //go:embed templates
 var templateFS embed.FS
@@ -42,11 +46,16 @@ func init() {
 }
 
 func renderTemplate(w http.ResponseWriter, name string, data any) {
-	w.Header().Set("Content-Type", "text/html; charset=utf-8")
-	if err := tmpl.ExecuteTemplate(w, name, data); err != nil {
+	buf := bufPool.Get().(*bytes.Buffer)
+	buf.Reset()
+	defer bufPool.Put(buf)
+	if err := tmpl.ExecuteTemplate(buf, name, data); err != nil {
 		log.Printf("web: render %s: %v", name, err)
 		http.Error(w, "template error", http.StatusInternalServerError)
+		return
 	}
+	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+	_, _ = buf.WriteTo(w)
 }
 
 func renderPage(w http.ResponseWriter, t *template.Template) {
@@ -118,8 +127,22 @@ func errorTrigger(w http.ResponseWriter, msg string) {
 
 var funcMap = template.FuncMap{
 	// iconEl renders the icon HTML for a service/bookmark.
-	// icon: data URI or empty; src: URL for favicon proxy; cls: CSS class.
-	"iconEl": func(icon, src, cls string) template.HTML {
+	// id: entity ID; icon: "file", emoji, or empty; src: URL for favicon proxy; cls: CSS class.
+	"iconEl": func(id, icon, src, cls string) template.HTML {
+		if icon == "file" {
+			return template.HTML(fmt.Sprintf(
+				`<img class="%s" src="/api/icons/%s" alt="">`,
+				template.HTMLEscapeString(cls),
+				template.HTMLEscapeString(id),
+			))
+		}
+		// Emoji icon from fingerprint.
+		if icon != "" && !strings.HasPrefix(icon, "data:") {
+			ph := strings.TrimSuffix(cls, "-icon") + "-icon-placeholder"
+			return template.HTML(fmt.Sprintf(`<div class="%s">%s</div>`,
+				template.HTMLEscapeString(ph), template.HTMLEscapeString(icon)))
+		}
+		// Legacy: handle old data URIs that weren't migrated (e.g., fresh in-memory only).
 		if strings.HasPrefix(icon, "data:") {
 			return template.HTML(fmt.Sprintf(
 				`<img class="%s" src="%s" alt="">`,
@@ -225,9 +248,14 @@ var funcMap = template.FuncMap{
 		return fmt.Sprintf("%d MB", mb)
 	},
 
-	// isDataIcon reports whether the icon string is a data URI.
+	// isDataIcon reports whether the icon string is a data URI (legacy).
 	"isDataIcon": func(icon string) bool {
 		return strings.HasPrefix(icon, "data:")
+	},
+
+	// isFileIcon reports whether the icon is stored as a file on disk.
+	"isFileIcon": func(icon string) bool {
+		return icon == "file"
 	},
 
 	// safeURL returns a template.URL to bypass Go's URL sanitisation for
