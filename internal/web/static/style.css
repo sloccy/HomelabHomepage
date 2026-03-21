@@ -44,8 +44,6 @@
   --glow:         0 0 0 1px rgba(var(--accent-rgb), .4), 0 8px 32px rgba(var(--accent-rgb), .2);
   --glow-bloom:   0 0 0 1px rgba(var(--accent-rgb), .5), 0 12px 40px rgba(var(--accent-rgb), .3), 0 0 80px rgba(var(--accent-rgb), .08);
   --transition:   background .2s var(--ease), border-color .2s var(--ease), color .2s var(--ease);
-}
-
   /* Bulma functional overrides — cosmetic theming deferred */
   --bulma-body-background-color: var(--bg);
   --bulma-body-color: var(--text);
@@ -68,6 +66,10 @@ body {
   color: var(--text);
   min-height: 100vh;
 }
+
+/* ── Gap utilities (not provided by Bulma 1.0) ──────────────────────────── */
+.gap-2 { gap: 0.5rem; }
+.gap-3 { gap: 0.75rem; }
 
 /* ── Typography — Playfair Display for headings ─────────────────────────── */
 .logo-text,
