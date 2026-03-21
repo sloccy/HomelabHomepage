@@ -74,6 +74,11 @@
   --bulma-table-striped-row-even-background-color: var(--surface3);
   --bulma-table-row-hover-background-color: rgba(var(--accent-rgb), .04);
   --bulma-border-color: var(--border-color);
+  /* Label and base button */
+  --bulma-label-color: var(--text);
+  --bulma-button-background-color: var(--surface2);
+  --bulma-button-color: var(--text);
+  --bulma-button-border-color: var(--border-color);
 }
 
 body {
@@ -648,6 +653,7 @@ dialog#app-modal .dialog-box {
   border-radius: var(--radius-lg);
   padding: 1.5rem;
   position: relative;
+  z-index: 1; /* sit above .dialog-backdrop fixed overlay */
 }
 /* Close button positioning */
 dialog#app-modal .dialog-box > .delete:first-child {
