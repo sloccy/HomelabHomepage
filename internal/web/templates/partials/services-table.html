@@ -14,7 +14,7 @@
     <tbody>
       {{range .Services}}
       <tr>
-        <td class="td-icon">{{iconEl .Icon .Target "svc-icon"}}</td>
+        <td class="td-icon">{{iconEl .ID .Icon .Target "svc-icon"}}</td>
         <td>{{.Name}}</td>
         <td class="link-cell">
           {{if .DirectOnly}}
