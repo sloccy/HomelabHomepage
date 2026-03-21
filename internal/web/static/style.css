@@ -44,19 +44,23 @@
   --glow:         0 0 0 1px rgba(var(--accent-rgb), .4), 0 8px 32px rgba(var(--accent-rgb), .2);
   --glow-bloom:   0 0 0 1px rgba(var(--accent-rgb), .5), 0 12px 40px rgba(var(--accent-rgb), .3), 0 0 80px rgba(var(--accent-rgb), .08);
   --transition:   background .2s var(--ease), border-color .2s var(--ease), color .2s var(--ease);
-  /* Bulma dark-mode tuning — warm gold scheme (data-theme="dark" activates base) */
+}
+
+/* Bulma dark-mode overrides — must use [data-theme] to beat Bulma's own specificity */
+html[data-theme="dark"] {
+  /* Scheme & primary */
   --bulma-scheme-h: 36;
   --bulma-scheme-s: 24%;
   --bulma-primary-h: 43;
   --bulma-primary-s: 66%;
   --bulma-primary-l: 51%;
   --bulma-primary: var(--accent);
-  /* Link/ghost button color — Bulma defaults to blue */
+  /* Link/ghost button color */
   --bulma-link-h: 43;
   --bulma-link-s: 66%;
   --bulma-link-l: 51%;
   --bulma-link: var(--accent);
-  /* Text colors */
+  /* Text */
   --bulma-body-background-color: var(--bg);
   --bulma-body-color: var(--text);
   --bulma-text: var(--text);
@@ -67,18 +71,18 @@
   --bulma-input-border-color: var(--border-color);
   --bulma-input-focus-border-color: var(--accent);
   --bulma-input-placeholder-color: var(--muted);
-  /* Table overrides */
+  /* Table */
   --bulma-table-color: var(--text);
   --bulma-table-background-color: transparent;
   --bulma-table-head-cell-color: var(--muted);
   --bulma-table-striped-row-even-background-color: var(--surface3);
   --bulma-table-row-hover-background-color: rgba(var(--accent-rgb), .04);
   --bulma-border-color: var(--border-color);
-  /* Label and base button */
+  /* Label and button */
   --bulma-label-color: var(--text);
   --bulma-button-background-color: var(--surface2);
   --bulma-button-color: var(--text);
-  --bulma-button-border-color: var(--border-color);
+  --bulma-button-border-color: rgba(var(--accent-rgb), .35);
 }
 
 body {
