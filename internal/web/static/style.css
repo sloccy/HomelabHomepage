@@ -44,6 +44,7 @@
   --glow:         0 0 0 1px rgba(var(--accent-rgb), .4), 0 8px 32px rgba(var(--accent-rgb), .2);
   --glow-bloom:   0 0 0 1px rgba(var(--accent-rgb), .5), 0 12px 40px rgba(var(--accent-rgb), .3), 0 0 80px rgba(var(--accent-rgb), .08);
   --transition:   background .2s var(--ease), border-color .2s var(--ease), color .2s var(--ease);
+  --btn-border:   rgba(var(--accent-rgb), .35);
 }
 
 /* Bulma dark-mode overrides — must use [data-theme] to beat Bulma's own specificity */
@@ -82,7 +83,8 @@ html[data-theme="dark"] {
   --bulma-label-color: var(--text);
   --bulma-button-background-color: var(--surface2);
   --bulma-button-color: var(--text);
-  --bulma-button-border-color: rgba(var(--accent-rgb), .35);
+  --bulma-button-border-color: var(--btn-border);
+  color-scheme: dark;
 }
 
 body {
@@ -92,23 +94,17 @@ body {
   min-height: 100vh;
 }
 
-/* ── Bulma dark-mode direct overrides (CSS vars alone can't beat Bulma specificity) */
-.input, .textarea, .select select {
-  background-color: var(--surface);
-  color: var(--text);
-  border-color: var(--border-color);
-}
-.input::placeholder, .textarea::placeholder { color: var(--muted); }
-.input:focus, .textarea:focus, .select select:focus {
-  border-color: var(--accent);
+/* ── Bulma dark-mode scoped overrides (specificity fixes not covered by CSS vars) */
+html[data-theme="dark"] .input:focus,
+html[data-theme="dark"] .textarea:focus,
+html[data-theme="dark"] .select select:focus {
   box-shadow: 0 0 0 0.125em rgba(var(--accent-rgb), .25);
 }
-.label { color: var(--text) !important; }
-.button { color: var(--text); border-color: rgba(var(--accent-rgb), .35); }
-.button.is-warning, .button.is-warning:hover { color: #1a1200; }
-.button.is-outlined { background: transparent; border-color: rgba(var(--accent-rgb), .35); color: var(--text); }
-.button.is-ghost { background: transparent; border-color: transparent; color: var(--accent); }
-.button.is-ghost:hover { background: rgba(var(--accent-rgb), .08); }
+html[data-theme="dark"] .button.is-warning,
+html[data-theme="dark"] .button.is-warning:hover { color: #1a1200; }
+html[data-theme="dark"] .button.is-outlined { background: transparent; border-color: var(--btn-border); color: var(--text); }
+html[data-theme="dark"] .button.is-ghost { background: transparent; border-color: transparent; color: var(--accent); }
+html[data-theme="dark"] .button.is-ghost:hover { background: rgba(var(--accent-rgb), .08); }
 
 /* ── Gap utilities (not provided by Bulma 1.0) ──────────────────────────── */
 .gap-2 { gap: 0.5rem; }
@@ -677,7 +673,6 @@ dialog#app-modal .dialog-box {
   position: relative;
   z-index: 1; /* sit above .dialog-backdrop fixed overlay */
   color: var(--text);
-  color-scheme: dark;
 }
 /* Close button positioning */
 dialog#app-modal .dialog-box > .delete:first-child {
