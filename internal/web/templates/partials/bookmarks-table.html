@@ -1,6 +1,6 @@
 {{if .}}
-<div class="overflow-x-auto">
-  <table class="table table-sm table-zebra table-pin-rows">
+<div class="table-container">
+  <table class="table is-narrow is-striped is-hoverable is-fullwidth">
     <thead>
       <tr><th>Name</th><th>URL</th><th>Category</th><th></th></tr>
     </thead>
@@ -13,10 +13,10 @@
         </td>
         <td>{{if .Category}}{{.Category}}{{else}}—{{end}}</td>
         <td class="td-actions">
-          <button class="btn btn-outline btn-sm"
+          <button class="button is-outlined is-small"
                   hx-get="/fragments/bookmark-form/{{.ID}}"
                   hx-target="#modal-content">Edit</button>
-          <button class="btn btn-error btn-sm"
+          <button class="button is-danger is-small"
                   hx-delete="/api/bookmarks/{{.ID}}"
                   hx-target="closest tr"
                   hx-swap="delete"
@@ -28,5 +28,5 @@
   </table>
 </div>
 {{else}}
-<p class="text-center opacity-60 p-4">No bookmarks yet.</p>
+<p class="has-text-centered empty-msg p-4">No bookmarks yet.</p>
 {{end}}

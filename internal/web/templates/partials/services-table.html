@@ -1,6 +1,6 @@
 {{if .Services}}
-<div class="overflow-x-auto">
-  <table class="table table-sm table-zebra table-pin-rows">
+<div class="table-container">
+  <table class="table is-narrow is-striped is-hoverable is-fullwidth">
     <thead>
       <tr>
         <th class="td-icon"></th>
@@ -26,13 +26,13 @@
         <td><code style="font-size:.8rem">{{.Target}}</code></td>
         <td>
           <span class="{{tagClass .Source}}">{{.Source}}</span>
-          {{if isTunneled .}}<span class="badge badge-warning">tunnel</span>{{end}}
+          {{if isTunneled .}}<span class="tag is-warning">tunnel</span>{{end}}
         </td>
         <td class="td-actions">
-          <button class="btn btn-outline btn-sm"
+          <button class="button is-outlined is-small"
                   hx-get="/fragments/service-form/{{.ID}}"
                   hx-target="#modal-content">Edit</button>
-          <button class="btn btn-error btn-sm"
+          <button class="button is-danger is-small"
                   hx-delete="/api/services/{{.ID}}"
                   hx-target="closest tr"
                   hx-swap="delete"
@@ -44,5 +44,5 @@
   </table>
 </div>
 {{else}}
-<p class="opacity-60">No services assigned yet.</p>
+<p class="empty-msg">No services assigned yet.</p>
 {{end}}

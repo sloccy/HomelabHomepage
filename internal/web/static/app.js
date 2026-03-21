@@ -20,7 +20,7 @@ document.addEventListener('DOMContentLoaded', () => {
     let toastTimer;
     document.body.addEventListener('showtoast', e => {
       toastMsg.textContent = e.detail.msg;
-      toastEl.className = 'alert ' + (e.detail.type === 'error' ? 'alert-error' : 'alert-success');
+      toastEl.className = 'notification ' + (e.detail.type === 'error' ? 'is-danger' : 'is-success');
       toastEl.classList.add('showing');
       clearTimeout(toastTimer);
       toastTimer = setTimeout(() => { toastEl.classList.remove('showing'); }, 3500);

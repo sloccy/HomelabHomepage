@@ -4,22 +4,22 @@
       hx-swap="none">
   <div class="mb-3">
     <label>Name</label>
-    <input class="input input-bordered w-full" name="name" value="{{.Bookmark.Name}}" placeholder="My Bookmark">
+    <input class="input" name="name" value="{{.Bookmark.Name}}" placeholder="My Bookmark">
   </div>
   <div class="mb-3">
     <label>URL</label>
-    <input class="input input-bordered w-full" name="url" type="url" value="{{.Bookmark.URL}}" required placeholder="https://example.com">
+    <input class="input" name="url" type="url" value="{{.Bookmark.URL}}" required placeholder="https://example.com">
   </div>
   <div class="mb-3">
     <label>Category</label>
-    <input class="input input-bordered w-full" name="category" value="{{.Bookmark.Category}}" list="categories-list" placeholder="Optional">
+    <input class="input" name="category" value="{{.Bookmark.Category}}" list="categories-list" placeholder="Optional">
     <datalist id="categories-list">
       {{range .Categories}}<option value="{{.}}">{{end}}
     </datalist>
   </div>
-  <div class="flex gap-2 justify-end mt-3">
-    <button type="button" class="btn btn-ghost" onclick="this.closest('dialog').close()">Cancel</button>
-    <button type="submit" class="btn btn-warning">Save</button>
+  <div class="is-flex gap-2 is-justify-content-flex-end mt-3">
+    <button type="button" class="button is-ghost" onclick="this.closest('dialog').close()">Cancel</button>
+    <button type="submit" class="button is-warning">Save</button>
   </div>
 </form>
 {{else}}
@@ -28,22 +28,22 @@
       hx-swap="none">
   <div class="mb-3">
     <label>Name</label>
-    <input class="input input-bordered w-full" name="name" placeholder="My Bookmark">
+    <input class="input" name="name" placeholder="My Bookmark">
   </div>
   <div class="mb-3">
     <label>URL</label>
-    <input class="input input-bordered w-full" name="url" type="url" required placeholder="https://example.com">
+    <input class="input" name="url" type="url" required placeholder="https://example.com">
   </div>
   <div class="mb-3">
     <label>Category</label>
-    <input class="input input-bordered w-full" name="category" list="categories-list" placeholder="Optional">
+    <input class="input" name="category" list="categories-list" placeholder="Optional">
     <datalist id="categories-list">
       {{range .Categories}}<option value="{{.}}">{{end}}
     </datalist>
   </div>
-  <div class="flex gap-2 justify-end mt-3">
-    <button type="button" class="btn btn-ghost" onclick="this.closest('dialog').close()">Cancel</button>
-    <button type="submit" class="btn btn-warning">Add Bookmark</button>
+  <div class="is-flex gap-2 is-justify-content-flex-end mt-3">
+    <button type="button" class="button is-ghost" onclick="this.closest('dialog').close()">Cancel</button>
+    <button type="submit" class="button is-warning">Add Bookmark</button>
   </div>
 </form>
 {{end}}

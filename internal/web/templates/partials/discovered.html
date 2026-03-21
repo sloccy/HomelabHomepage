@@ -1,6 +1,6 @@
 {{if .}}
 {{range .}}
-<div class="disc-item border-b border-base-300">
+<div class="disc-item">
   <div style="flex-shrink:0">
     {{if .Icon}}{{iconEl .ID .Icon "" "card-icon"}}{{else}}<div class="card-icon-placeholder">🔍</div>{{end}}
   </div>
@@ -16,16 +16,16 @@
   </div>
   <div>
     <a href="http://{{.IP}}:{{.Port}}" target="_blank" rel="noopener"
-       class="btn btn-ghost btn-sm">↗</a>
-    <button class="btn btn-warning btn-sm"
+       class="button is-ghost is-small">↗</a>
+    <button class="button is-warning is-small"
             hx-get="/fragments/assign-form/{{.ID}}"
             hx-target="#modal-content">Assign</button>
-    <button class="btn btn-ghost btn-sm"
+    <button class="button is-ghost is-small"
             hx-post="/api/discovered/{{.ID}}/ignore"
             hx-target="closest .disc-item"
             hx-swap="delete"
             hx-confirm="Ignore {{.IP}}:{{.Port}} permanently?">Ignore</button>
-    <button class="btn btn-ghost btn-sm"
+    <button class="button is-ghost is-small"
             hx-delete="/api/discovered/{{.ID}}"
             hx-target="closest .disc-item"
             hx-swap="delete">Dismiss</button>
@@ -33,5 +33,5 @@
 </div>
 {{end}}
 {{else}}
-<p class="opacity-60" style="text-align:center;padding:1rem 2rem">No discovered services.</p>
+<p class="empty-msg" style="text-align:center;padding:1rem 2rem">No discovered services.</p>
 {{end}}

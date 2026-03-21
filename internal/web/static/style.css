@@ -1,48 +1,20 @@
 /*
  * ╔══════════════════════════════════════════════════════════════════════════╗
- * ║  IMPORTANT: DaisyUI CDN — NO TAILWIND CSS                               ║
+ * ║  CSS STACK — Bulma 1.0 CDN + custom style.css                           ║
  * ╠══════════════════════════════════════════════════════════════════════════╣
- * ║  This project loads DaisyUI v5 via CDN (daisyui.css + themes.css).      ║
- * ║  There is NO Tailwind CSS stylesheet included. This means:              ║
+ * ║  We use Bulma 1.0 via CDN (bulma.min.css) with no build step.           ║
  * ║                                                                          ║
- * ║  • DaisyUI component classes work: btn, card, table, badge, modal, etc. ║
- * ║  • DaisyUI color helpers work: bg-base-100/200/300, border-base-300     ║
- * ║  • Some DaisyUI-bundled utilities work: text-sm, border-b, opacity-*    ║
- * ║                                                                          ║
- * ║  • Tailwind layout/spacing utilities DO NOT WORK:                       ║
- * ║      flex, grid, items-center, justify-between, gap-*, px-*, py-*,     ║
- * ║      p-*, mx-*, my-*, w-*, h-*, hidden, container, overflow-x-auto     ║
- * ║                                                                          ║
- * ║  ALL layout, spacing, and sizing must be written as CSS rules here.     ║
- * ║  Do not add Tailwind utility classes to templates expecting them to     ║
- * ║  provide layout — they will silently have no effect.                    ║
- * ║                                                                          ║
- * ║  CSS VARIABLE NOTE: Use --border-color (not --border) for border colors.║
- * ║  DaisyUI v5 reserves --border as a numeric px width for its own         ║
- * ║  component borders. Overriding --border with a color value breaks       ║
- * ║  card-border, btn borders, and any component using that variable.       ║
- * ╠══════════════════════════════════════════════════════════════════════════╣
  * ║  TOOL-USE HIERARCHY (prefer higher over lower):                         ║
  * ║    1. Semantic HTML                                                      ║
- * ║    2. DaisyUI CSS CDN component classes                                 ║
+ * ║    2. Bulma CSS CDN component and helper classes                        ║
  * ║    3. Custom CSS rules in style.css  ← this file                        ║
  * ║    4. HTMX for server interactions                                      ║
  * ║    5. Vanilla JS only when absolutely necessary                         ║
+ * ║                                                                          ║
+ * ║  MODAL NOTE: Use dialog#app-modal with .dialog-box — NOT Bulma's        ║
+ * ║  .modal class which conflicts with native <dialog> show/hide.           ║
  * ╚══════════════════════════════════════════════════════════════════════════╝
  */
-
-/* ── Screen-reader only ─────────────────────────────────────────────────── */
-.sr-only {
-  position: absolute;
-  width: 1px;
-  height: 1px;
-  padding: 0;
-  margin: -1px;
-  overflow: hidden;
-  clip: rect(0, 0, 0, 0);
-  white-space: nowrap;
-  border-width: 0;
-}
 
 /* ── Variables ─────────────────────────────────────────────────────────── */
 :root {
@@ -60,9 +32,9 @@
   --border-color: rgba(var(--accent-rgb), .12);
   --text:         #e8e0d0;
   --muted:        rgba(232,224,208,.55);
-  --success:      var(--color-success);
-  --danger:       var(--color-error);
-  --warn:         var(--color-warning);
+  --success:      #48c774;
+  --danger:       #f14668;
+  --warn:         #ffe08a;
   --radius:       10px;
   --radius-sm:    6px;
   --radius-lg:    14px;
@@ -74,12 +46,20 @@
   --transition:   background .2s var(--ease), border-color .2s var(--ease), color .2s var(--ease);
 }
 
-/* ── Base theme overrides ────────────────────────────────────────────────── */
-[data-theme="dark"] {
-  --color-base-100: #141210;
-  --color-base-200: #1c1916;
-  --color-base-300: #2a2520;
-  --color-base-content: #e8e0d0;
+  /* Bulma functional overrides — cosmetic theming deferred */
+  --bulma-body-background-color: var(--bg);
+  --bulma-body-color: var(--text);
+  --bulma-table-color: var(--text);
+  --bulma-table-background-color: transparent;
+  --bulma-table-head-cell-color: var(--muted);
+  --bulma-table-striped-row-even-background-color: var(--surface3);
+  --bulma-table-row-hover-background-color: rgba(var(--accent-rgb), .04);
+  --bulma-input-background-color: var(--surface);
+  --bulma-input-color: var(--text);
+  --bulma-input-border-color: var(--border-color);
+  --bulma-input-focus-border-color: var(--accent);
+  --bulma-input-placeholder-color: var(--muted);
+  --bulma-border-color: var(--border-color);
 }
 
 body {
@@ -91,7 +71,7 @@ body {
 
 /* ── Typography — Playfair Display for headings ─────────────────────────── */
 .logo-text,
-.card-title,
+.card-header-title,
 .empty-state h2,
 dialog#app-modal h3 {
   font-family: "Playfair Display", Georgia, serif;
@@ -165,7 +145,6 @@ dialog#app-modal h3 {
 }
 .logo-img    { height: 1.75rem; width: auto; object-fit: contain; }
 .logo-img-lg { height: 5rem;   width: auto; object-fit: contain; }
-
 
 .header-right {
   display: flex;
@@ -403,8 +382,8 @@ body.edit-mode .service-card {
 }
 body.edit-mode #edit-layout-btn {
   color: #000;
-  background-color: var(--color-warning);
-  border-color: var(--color-warning);
+  background-color: var(--warn);
+  border-color: var(--warn);
 }
 .service-card.selected {
   border-color: var(--accent);
@@ -526,6 +505,10 @@ body.edit-mode #edit-layout-btn {
   letter-spacing: .06em;
   color: var(--muted);
   font-weight: 600;
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  background: var(--surface);
 }
 .table tbody td {
   font-size: .9rem;
@@ -533,12 +516,6 @@ body.edit-mode #edit-layout-btn {
 .table th, .table td {
   padding: 0.75rem 1rem;
 }
-.card .overflow-x-auto {
-  margin: 0.75rem 2rem 1rem;
-  border: 1px solid var(--border-color);
-  border-radius: var(--radius-sm);
-}
-.table-zebra tbody tr:nth-child(even) { background: var(--surface3); }
 .table tbody tr:hover { background: rgba(var(--accent-rgb), .04); }
 .td-icon { width: 40px; }
 .svc-icon { width: 28px; height: 28px; border-radius: 6px; object-fit: contain; }
@@ -559,49 +536,52 @@ body.edit-mode #edit-layout-btn {
 .link-cell a { color: var(--accent); font-family: monospace; font-size: .85rem; }
 
 /* ── Manage page cards ─────────────────────────────────────────────────── */
-.card.card-border {
-  border: 1px solid rgba(var(--accent-rgb), .15) !important;
+.manage-card {
+  background: var(--surface2);
+  border: 1px solid rgba(var(--accent-rgb), .15);
   box-shadow: 0 2px 16px rgba(0,0,0,.5), 0 0 0 1px rgba(var(--accent-rgb), .05);
   overflow: hidden;
 }
-.card h2.card-title {
-  font-size: 1.15rem !important;
-  font-weight: 700;
-  margin: 0;
-}
-/* Card section headers: warm gradient + flex layout */
-.card > div.bg-base-300,
-.card details > div.bg-base-300 {
+.manage-card > .card-header {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 1rem;
   padding: 0.875rem 2rem;
-  background: linear-gradient(90deg, var(--surface3) 0%, var(--surface2) 100%) !important;
+  background: linear-gradient(90deg, var(--surface3) 0%, var(--surface2) 100%);
   border-bottom: 1px solid rgba(var(--accent-rgb), .08);
+  box-shadow: none;
 }
-/* Card description/subtitle rows */
-.card > div.border-b:not(.bg-base-300),
-.card details > div.border-b:not(.bg-base-300) {
+.manage-card .card-header-title {
+  font-size: 1.15rem;
+  font-weight: 700;
+  color: var(--text);
+  padding: 0;
+}
+.manage-card .card-subtitle {
   padding: 0.5rem 2rem;
   font-size: 0.875rem;
   opacity: 0.7;
+  border-bottom: 1px solid var(--border-color);
 }
-/* Card form/input rows (border-t sections at bottom of card) */
-/* Use descendant selector (not >) so it matches divs nested inside wrapper like #ddns-list */
-.card div.border-t {
+.manage-card .card-form-row {
   padding: 0.75rem 2rem;
+  border-top: 1px solid var(--border-color);
 }
-.card div.border-t form {
+.manage-card .card-form-row form {
   display: flex;
   align-items: center;
   gap: 0.5rem;
 }
-
-/* Empty-state messages inside cards */
-.card p.opacity-60 {
+.manage-card .table-container {
+  margin: 0.75rem 2rem 1rem;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-sm);
+}
+.manage-card .empty-msg {
   text-align: center;
   padding: 1rem 2rem;
+  opacity: 0.6;
 }
 
 /* ── Discovered items ──────────────────────────────────────────────────── */
@@ -611,7 +591,9 @@ body.edit-mode #edit-layout-btn {
   gap: 0.75rem;
   padding: 0.75rem 2rem;
   flex-wrap: wrap;
+  border-bottom: 1px solid var(--border-color);
 }
+.disc-item:last-child { border-bottom: none; }
 .disc-item > div:last-child {
   display: flex;
   gap: 0.5rem;
@@ -632,42 +614,43 @@ body.edit-mode #edit-layout-btn {
 }
 
 /* ── Dialog modal ──────────────────────────────────────────────────────── */
-dialog#app-modal .modal-box {
+dialog#app-modal {
+  border: none;
+  padding: 0;
+  background: transparent;
+  max-width: 32rem;
+  width: calc(100% - 2rem);
+}
+dialog#app-modal::backdrop {
+  background: rgba(0,0,0,.5);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+}
+dialog#app-modal .dialog-box {
   background: linear-gradient(145deg, var(--surface2) 0%, var(--surface) 100%);
   border: 1px solid rgba(var(--accent-rgb), .25);
   box-shadow: var(--shadow-lg), 0 0 0 1px rgba(var(--accent-rgb), .1), 0 0 60px rgba(var(--accent-rgb), .06);
+  border-radius: var(--radius-lg);
+  padding: 1.5rem;
   position: relative;
 }
-/* Modal close button — replaces absolute/right-2/top-2 Tailwind classes */
-dialog#app-modal .modal-box > button:first-child {
+/* Close button positioning */
+dialog#app-modal .dialog-box > .delete:first-child {
   position: absolute;
   right: 0.5rem;
   top: 0.5rem;
 }
 dialog#app-modal h3 { font-size: 1.1rem; margin-bottom: 1.25rem; }
-.modal-backdrop { backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); }
-
-/* ── Modal form layout (replaces Tailwind utilities used in form templates) */
-dialog#app-modal form .mb-3 { margin-bottom: 0.75rem; }
-dialog#app-modal form .w-full { width: 100%; }
-dialog#app-modal form .mt-3 { margin-top: 0.75rem; }
-dialog#app-modal .flex { display: flex; }
-dialog#app-modal .flex-wrap { flex-wrap: wrap; }
-dialog#app-modal .gap-2 { gap: 0.5rem; }
-dialog#app-modal .gap-3 { gap: 0.75rem; }
-dialog#app-modal .items-center { align-items: center; }
-dialog#app-modal .justify-end { justify-content: flex-end; }
-
-/* ── Form helpers ──────────────────────────────────────────────────────── */
-label.cursor-pointer { cursor: pointer; }
-
-/* Info box inside assign-form (replaces inline Tailwind rounded-lg/p-3/mb-4/text-sm) */
-.assign-info {
-  background: var(--surface);
-  border-radius: var(--radius-sm);
-  padding: 0.75rem;
-  margin-bottom: 1rem;
-  font-size: 0.875rem;
+/* Backdrop form — visually hidden but covers the area outside the dialog-box */
+dialog#app-modal .dialog-backdrop {
+  position: fixed;
+  inset: 0;
+  background: transparent;
+  display: block;
+  margin: 0;
+}
+dialog#app-modal .dialog-backdrop button {
+  display: none;
 }
 
 /* ── Icon edit row ──────────────────────────────────────────────────────── */
@@ -679,8 +662,22 @@ label.cursor-pointer { cursor: pointer; }
 }
 
 /* ── Toast ──────────────────────────────────────────────────────────────── */
-#toast-container { z-index: 50; }
+.toast-container {
+  position: fixed;
+  bottom: 1.5rem;
+  right: 1.5rem;
+  z-index: 50;
+}
 #app-toast.showing { display: flex !important; animation: fadeIn .3s ease; }
+
+/* ── Assign form info box ───────────────────────────────────────────────── */
+.assign-info {
+  background: var(--surface);
+  border-radius: var(--radius-sm);
+  padding: 0.75rem;
+  margin-bottom: 1rem;
+  font-size: 0.875rem;
+}
 
 /* ── Scan log ───────────────────────────────────────────────────────────── */
 .scan-log-summary {

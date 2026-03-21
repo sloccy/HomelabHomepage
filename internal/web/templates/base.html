@@ -1,6 +1,6 @@
 {{define "base"}}
 <!DOCTYPE html>
-<html lang="en" data-theme="dark">
+<html lang="en" class="theme-dark">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -12,44 +12,29 @@
   <!--
     CSS STACK — READ BEFORE EDITING TEMPLATES OR style.css
     =======================================================
-    We use DaisyUI v5 as a plain CDN stylesheet with NO Tailwind CSS.
-    daisyui.css  →  DaisyUI component classes only (btn, card, table, badge,
-                    modal, alert, etc.) plus DaisyUI CSS variables (--color-*).
-    themes.css   →  DaisyUI theme definitions (dark theme active via data-theme).
+    We use Bulma 1.0 as a plain CDN stylesheet (no build step, no JS framework).
 
-    WHAT WORKS (DaisyUI component classes):
-      btn, btn-sm, btn-warning, btn-error, btn-ghost, btn-outline
-      card, card-border, card-title, card-body
-      table, table-sm, table-zebra, table-pin-rows
-      badge, modal, modal-box, alert, toast, input, input-bordered
-      bg-base-100/200/300, text-base-content, border-base-300
-      text-sm, opacity-*, border-b, border-t  (bundled with DaisyUI)
+    BULMA COMPONENT CLASSES IN USE:
+      button, is-small, is-ghost, is-warning, is-danger, is-outlined
+      card, card-header, card-header-title, card-content
+      table, is-narrow, is-striped, is-hoverable, is-fullwidth
+      tag, is-info, is-success, is-light, is-warning
+      input, notification, is-danger, is-success
+      is-flex, is-flex-wrap-wrap, is-align-items-center, is-justify-content-flex-end
+      mb-3, mt-3, gap-2, gap-3, has-text-centered, p-4, is-sr-only
 
-    WHAT DOES NOT WORK (Tailwind utility classes — not included):
-      Layout:   flex, grid, items-center, justify-between, justify-end,
-                gap-*, flex-col, flex-row, flex-wrap, shrink-0, grow
-      Spacing:  px-*, py-*, p-*, mx-*, my-*, m-*, space-*  (px-8, py-3 etc.)
-      Sizing:   w-*, h-*, max-w-*, min-w-*
-      Display:  hidden, block, inline, inline-flex
-      Other:    container, overflow-x-auto, whitespace-nowrap
+    LAYOUT NOTE:
+      All custom layout, animations, and component styling live in style.css.
+      Bulma provides base component styles; style.css overrides via .manage-card
+      and other scoped selectors for the dark theme.
 
-    RULE: All layout, spacing, and sizing that cannot use a DaisyUI component
-    class MUST be written in style.css as plain CSS rules. Never rely on
-    Tailwind utility class names like px-8, flex, gap-2, etc. in templates —
-    they will silently do nothing.
-
-    The one exception: Tailwind classes on <form> and deeply-nested elements
-    inside components sometimes appear to work because they don't conflict with
-    any higher-specificity CSS rule. Don't rely on this behaviour.
-
-    NOTE: We also use --border-color (not --border) for our custom border color
-    variable, because DaisyUI v5 internally uses --border as a numeric width
-    (e.g. border-width: calc(var(--border) * 1px)) and overriding it breaks
-    all card-border, btn, and other DaisyUI components that draw borders.
+    MODAL NOTE:
+      We use the native <dialog> element with .showModal() / .close() for the
+      shared app modal. Do NOT use Bulma's .modal class — it conflicts with the
+      native dialog display mechanism. Use .dialog-box for the inner content.
   -->
   <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
-  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/daisyui@5/daisyui.css">
-  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/daisyui@5/themes.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bulma@1.0.4/css/bulma.min.css">
   <link rel="stylesheet" href="/style.css">
   <script defer src="https://cdn.jsdelivr.net/npm/htmx.org@2.0.8/dist/htmx.min.js"></script>
   <script defer src="/app.js"></script>
@@ -60,19 +45,18 @@
 
 {{block "content" .}}{{end}}
 
-<!-- Modal -->
-<dialog id="app-modal" class="modal">
-  <div class="modal-box">
-    <button class="btn btn-sm btn-circle btn-ghost"
-            onclick="this.closest('dialog').close()">✕</button>
+<!-- Modal: native <dialog> — opened with .showModal(), closed with .close() -->
+<dialog id="app-modal">
+  <div class="dialog-box">
+    <button class="delete" onclick="this.closest('dialog').close()"></button>
     <div id="modal-content"></div>
   </div>
-  <form method="dialog" class="modal-backdrop"><button>close</button></form>
+  <form method="dialog" class="dialog-backdrop"><button>close</button></form>
 </dialog>
 
 <!-- Toast -->
-<div id="toast-container" class="toast toast-end toast-bottom">
-  <div id="app-toast" class="alert" role="alert" style="display:none">
+<div id="toast-container" class="toast-container">
+  <div id="app-toast" class="notification" role="alert" style="display:none">
     <span id="toast-msg"></span>
   </div>
 </div>

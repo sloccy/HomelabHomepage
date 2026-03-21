@@ -1,7 +1,7 @@
-<div class="bg-base-300 border-b border-base-300">
-  <h2 class="card-title text-base">Status</h2>
+<header class="card-header">
+  <p class="card-header-title">Status</p>
   <div>
-    <button class="btn btn-warning btn-sm"
+    <button class="button is-warning is-small"
             {{if not .Scanning}}
             hx-post="/api/scan"
             hx-target="#status-section"
@@ -11,7 +11,7 @@
       {{if .Scanning}}⟳ Scanning…{{else}}⟳ Scan Now{{end}}
     </button>
   </div>
-</div>
+</header>
 <div class="status-grid">
   <div class="status-cell">
     <div class="status-label">Status</div>
