@@ -26,13 +26,11 @@
           <button class="btn btn-ghost btn-sm reorder-btn"
                   hx-post="/api/bookmarks/{{.ID}}/move"
                   hx-vals='{"direction":"left"}'
-                  hx-target="#bookmarks-home"
-                  hx-swap="innerHTML">←</button>
+                  hx-swap="none">←</button>
           <button class="btn btn-ghost btn-sm reorder-btn"
                   hx-post="/api/bookmarks/{{.ID}}/move"
                   hx-vals='{"direction":"right"}'
-                  hx-target="#bookmarks-home"
-                  hx-swap="innerHTML">→</button>
+                  hx-swap="none">→</button>
         </div>
       </div>
       {{end}}

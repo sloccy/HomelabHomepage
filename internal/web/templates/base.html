@@ -47,11 +47,12 @@
     (e.g. border-width: calc(var(--border) * 1px)) and overriding it breaks
     all card-border, btn, and other DaisyUI components that draw borders.
   -->
+  <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/daisyui@5/daisyui.css">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/daisyui@5/themes.css">
   <link rel="stylesheet" href="/style.css">
-  <script src="https://cdn.jsdelivr.net/npm/htmx.org@2.0.8/dist/htmx.min.js"></script>
-  <script src="/app.js"></script>
+  <script defer src="https://cdn.jsdelivr.net/npm/htmx.org@2.0.8/dist/htmx.min.js"></script>
+  <script defer src="/app.js"></script>
 </head>
 <body{{block "body-attrs" .}}{{end}}>
 

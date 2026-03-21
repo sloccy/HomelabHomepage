@@ -58,6 +58,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // ── Edit layout toggle ────────────────────────────────────────────────────
   document.getElementById('edit-layout-toggle')?.addEventListener('change', function() {
+    document.body.classList.toggle('edit-mode', this.checked);
     // Deselect card when exiting edit mode
     if (!this.checked) {
       if (_selectedCard) _selectedCard.classList.remove('selected');
@@ -90,7 +91,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // ── Category collapse persistence + re-select card after htmx swap ────────
   document.body.addEventListener('htmx:afterSettle', e => {
-    e.target.querySelectorAll('details[data-storage-key]').forEach(el => {
+    const details = e.target.querySelectorAll('details[data-storage-key]');
+    if (!details.length) return;
+    details.forEach(el => {
       if (localStorage.getItem(el.dataset.storageKey) === '0') el.removeAttribute('open');
     });
     // Re-apply selection after grid re-render

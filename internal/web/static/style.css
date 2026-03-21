@@ -71,7 +71,7 @@
   --ease:         cubic-bezier(0.16, 1, 0.3, 1);
   --glow:         0 0 0 1px rgba(var(--accent-rgb), .4), 0 8px 32px rgba(var(--accent-rgb), .2);
   --glow-bloom:   0 0 0 1px rgba(var(--accent-rgb), .5), 0 12px 40px rgba(var(--accent-rgb), .3), 0 0 80px rgba(var(--accent-rgb), .08);
-  --transition:   all .2s var(--ease);
+  --transition:   background .2s var(--ease), border-color .2s var(--ease), color .2s var(--ease);
 }
 
 /* ── Base theme overrides ────────────────────────────────────────────────── */
@@ -147,8 +147,8 @@ dialog#app-modal h3 {
   max-width: none;
   box-sizing: border-box;
   background: rgba(20,18,16,.92);
-  backdrop-filter: blur(20px);
-  -webkit-backdrop-filter: blur(20px);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
   border-bottom: 1px solid rgba(var(--accent-rgb), .15);
   position: sticky;
   top: 0;
@@ -258,7 +258,6 @@ button.htmx-request::after {
   border-radius: 999px;
   transition: width .6s ease;
   min-width: 2px;
-  box-shadow: 0 0 6px rgba(var(--accent-rgb), .5);
 }
 
 /* ── Homepage Grid ─────────────────────────────────────────────────────── */
@@ -270,6 +269,7 @@ button.htmx-request::after {
   grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
   gap: 1.25rem;
   padding: .5rem 0 1rem;
+  contain: layout style;
 }
 
 /* ── Bookmarks home section ─────────────────────────────────────────────── */
@@ -358,20 +358,9 @@ details[open] .when-collapsed { display: none; }
   position: relative;
   box-shadow: 0 2px 12px rgba(0,0,0,.5), 0 0 0 0 rgba(var(--accent-rgb), 0);
   overflow: hidden;
+  contain: content;
 }
 
-/* Noise texture overlay */
-.service-card::before {
-  content: '';
-  position: absolute;
-  inset: 0;
-  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
-  background-size: 150px 150px;
-  opacity: .025;
-  mix-blend-mode: overlay;
-  pointer-events: none;
-  border-radius: inherit;
-}
 
 .health-dot {
   position: absolute;
@@ -406,13 +395,13 @@ details[open] .when-collapsed { display: none; }
   left: 50%;
   transform: translate(-50%, -50%);
 }
-body:has(#edit-layout-toggle:checked) .reorder-btns {
+body.edit-mode .reorder-btns {
   display: flex;
 }
-body:has(#edit-layout-toggle:checked) .service-card {
+body.edit-mode .service-card {
   cursor: default;
 }
-body:has(#edit-layout-toggle:checked) #edit-layout-btn {
+body.edit-mode #edit-layout-btn {
   color: #000;
   background-color: var(--color-warning);
   border-color: var(--color-warning);

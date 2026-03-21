@@ -20,7 +20,7 @@
 
 <div id="sysinfo-wrapper" class="bg-poll"
      hx-get="/fragments/sysinfo"
-     hx-trigger="load, every 5s"
+     hx-trigger="load, every 10s [document.visibilityState==='visible']"
      hx-swap="innerHTML">
   <div class="htmx-indicator section-spinner"><div class="spinner" role="status"></div></div>
 </div>
