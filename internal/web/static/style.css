@@ -51,10 +51,29 @@
   --bulma-primary-s: 66%;
   --bulma-primary-l: 51%;
   --bulma-primary: var(--accent);
-  /* Table overrides Bulma dark doesn't fully handle */
+  /* Link/ghost button color — Bulma defaults to blue */
+  --bulma-link-h: 43;
+  --bulma-link-s: 66%;
+  --bulma-link-l: 51%;
+  --bulma-link: var(--accent);
+  /* Text colors */
+  --bulma-body-background-color: var(--bg);
+  --bulma-body-color: var(--text);
+  --bulma-text: var(--text);
+  --bulma-text-strong: var(--text);
+  /* Input fields */
+  --bulma-input-background-color: var(--surface);
+  --bulma-input-color: var(--text);
+  --bulma-input-border-color: var(--border-color);
+  --bulma-input-focus-border-color: var(--accent);
+  --bulma-input-placeholder-color: var(--muted);
+  /* Table overrides */
+  --bulma-table-color: var(--text);
   --bulma-table-background-color: transparent;
+  --bulma-table-head-cell-color: var(--muted);
   --bulma-table-striped-row-even-background-color: var(--surface3);
   --bulma-table-row-hover-background-color: rgba(var(--accent-rgb), .04);
+  --bulma-border-color: var(--border-color);
 }
 
 body {
