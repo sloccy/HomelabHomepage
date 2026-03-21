@@ -36,7 +36,9 @@ func (d *Discoverer) logf(format string, args ...any) {
 	ts := time.Now().Format("15:04:05")
 	d.logLines = append(d.logLines, ts+" "+msg)
 	if len(d.logLines) > 2000 {
-		d.logLines = d.logLines[len(d.logLines)-2000:]
+		trimmed := make([]string, 2000)
+		copy(trimmed, d.logLines[len(d.logLines)-2000:])
+		d.logLines = trimmed
 	}
 	d.mu.Unlock()
 }
@@ -103,7 +105,7 @@ func (d *Discoverer) ScanNow(ctx context.Context) {
 	d.mu.Unlock()
 
 	go func() {
-		d.runScan(context.Background())
+		d.runScan(ctx)
 	}()
 }
 

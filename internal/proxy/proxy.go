@@ -7,6 +7,7 @@ import (
 	"net/http/httputil"
 	"net/url"
 	"strings"
+	"sync"
 	"time"
 
 	"lantern/internal/config"
@@ -19,11 +20,19 @@ var insecureTransport = &http.Transport{
 	TLSHandshakeTimeout: 10 * time.Second,
 }
 
+// proxyEntry caches a reverse proxy along with the target URL string so we can
+// detect when a service's target has changed and rebuild.
+type proxyEntry struct {
+	rp     *httputil.ReverseProxy
+	target string // svc.Target string — used to detect changes
+}
+
 // Handler is the top-level HTTP handler that routes by subdomain.
 type Handler struct {
 	cfg        *config.Config
 	store      *store.Store
 	webHandler http.Handler
+	proxies    sync.Map // subdomain → *proxyEntry
 }
 
 func New(cfg *config.Config, st *store.Store, webHandler http.Handler) *Handler {
@@ -64,24 +73,53 @@ func (h *Handler) proxySubdomain(w http.ResponseWriter, r *http.Request, sub str
 		return
 	}
 
+	// Use cached proxy; rebuild only when the service's target URL has changed.
+	var rp *httputil.ReverseProxy
+	if v, ok := h.proxies.Load(sub); ok {
+		if e := v.(*proxyEntry); e.target == svc.Target {
+			rp = e.rp
+		}
+	}
+	if rp == nil {
+		rp = h.buildProxy(sub, target)
+		h.proxies.Store(sub, &proxyEntry{rp: rp, target: svc.Target})
+	}
+	rp.ServeHTTP(w, r)
+}
+
+// buildProxy constructs a reverse proxy for the given subdomain and target.
+// The returned proxy does not capture the per-request *http.Request; all
+// needed values are derived from the outgoing request clone that the
+// httputil.ReverseProxy passes to Director/ModifyResponse.
+func (h *Handler) buildProxy(sub string, target *url.URL) *httputil.ReverseProxy {
 	rp := httputil.NewSingleHostReverseProxy(target)
 	rp.Transport = insecureTransport
 	rp.ErrorHandler = func(w http.ResponseWriter, r *http.Request, err error) {
-		h.errorPage(w, r, 502, fmt.Sprintf("Could not reach <strong>%s</strong>.<br><small>%v</small>", svc.Name, err), svc.Name)
+		svcName := ""
+		if s := h.store.GetServiceBySubdomain(sub); s != nil {
+			svcName = s.Name
+		}
+		h.errorPage(w, r, 502, fmt.Sprintf("Could not reach <strong>%s</strong>.<br><small>%v</small>", svcName, err), svcName)
 	}
-	// Preserve original Host header behaviour.
+	// Wrap the default Director to set forwarding headers.
+	// req is a clone of the incoming request; req.Host is still the original
+	// host before origDirector rewrites it, and req.TLS/RemoteAddr/Header are
+	// identical to the incoming request — so we don't need to capture r.
 	origDirector := rp.Director
 	rp.Director = func(req *http.Request) {
+		origHost := req.Host
 		origDirector(req)
 		req.Host = target.Host
-		req.Header.Set("X-Forwarded-Host", r.Host)
-		req.Header.Set("X-Real-IP", realIP(r))
+		req.Header.Set("X-Forwarded-Host", origHost)
+		req.Header.Set("X-Real-IP", realIP(req))
 		if req.Header.Get("X-Forwarded-Proto") == "" {
-			req.Header.Set("X-Forwarded-Proto", scheme(r))
+			req.Header.Set("X-Forwarded-Proto", scheme(req))
 		}
 	}
 	// Rewrite Location headers that point to the backend host back to the
 	// public-facing URL, preventing redirect loops (e.g. Proxmox VE).
+	// The original incoming host is available via the X-Forwarded-Host header
+	// that Director already set on the outgoing request.
 	rp.ModifyResponse = func(resp *http.Response) error {
 		loc := resp.Header.Get("Location")
 		if loc == "" {
@@ -93,12 +131,12 @@ func (h *Handler) proxySubdomain(w http.ResponseWriter, r *http.Request, sub str
 		}
 		if locURL.Host == target.Host {
 			locURL.Scheme = "https"
-			locURL.Host = r.Host
+			locURL.Host = resp.Request.Header.Get("X-Forwarded-Host")
 			resp.Header.Set("Location", locURL.String())
 		}
 		return nil
 	}
-	rp.ServeHTTP(w, r)
+	return rp
 }
 
 func (h *Handler) errorPage(w http.ResponseWriter, r *http.Request, code int, msg, svcName string) {

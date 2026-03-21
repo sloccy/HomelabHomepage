@@ -190,18 +190,24 @@ func (s *Server) StartHealthChecker(ctx context.Context) {
 	}
 }
 
+// healthConcurrency caps the number of simultaneous health-check goroutines.
+const healthConcurrency = 20
+
 func (s *Server) checkHealth() {
 	services := s.store.GetAllServices()
 	result := make(map[string]string, len(services))
 	var mu sync.Mutex
 	var wg sync.WaitGroup
+	sem := make(chan struct{}, healthConcurrency)
 	for _, svc := range services {
 		if svc.SkipHealth {
 			continue
 		}
 		wg.Add(1)
+		sem <- struct{}{}
 		go func(id, target string) {
 			defer wg.Done()
+			defer func() { <-sem }()
 			status := "down"
 			req, err := http.NewRequest(http.MethodGet, target, nil)
 			if err == nil {

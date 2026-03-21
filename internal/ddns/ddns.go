@@ -15,6 +15,8 @@ import (
 
 const ipifyURL = "https://api.ipify.org"
 
+var ipifyClient = &http.Client{Timeout: 10 * time.Second}
+
 // Manager periodically checks the public IP and updates Cloudflare records.
 type Manager struct {
 	cfg   *config.Config
@@ -97,7 +99,7 @@ func getPublicIP(ctx context.Context) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	resp, err := http.DefaultClient.Do(req)
+	resp, err := ipifyClient.Do(req)
 	if err != nil {
 		return "", err
 	}
