@@ -5,7 +5,7 @@
 {{define "content"}}
 <header class="header">
   <div class="logo">
-    <img src="/logo.png" class="logo-img" alt="Lantern">
+    <img src="/logo.webp" class="logo-img" alt="Lantern">
     <span class="logo-text">Lantern</span>
   </div>
   <input id="search-input" class="search-input input" type="search"
@@ -27,18 +27,18 @@
 
 <div id="services-grid" class="grid-root"
      hx-get="/fragments/services"
-     hx-trigger="load, input from:#search-input delay:200ms"
+     hx-trigger="input from:#search-input delay:200ms"
      hx-include="#search-input"
      hx-swap="innerHTML">
-  <div class="htmx-indicator section-spinner"><div class="spinner" role="status"></div></div>
+  {{.ServicesHTML}}
 </div>
 
 <div id="bookmarks-home"
      hx-get="/fragments/bookmarks"
-     hx-trigger="load, input from:#search-input delay:200ms"
+     hx-trigger="input from:#search-input delay:200ms"
      hx-include="#search-input"
      hx-swap="innerHTML">
-  <div class="htmx-indicator section-spinner"><div class="spinner" role="status"></div></div>
+  {{.BookmarksHTML}}
 </div>
 {{end}}
 

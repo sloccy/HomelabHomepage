@@ -58,12 +58,26 @@ func renderTemplate(w http.ResponseWriter, name string, data any) {
 	_, _ = buf.WriteTo(w)
 }
 
-func renderPage(w http.ResponseWriter, t *template.Template) {
+type pageData struct {
+	Version      string
+	ServicesHTML  template.HTML
+	BookmarksHTML template.HTML
+}
+
+func renderPage(w http.ResponseWriter, t *template.Template, data pageData) {
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
-	if err := t.ExecuteTemplate(w, "base", nil); err != nil {
+	if err := t.ExecuteTemplate(w, "base", data); err != nil {
 		log.Printf("web: render page: %v", err)
 		http.Error(w, "template error", http.StatusInternalServerError)
 	}
+}
+
+func preRender(name string, data any) template.HTML {
+	buf := bufPool.Get().(*bytes.Buffer)
+	buf.Reset()
+	defer bufPool.Put(buf)
+	_ = tmpl.ExecuteTemplate(buf, name, data)
+	return template.HTML(buf.String())
 }
 
 // hxTrigger writes one or more HX-Trigger event names as a JSON header.

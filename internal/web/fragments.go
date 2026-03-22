@@ -13,6 +13,10 @@ import (
 	"lantern/internal/sysinfo"
 )
 
+func (s *Server) uniqueCategories() []string {
+	return getUniqueCategories(s.store.GetAllServices(), s.store.GetAllBookmarks())
+}
+
 // ---- Fragment handlers (GET /fragments/*) -----------------------------------
 
 func (s *Server) fragServicesGrid(w http.ResponseWriter, r *http.Request) {
@@ -94,7 +98,7 @@ func (s *Server) fragServicesTable(w http.ResponseWriter, r *http.Request) {
 func (s *Server) fragServiceFormAdd(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("HX-Trigger-After-Swap", "openmodal")
 	renderTemplate(w, "service-form.html", serviceFormData{
-		Categories:    getUniqueCategories(s.store.GetAllServices(), s.store.GetAllBookmarks()),
+		Categories:    s.uniqueCategories(),
 		Domain:        s.cfg.Domain,
 		TunnelEnabled: s.cf.TunnelEnabled(),
 	})
@@ -109,7 +113,7 @@ func (s *Server) fragServiceFormEdit(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("HX-Trigger-After-Swap", "openmodal")
 	renderTemplate(w, "service-form.html", serviceFormData{
 		Service:       svc,
-		Categories:    getUniqueCategories(s.store.GetAllServices(), s.store.GetAllBookmarks()),
+		Categories:    s.uniqueCategories(),
 		Domain:        s.cfg.Domain,
 		TunnelEnabled: s.cf.TunnelEnabled(),
 	})
@@ -147,7 +151,7 @@ func (s *Server) fragAssignForm(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("HX-Trigger-After-Swap", "openmodal")
 	renderTemplate(w, "assign-form.html", assignFormData{
 		Discovered:    disc,
-		Categories:    getUniqueCategories(s.store.GetAllServices(), s.store.GetAllBookmarks()),
+		Categories:    s.uniqueCategories(),
 		Domain:        s.cfg.Domain,
 		TunnelEnabled: s.cf.TunnelEnabled(),
 	})
@@ -160,7 +164,7 @@ func (s *Server) fragBookmarksTable(w http.ResponseWriter, r *http.Request) {
 func (s *Server) fragBookmarkFormAdd(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("HX-Trigger-After-Swap", "openmodal")
 	renderTemplate(w, "bookmark-form.html", bookmarkFormData{
-		Categories: getUniqueCategories(s.store.GetAllServices(), s.store.GetAllBookmarks()),
+		Categories: s.uniqueCategories(),
 	})
 }
 
@@ -174,7 +178,7 @@ func (s *Server) fragBookmarkFormEdit(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("HX-Trigger-After-Swap", "openmodal")
 	renderTemplate(w, "bookmark-form.html", bookmarkFormData{
 		Bookmark:   bm,
-		Categories: getUniqueCategories(s.store.GetAllServices(), s.store.GetAllBookmarks()),
+		Categories: s.uniqueCategories(),
 	})
 }
 
