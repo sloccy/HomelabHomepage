@@ -2,6 +2,7 @@ package web
 
 import (
 	"bytes"
+	"compress/gzip"
 	"context"
 	"crypto/rand"
 	"crypto/tls"
@@ -87,7 +88,7 @@ func (s *Server) SetScanner(sc Scanner)              { s.scanner = sc }
 func (s *Server) SetTunnelManager(t *tunnel.Manager) { s.tunnel = t }
 
 func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	securityHeaders(s.mux).ServeHTTP(w, r)
+	gzipHandler(securityHeaders(s.mux)).ServeHTTP(w, r)
 }
 
 func securityHeaders(next http.Handler) http.Handler {
@@ -96,6 +97,75 @@ func securityHeaders(next http.Handler) http.Handler {
 		w.Header().Set("X-Frame-Options", "SAMEORIGIN")
 		w.Header().Set("Referrer-Policy", "strict-origin-when-cross-origin")
 		next.ServeHTTP(w, r)
+	})
+}
+
+var gzPool = sync.Pool{
+	New: func() any {
+		gz, _ := gzip.NewWriterLevel(io.Discard, gzip.BestSpeed)
+		return gz
+	},
+}
+
+type gzipResponseWriter struct {
+	http.ResponseWriter
+	gz      *gzip.Writer
+	decided bool
+}
+
+func (w *gzipResponseWriter) decide() {
+	if w.decided {
+		return
+	}
+	w.decided = true
+	ct := strings.ToLower(strings.SplitN(w.Header().Get("Content-Type"), ";", 2)[0])
+	ct = strings.TrimSpace(ct)
+	if strings.HasPrefix(ct, "text/") || ct == "application/javascript" || ct == "application/json" || ct == "application/xml" || ct == "image/svg+xml" {
+		w.Header().Del("Content-Length")
+		w.Header().Set("Content-Encoding", "gzip")
+		w.Header().Add("Vary", "Accept-Encoding")
+		gz := gzPool.Get().(*gzip.Writer)
+		gz.Reset(w.ResponseWriter)
+		w.gz = gz
+	}
+}
+
+func (w *gzipResponseWriter) WriteHeader(code int) {
+	w.decide()
+	w.ResponseWriter.WriteHeader(code)
+}
+
+func (w *gzipResponseWriter) Write(b []byte) (int, error) {
+	w.decide()
+	if w.gz != nil {
+		return w.gz.Write(b)
+	}
+	return w.ResponseWriter.Write(b)
+}
+
+func (w *gzipResponseWriter) Flush() {
+	if w.gz != nil {
+		_ = w.gz.Flush()
+	}
+	if f, ok := w.ResponseWriter.(http.Flusher); ok {
+		f.Flush()
+	}
+}
+
+func gzipHandler(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if !strings.Contains(r.Header.Get("Accept-Encoding"), "gzip") {
+			next.ServeHTTP(w, r)
+			return
+		}
+		gw := &gzipResponseWriter{ResponseWriter: w}
+		defer func() {
+			if gw.gz != nil {
+				_ = gw.gz.Close()
+				gzPool.Put(gw.gz)
+			}
+		}()
+		next.ServeHTTP(gw, r)
 	})
 }
 
