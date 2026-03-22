@@ -109,17 +109,23 @@ var gzPool = sync.Pool{
 
 type gzipResponseWriter struct {
 	http.ResponseWriter
-	gz      *gzip.Writer
-	decided bool
+	gz          *gzip.Writer
+	code        int
+	wroteHeader bool
 }
 
-func (w *gzipResponseWriter) decide() {
-	if w.decided {
+// WriteHeader buffers the status code; headers are committed in Write so that
+// no-body responses (204, 304) never get a spurious Content-Encoding: gzip.
+func (w *gzipResponseWriter) WriteHeader(code int) {
+	w.code = code
+}
+
+func (w *gzipResponseWriter) writeHeader() {
+	if w.wroteHeader {
 		return
 	}
-	w.decided = true
-	ct := strings.ToLower(strings.SplitN(w.Header().Get("Content-Type"), ";", 2)[0])
-	ct = strings.TrimSpace(ct)
+	w.wroteHeader = true
+	ct := strings.TrimSpace(strings.ToLower(strings.SplitN(w.Header().Get("Content-Type"), ";", 2)[0]))
 	if strings.HasPrefix(ct, "text/") || ct == "application/javascript" || ct == "application/json" || ct == "application/xml" || ct == "image/svg+xml" {
 		w.Header().Del("Content-Length")
 		w.Header().Set("Content-Encoding", "gzip")
@@ -128,15 +134,13 @@ func (w *gzipResponseWriter) decide() {
 		gz.Reset(w.ResponseWriter)
 		w.gz = gz
 	}
-}
-
-func (w *gzipResponseWriter) WriteHeader(code int) {
-	w.decide()
-	w.ResponseWriter.WriteHeader(code)
+	if w.code != 0 {
+		w.ResponseWriter.WriteHeader(w.code)
+	}
 }
 
 func (w *gzipResponseWriter) Write(b []byte) (int, error) {
-	w.decide()
+	w.writeHeader()
 	if w.gz != nil {
 		return w.gz.Write(b)
 	}
@@ -152,14 +156,26 @@ func (w *gzipResponseWriter) Flush() {
 	}
 }
 
+func acceptsGzip(header string) bool {
+	for _, part := range strings.Split(header, ",") {
+		if strings.EqualFold(strings.TrimSpace(strings.SplitN(part, ";", 2)[0]), "gzip") {
+			return true
+		}
+	}
+	return false
+}
+
 func gzipHandler(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if !strings.Contains(r.Header.Get("Accept-Encoding"), "gzip") {
+		if !acceptsGzip(r.Header.Get("Accept-Encoding")) {
 			next.ServeHTTP(w, r)
 			return
 		}
 		gw := &gzipResponseWriter{ResponseWriter: w}
 		defer func() {
+			if !gw.wroteHeader && gw.code != 0 {
+				gw.ResponseWriter.WriteHeader(gw.code)
+			}
 			if gw.gz != nil {
 				_ = gw.gz.Close()
 				gzPool.Put(gw.gz)
