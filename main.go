@@ -81,7 +81,7 @@ func main() {
 	}
 
 	// Web server (serves GUI + REST API).
-	webSrv := web.New(cfg, st, cfClient)
+	webSrv := web.New(cfg, st, cfClient, version)
 
 	// Proxy handler (routes by subdomain).
 	proxyHandler := proxy.New(cfg, st, webSrv)

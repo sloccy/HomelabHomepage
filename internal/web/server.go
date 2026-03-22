@@ -55,20 +55,29 @@ type Scanner interface {
 	ScanLog() []string
 }
 
-// Server serves the web GUI and REST API.
-type Server struct {
-	cfg      *config.Config
-	store    *store.Store
-	cf       *cf.Client
-	scanner  Scanner
-	tunnel   *tunnel.Manager
-	mux      *http.ServeMux
-	healthMu sync.RWMutex
-	health   map[string]string // service ID → "up" | "down"
+type faviconEntry struct {
+	data        []byte
+	contentType string
+	fetchedAt   time.Time
 }
 
-func New(cfg *config.Config, st *store.Store, cfClient *cf.Client) *Server {
-	s := &Server{cfg: cfg, store: st, cf: cfClient}
+// Server serves the web GUI and REST API.
+type Server struct {
+	cfg            *config.Config
+	store          *store.Store
+	cf             *cf.Client
+	scanner        Scanner
+	tunnel         *tunnel.Manager
+	mux            *http.ServeMux
+	version        string
+	healthMu       sync.RWMutex
+	health         map[string]string // service ID → "up" | "down"
+	faviconCache   map[string]*faviconEntry
+	faviconCacheMu sync.RWMutex
+}
+
+func New(cfg *config.Config, st *store.Store, cfClient *cf.Client, version string) *Server {
+	s := &Server{cfg: cfg, store: st, cf: cfClient, version: version, faviconCache: make(map[string]*faviconEntry)}
 	s.mux = http.NewServeMux()
 	s.routes()
 	return s
@@ -94,14 +103,21 @@ func (s *Server) routes() {
 	// Static files.
 	sub, _ := fs.Sub(staticFiles, "static")
 	fileServer := http.FileServer(http.FS(sub))
-	s.mux.Handle("GET /", fileServer)
+	s.mux.Handle("GET /", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Cache-Control", "public, max-age=31536000, immutable")
+		fileServer.ServeHTTP(w, r)
+	}))
 
 	// Page templates (more specific than the file server catch-all).
 	s.mux.HandleFunc("GET /{$}", func(w http.ResponseWriter, r *http.Request) {
-		renderPage(w, indexTmpl)
+		renderPage(w, indexTmpl, pageData{
+			Version:       s.version,
+			ServicesHTML:  preRender("services-grid.html", buildServicesGrid(s.store.GetAllServices(), s.cfg.Domain, s.healthSnapshot(), false)),
+			BookmarksHTML: preRender("bookmarks-grid.html", buildBookmarksGrid(s.store.GetAllBookmarks())),
+		})
 	})
 	s.mux.HandleFunc("GET /manage", func(w http.ResponseWriter, r *http.Request) {
-		renderPage(w, manageTmpl)
+		renderPage(w, manageTmpl, pageData{Version: s.version})
 	})
 
 	// Fragment endpoints — return HTML for htmx.
@@ -928,7 +944,8 @@ func (s *Server) removeDDNS(w http.ResponseWriter, r *http.Request) {
 // ---- Favicon proxy ----------------------------------------------------------
 
 // getFavicon proxies a favicon from an internal service target, avoiding
-// mixed-content and CORS issues in the browser.
+// mixed-content and CORS issues in the browser. Results are cached server-side
+// for 1 hour to avoid re-fetching on every page load.
 func (s *Server) getFavicon(w http.ResponseWriter, r *http.Request) {
 	rawURL := r.URL.Query().Get("url")
 	if rawURL == "" {
@@ -940,6 +957,18 @@ func (s *Server) getFavicon(w http.ResponseWriter, r *http.Request) {
 		http.NotFound(w, r)
 		return
 	}
+	cacheKey := u.Host
+
+	s.faviconCacheMu.RLock()
+	entry, ok := s.faviconCache[cacheKey]
+	s.faviconCacheMu.RUnlock()
+	if ok && time.Since(entry.fetchedAt) < time.Hour {
+		w.Header().Set("Content-Type", entry.contentType)
+		w.Header().Set("Cache-Control", "public, max-age=3600")
+		_, _ = w.Write(entry.data)
+		return
+	}
+
 	faviconURL := u.Scheme + "://" + u.Host + "/favicon.ico"
 	req, err := http.NewRequestWithContext(r.Context(), http.MethodGet, faviconURL, nil)
 	if err != nil {
@@ -959,9 +988,17 @@ func (s *Server) getFavicon(w http.ResponseWriter, r *http.Request) {
 	if ct == "" {
 		ct = "image/x-icon"
 	}
+	data, _ := io.ReadAll(io.LimitReader(resp.Body, 64*1024))
+
+	s.faviconCacheMu.Lock()
+	if len(s.faviconCache) < 500 {
+		s.faviconCache[cacheKey] = &faviconEntry{data: data, contentType: ct, fetchedAt: time.Now()}
+	}
+	s.faviconCacheMu.Unlock()
+
 	w.Header().Set("Content-Type", ct)
 	w.Header().Set("Cache-Control", "public, max-age=3600")
-	_, _ = io.Copy(w, io.LimitReader(resp.Body, 64*1024))
+	_, _ = w.Write(data)
 }
 
 // ---- Icon file serving ------------------------------------------------------
