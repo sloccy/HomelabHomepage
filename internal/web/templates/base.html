@@ -32,8 +32,12 @@
       shared app modal. Do NOT use Bulma's .modal class — it conflicts with the
       native dialog display mechanism. Use .dialog-box for the inner content.
   -->
+  <!-- Critical CSS: sets background/text/font before any stylesheet loads to prevent white flash -->
+  <style>:root{--bg:#0d0b08;--bg-warm:#1a1510;--text:#e8e0d0}body{font-family:system-ui,-apple-system,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;background:radial-gradient(ellipse at 50% 0%,#1a1510 0%,#0d0b08 70%);color:#e8e0d0;min-height:100vh}</style>
+  <link rel="dns-prefetch" href="https://cdn.jsdelivr.net">
   <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
-  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bulma@1.0.4/css/bulma.min.css">
+  <link rel="preload" href="https://cdn.jsdelivr.net/npm/bulma@1.0.4/css/bulma.min.css" as="style">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bulma@1.0.4/css/bulma.min.css" fetchpriority="high">
   <link rel="stylesheet" href="/style.css?v={{.Version}}">
   <script defer src="https://cdn.jsdelivr.net/npm/htmx.org@2.0.8/dist/htmx.min.js"></script>
   <script defer src="/app.js?v={{.Version}}"></script>

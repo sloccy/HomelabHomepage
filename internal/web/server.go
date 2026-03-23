@@ -17,6 +17,7 @@ import (
 	"net/http"
 	"net/url"
 	"sort"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -48,6 +49,67 @@ var healthClient = &http.Client{
 
 //go:embed static
 var staticFiles embed.FS
+
+// staticAsset holds the pre-minified and pre-compressed bytes for a static file.
+type staticAsset struct {
+	plain      []byte // minified (text) or raw (binary)
+	compressed []byte // gzip BestCompression of plain; nil for binary formats
+	ct         string // Content-Type
+}
+
+var (
+	staticAssetMap  map[string]*staticAsset
+	staticAssetOnce sync.Once
+)
+
+func getStaticAssets() map[string]*staticAsset {
+	staticAssetOnce.Do(func() {
+		assets := make(map[string]*staticAsset)
+		_ = fs.WalkDir(staticFiles, "static", func(path string, d fs.DirEntry, err error) error {
+			if err != nil || d.IsDir() {
+				return err
+			}
+			data, err := staticFiles.ReadFile(path)
+			if err != nil {
+				log.Printf("web: read static asset %s: %v", path, err)
+				return nil
+			}
+			urlPath := "/" + strings.TrimPrefix(path, "static/")
+			var ct string
+			var plain []byte
+			switch {
+			case strings.HasSuffix(path, ".css"):
+				ct = "text/css; charset=utf-8"
+				plain = []byte(minifyCSS(string(data)))
+			case strings.HasSuffix(path, ".js"):
+				ct = "application/javascript; charset=utf-8"
+				plain = []byte(minifyJS(string(data)))
+			case strings.HasSuffix(path, ".png"):
+				ct = "image/png"
+				plain = data
+			case strings.HasSuffix(path, ".webp"):
+				ct = "image/webp"
+				plain = data
+			default:
+				ct = "application/octet-stream"
+				plain = data
+			}
+			a := &staticAsset{plain: plain, ct: ct}
+			// Pre-compress text assets at BestCompression; images are already binary-compressed.
+			if strings.HasPrefix(ct, "text/") || strings.Contains(ct, "javascript") {
+				var buf bytes.Buffer
+				gz, _ := gzip.NewWriterLevel(&buf, gzip.BestCompression)
+				_, _ = gz.Write(plain)
+				_ = gz.Close()
+				a.compressed = buf.Bytes()
+			}
+			assets[urlPath] = a
+			return nil
+		})
+		staticAssetMap = assets
+	})
+	return staticAssetMap
+}
 
 // Scanner is the subset of discovery.Discoverer the web server needs.
 type Scanner interface {
@@ -125,14 +187,17 @@ func (w *gzipResponseWriter) writeHeader() {
 		return
 	}
 	w.wroteHeader = true
-	ct := strings.TrimSpace(strings.ToLower(strings.SplitN(w.Header().Get("Content-Type"), ";", 2)[0]))
-	if strings.HasPrefix(ct, "text/") || ct == "application/javascript" || ct == "application/json" || ct == "application/xml" || ct == "image/svg+xml" {
-		w.Header().Del("Content-Length")
-		w.Header().Set("Content-Encoding", "gzip")
-		w.Header().Add("Vary", "Accept-Encoding")
-		gz := gzPool.Get().(*gzip.Writer)
-		gz.Reset(w.ResponseWriter)
-		w.gz = gz
+	// Skip compression if the handler already set Content-Encoding (e.g., pre-compressed static assets).
+	if w.Header().Get("Content-Encoding") == "" {
+		ct := strings.TrimSpace(strings.ToLower(strings.SplitN(w.Header().Get("Content-Type"), ";", 2)[0]))
+		if strings.HasPrefix(ct, "text/") || ct == "application/javascript" || ct == "application/json" || ct == "application/xml" || ct == "image/svg+xml" {
+			w.Header().Del("Content-Length")
+			w.Header().Set("Content-Encoding", "gzip")
+			w.Header().Add("Vary", "Accept-Encoding")
+			gz := gzPool.Get().(*gzip.Writer)
+			gz.Reset(w.ResponseWriter)
+			w.gz = gz
+		}
 	}
 	if w.code != 0 {
 		w.ResponseWriter.WriteHeader(w.code)
@@ -186,12 +251,25 @@ func gzipHandler(next http.Handler) http.Handler {
 }
 
 func (s *Server) routes() {
-	// Static files.
-	sub, _ := fs.Sub(staticFiles, "static")
-	fileServer := http.FileServer(http.FS(sub))
+	// Static files — served from a pre-minified, pre-compressed in-memory map.
+	assets := getStaticAssets()
 	s.mux.Handle("GET /", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		a, ok := assets[r.URL.Path]
+		if !ok {
+			http.NotFound(w, r)
+			return
+		}
 		w.Header().Set("Cache-Control", "public, max-age=31536000, immutable")
-		fileServer.ServeHTTP(w, r)
+		w.Header().Set("Content-Type", a.ct)
+		if a.compressed != nil && acceptsGzip(r.Header.Get("Accept-Encoding")) {
+			w.Header().Set("Content-Encoding", "gzip")
+			w.Header().Set("Vary", "Accept-Encoding")
+			w.Header().Set("Content-Length", strconv.Itoa(len(a.compressed)))
+			_, _ = w.Write(a.compressed)
+		} else {
+			w.Header().Set("Content-Length", strconv.Itoa(len(a.plain)))
+			_, _ = w.Write(a.plain)
+		}
 	}))
 
 	// Page templates (more specific than the file server catch-all).
