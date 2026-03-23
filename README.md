@@ -2,9 +2,9 @@
 
 **Homelab reverse proxy, service discovery, and homepage — in a single Docker container.**
 
-[![GHCR](https://img.shields.io/badge/ghcr.io-sloccy%2Flantern-blue?logo=github)](https://github.com/sloccy/HomelabHomepage/pkgs/container/lantern)
+[![GHCR](https://img.shields.io/badge/ghcr.io-sloccy%2Flantern-blue?logo=github)](https://github.com/sloccy/Lantern/pkgs/container/lantern)
 [![License: MIT](https://img.shields.io/badge/license-MIT-green)](LICENSE)
-[![Go](https://img.shields.io/badge/go-1.25-00ADD8?logo=go)](go.mod)
+[![Go](https://img.shields.io/badge/go-1.26-00ADD8?logo=go)](go.mod)
 
 ---
 
@@ -15,7 +15,7 @@
 | 🔀 | **Reverse proxy** | HTTPS termination with subdomain routing. Accepts self-signed backend certs. |
 | 🔒 | **Wildcard TLS** | Auto-provisions and renews Let's Encrypt wildcard cert via Cloudflare DNS-01 challenge. Falls back to a self-signed cert while provisioning. |
 | 🐳 | **Docker discovery** | Watches the Docker socket; auto-assigns subdomains from container names. Reads Traefik labels for compatibility. |
-| 🔍 | **Network scan** | Full TCP sweep (all 65535 ports) on manual trigger, with ARP pre-sweep on Linux to skip dead hosts. Identifies services with 93 built-in fingerprints. |
+| 🔍 | **Network scan** | Full TCP sweep (all 65535 ports) on manual trigger, with ARP pre-sweep on Linux to skip dead hosts. Identifies services with 94 built-in fingerprints. |
 | 📡 | **Multicast discovery** | Passive mDNS/DNS-SD, SSDP, and WS-Discovery listeners run on every scheduled scan interval — no TCP sweep required. |
 | 🌐 | **Dynamic DNS** | Tracks public IP via ipify.org and updates Cloudflare A records automatically. |
 | ☁️ | **Cloudflare Tunnel** | Manage a Cloudflare Zero Trust tunnel directly from the UI — create, route services through it, and delete, without touching the Cloudflare dashboard. |
@@ -28,7 +28,7 @@
 **1. Get the compose file**
 
 ```bash
-curl -O https://raw.githubusercontent.com/sloccy/HomelabHomepage/main/docker-compose.yml
+curl -O https://raw.githubusercontent.com/sloccy/Lantern/main/docker-compose.yml
 ```
 
 **2. Fill in your values**
@@ -254,7 +254,7 @@ Paths 2–4 run on every scheduled `SCAN_INTERVAL`. Path 1 is manual-only.
 
 ### Fingerprint engine
 
-After a TCP port responds to HTTP, the response headers, body, and `<title>` are matched against **93 built-in signatures** spanning:
+After a TCP port responds to HTTP, the response headers, body, and `<title>` are matched against **94 built-in signatures** spanning:
 
 *Infrastructure:* Proxmox VE, Cockpit, Webmin, Synology DSM, TrueNAS, UniFi, OpenWrt
 *Monitoring:* Grafana, Prometheus, Netdata, Uptime Kuma, Scrutiny, Healthchecks, Dozzle
@@ -284,6 +284,7 @@ When a fingerprint matches, the service name and emoji icon are populated automa
 | `DELETE` | `/api/services/{id}` | Delete a service and its DNS record |
 | `POST` | `/api/services/{id}/move` | Move service to a new position |
 | `POST` | `/api/services/reorder` | Reorder multiple services (`{"ids": [...]}`) |
+| `GET` | `/api/icons/{id}` | Get icon image for a service |
 | `POST` | `/api/services/{id}/icon` | Upload a custom icon (multipart) |
 | `POST` | `/api/services/{id}/favicon` | Pull favicon from the service's target URL |
 | `DELETE` | `/api/services/{id}/icon` | Clear custom icon |
@@ -321,6 +322,7 @@ When a fingerprint matches, the service name and emoji icon are populated automa
 ```
 /data/
   config.json         ← services, discovered, bookmarks, DDNS domains, settings
+  icons/              ← uploaded and fetched service icons
   certs/
     cert.pem          ← TLS certificate (wildcard)
     key.pem           ← TLS private key
