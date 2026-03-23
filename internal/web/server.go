@@ -934,7 +934,7 @@ func (s *Server) deleteDiscovered(w http.ResponseWriter, r *http.Request) {
 
 func (s *Server) triggerScan(w http.ResponseWriter, r *http.Request) {
 	if s.scanner != nil {
-		s.scanner.ScanNow(r.Context())
+		s.scanner.ScanNow(context.Background())
 	}
 	renderTemplate(w, "status.html", s.buildStatusData())
 }

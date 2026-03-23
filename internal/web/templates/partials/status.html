@@ -55,7 +55,7 @@
 {{if .Scanning}}
 <details class="scan-log-details" open
          hx-on::before-request="window._scanLogScroll = document.querySelector('.scan-log') && document.querySelector('.scan-log').scrollTop; window._scanLogOpen = this.open"
-         hx-on::after-settle="let d = document.querySelector('.scan-log-details'); if(d && window._scanLogOpen !== undefined) { if(window._scanLogOpen) d.setAttribute('open',''); else d.removeAttribute('open'); } let el = document.querySelector('.scan-log'); if(el && window._scanLogScroll !== undefined) el.scrollTop = window._scanLogScroll">
+         hx-on::after-settle="let d = document.querySelector('.scan-log-details'); if(d && window._scanLogOpen !== undefined) { if(window._scanLogOpen) d.setAttribute('open',''); else d.removeAttribute('open'); } let el = document.querySelector('.scan-log'); if(el) el.scrollTop = el.scrollHeight">
   <summary class="scan-log-summary">Scan Log</summary>
   <div class="scan-log bg-poll"
        hx-get="/fragments/status"
