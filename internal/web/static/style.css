@@ -469,7 +469,14 @@ body.edit-mode #edit-layout-btn {
   word-break: break-all;
 }
 
-/* Card entrance: no page-load animation — cards appear instantly. */
+/* Card entrance: single fast fade-in for all cards simultaneously. */
+@keyframes cardFadeIn {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+.card-wrapper .service-card { animation: cardFadeIn 80ms ease both; }
+.htmx-settling .card-wrapper .service-card,
+.htmx-swapping .card-wrapper .service-card { animation: none; }
 
 /* ── Empty State (homepage) ────────────────────────────────────────────── */
 .empty-state {
