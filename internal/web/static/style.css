@@ -474,7 +474,7 @@ body.edit-mode #edit-layout-btn {
   from { opacity: 0; }
   to   { opacity: 1; }
 }
-.card-wrapper .service-card { animation: cardFadeIn 200ms ease both; }
+.card-wrapper .service-card { animation: cardFadeIn 300ms ease both; }
 .htmx-settling .card-wrapper .service-card,
 .htmx-swapping .card-wrapper .service-card { animation: none; }
 
