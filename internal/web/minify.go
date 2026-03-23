@@ -6,8 +6,9 @@ import (
 )
 
 var (
-	reCSSComment = regexp.MustCompile(`(?s)/\*.*?\*/`)
-	reSpaces     = regexp.MustCompile(`\s+`)
+	reCSSComment  = regexp.MustCompile(`(?s)/\*.*?\*/`)
+	reLineComment = regexp.MustCompile(`//[^\n]*`)
+	reSpaces      = regexp.MustCompile(`\s+`)
 )
 
 // minifyCSS strips block comments and collapses whitespace/punctuation
@@ -33,6 +34,7 @@ func minifyCSS(src string) string {
 // minifyJS strips block comments and collapses whitespace.
 func minifyJS(src string) string {
 	s := reCSSComment.ReplaceAllString(src, "")
+	s = reLineComment.ReplaceAllString(s, "")
 	s = reSpaces.ReplaceAllString(s, " ")
 	return strings.TrimSpace(s)
 }
