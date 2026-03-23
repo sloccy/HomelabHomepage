@@ -469,38 +469,11 @@ body.edit-mode #edit-layout-btn {
   word-break: break-all;
 }
 
-/* ── Staggered card entrance animation ──────────────────────────────────── */
-@keyframes cardEnter {
-  from {
-    opacity: 0;
-    transform: translateY(12px) scale(0.97);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0) scale(1);
-  }
-}
-
-/* Only animate on initial page load — suppress on HTMX fragment swaps. */
-.card-wrapper .service-card        { animation: cardEnter .4s var(--ease) both; }
-.htmx-settling .card-wrapper .service-card,
-.htmx-swapping .card-wrapper .service-card { animation: none; }
-.card-wrapper:nth-child(1)  .service-card { animation-delay: 0ms; }
-.card-wrapper:nth-child(2)  .service-card { animation-delay: 40ms; }
-.card-wrapper:nth-child(3)  .service-card { animation-delay: 80ms; }
-.card-wrapper:nth-child(4)  .service-card { animation-delay: 120ms; }
-.card-wrapper:nth-child(5)  .service-card { animation-delay: 160ms; }
-.card-wrapper:nth-child(6)  .service-card { animation-delay: 200ms; }
-.card-wrapper:nth-child(7)  .service-card { animation-delay: 240ms; }
-.card-wrapper:nth-child(8)  .service-card { animation-delay: 280ms; }
-.card-wrapper:nth-child(9)  .service-card { animation-delay: 320ms; }
-.card-wrapper:nth-child(10) .service-card { animation-delay: 360ms; }
-.card-wrapper:nth-child(n+11) .service-card { animation-delay: 400ms; }
+/* Card entrance: no page-load animation — cards appear instantly. */
 
 /* ── Empty State (homepage) ────────────────────────────────────────────── */
 .empty-state {
   min-height: 60vh;
-  animation: fadeIn .4s ease;
   display: flex;
   flex-direction: column;
   align-items: center;
