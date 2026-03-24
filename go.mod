@@ -3,7 +3,7 @@ module lantern
 go 1.25.0
 
 require (
-	github.com/cloudflare/cloudflare-go v0.116.0
+	github.com/cloudflare/cloudflare-go/v6 v6.8.0
 	github.com/cloudflare/cloudflare-go/v6 v6.8.0
 	github.com/docker/docker v28.5.2+incompatible
 	github.com/go-acme/lego/v4 v4.33.0
