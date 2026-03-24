@@ -90,10 +90,13 @@ type data struct {
 
 // Store is a thread-safe, JSON-backed persistence layer.
 type Store struct {
-	mu      sync.RWMutex
-	d       data
-	path    string
-	iconDir string
+	mu               sync.RWMutex
+	d                data
+	path             string
+	iconDir          string
+	idIdx            map[string]*Service // service ID -> *Service
+	containerIDIdx   map[string]*Service // container ID -> *Service
+	containerNameIdx map[string]*Service // docker container name -> *Service
 }
 
 func New(dataDir string) (*Store, error) {
@@ -128,7 +131,29 @@ func (s *Store) load() error {
 	if err != nil {
 		return err
 	}
-	return json.Unmarshal(raw, &s.d)
+	if err := json.Unmarshal(raw, &s.d); err != nil {
+		return err
+	}
+	s.rebuildIndexes()
+	return nil
+}
+
+// rebuildIndexes reconstructs the secondary lookup maps from s.d.Services.
+// Must be called with the write lock held (or during initialization before the
+// store is shared).
+func (s *Store) rebuildIndexes() {
+	s.idIdx = make(map[string]*Service, len(s.d.Services))
+	s.containerIDIdx = make(map[string]*Service, len(s.d.Services))
+	s.containerNameIdx = make(map[string]*Service, len(s.d.Services))
+	for _, svc := range s.d.Services {
+		s.idIdx[svc.ID] = svc
+		if svc.ContainerID != "" {
+			s.containerIDIdx[svc.ContainerID] = svc
+		}
+		if svc.Source == "docker" && svc.ContainerName != "" {
+			s.containerNameIdx[svc.ContainerName] = svc
+		}
+	}
 }
 
 // Save flushes the store to disk. Safe to call concurrently.
@@ -246,34 +271,19 @@ func (s *Store) GetServiceBySubdomain(sub string) *Service {
 func (s *Store) GetServiceByID(id string) *Service {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
-	for _, svc := range s.d.Services {
-		if svc.ID == id {
-			return svc
-		}
-	}
-	return nil
+	return s.idIdx[id]
 }
 
 func (s *Store) GetServiceByContainerID(cid string) *Service {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
-	for _, svc := range s.d.Services {
-		if svc.ContainerID == cid {
-			return svc
-		}
-	}
-	return nil
+	return s.containerIDIdx[cid]
 }
 
 func (s *Store) GetServiceByContainerName(name string) *Service {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
-	for _, svc := range s.d.Services {
-		if svc.Source == "docker" && svc.ContainerName == name {
-			return svc
-		}
-	}
-	return nil
+	return s.containerNameIdx[name]
 }
 
 // ClearContainerID detaches a running container from its service entry without
@@ -281,17 +291,16 @@ func (s *Store) GetServiceByContainerName(name string) *Service {
 func (s *Store) ClearContainerID(cid string) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	for _, svc := range s.d.Services {
-		if svc.ContainerID == cid {
-			svc.ContainerID = ""
-			return
-		}
+	if svc, ok := s.containerIDIdx[cid]; ok {
+		svc.ContainerID = ""
+		s.rebuildIndexes()
 	}
 }
 
 func (s *Store) AddService(svc *Service) {
 	s.mu.Lock()
 	s.d.Services[svc.Subdomain] = svc
+	s.rebuildIndexes()
 	s.mu.Unlock()
 }
 
@@ -299,14 +308,17 @@ func (s *Store) AddService(svc *Service) {
 func (s *Store) UpdateService(id string, updated *Service) (oldSub, oldDNSID string) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	for sub, svc := range s.d.Services {
-		if svc.ID == id {
-			oldSub = sub
-			oldDNSID = svc.DNSRecordID
-			delete(s.d.Services, sub)
-			s.d.Services[updated.Subdomain] = updated
-			return
+	if svc := s.idIdx[id]; svc != nil {
+		for sub, sv := range s.d.Services {
+			if sv == svc {
+				oldSub = sub
+				break
+			}
 		}
+		oldDNSID = svc.DNSRecordID
+		delete(s.d.Services, oldSub)
+		s.d.Services[updated.Subdomain] = updated
+		s.rebuildIndexes()
 	}
 	return
 }
@@ -314,14 +326,17 @@ func (s *Store) UpdateService(id string, updated *Service) (oldSub, oldDNSID str
 func (s *Store) DeleteService(id string) (sub, dnsID, tunnelRoute string) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	for k, svc := range s.d.Services {
-		if svc.ID == id {
-			sub = k
-			dnsID = svc.DNSRecordID
-			tunnelRoute = svc.TunnelRouteID
-			delete(s.d.Services, k)
-			return
+	if svc := s.idIdx[id]; svc != nil {
+		for k, sv := range s.d.Services {
+			if sv == svc {
+				sub = k
+				break
+			}
 		}
+		dnsID = svc.DNSRecordID
+		tunnelRoute = svc.TunnelRouteID
+		delete(s.d.Services, sub)
+		s.rebuildIndexes()
 	}
 	return
 }
@@ -333,11 +348,8 @@ func (s *Store) ReorderServices(ids []string) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	for i, id := range ids {
-		for _, svc := range s.d.Services {
-			if svc.ID == id {
-				svc.Order = i
-				break
-			}
+		if svc := s.idIdx[id]; svc != nil {
+			svc.Order = i
 		}
 	}
 }

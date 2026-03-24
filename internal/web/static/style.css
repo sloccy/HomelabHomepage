@@ -1,19 +1,16 @@
 
 /*
  * ╔══════════════════════════════════════════════════════════════════════════╗
- * ║  CSS STACK — Bulma 1.0 CDN + custom style.css                           ║
+ * ║  CSS STACK — Bootstrap 5.3 CDN + custom style.css                       ║
  * ╠══════════════════════════════════════════════════════════════════════════╣
- * ║  We use Bulma 1.0 via CDN (bulma.min.css) with no build step.           ║
+ * ║  Bootstrap 5.3 via CDN with data-bs-theme="dark" on <html>.             ║
  * ║                                                                          ║
  * ║  TOOL-USE HIERARCHY (prefer higher over lower):                         ║
  * ║    1. Semantic HTML                                                      ║
- * ║    2. Bulma CSS CDN component and helper classes                        ║
+ * ║    2. Bootstrap CSS CDN component and utility classes                   ║
  * ║    3. Custom CSS rules in style.css  ← this file                        ║
  * ║    4. HTMX for server interactions                                      ║
  * ║    5. Vanilla JS only when absolutely necessary                         ║
- * ║                                                                          ║
- * ║  MODAL NOTE: Use dialog#app-modal with .dialog-box — NOT Bulma's        ║
- * ║  .modal class which conflicts with native <dialog> show/hide.           ║
  * ╚══════════════════════════════════════════════════════════════════════════╝
  */
 
@@ -48,45 +45,55 @@
   --btn-border:   rgba(var(--accent-rgb), .35);
 }
 
-/* Bulma dark-mode overrides — must use [data-theme] to beat Bulma's own specificity */
-html[data-theme="dark"] {
-  /* Scheme & primary */
-  --bulma-scheme-h: 36;
-  --bulma-scheme-s: 24%;
-  --bulma-primary-h: 43;
-  --bulma-primary-s: 66%;
-  --bulma-primary-l: 51%;
-  --bulma-primary: var(--accent);
-  /* Link/ghost button color */
-  --bulma-link-h: 43;
-  --bulma-link-s: 66%;
-  --bulma-link-l: 51%;
-  --bulma-link: var(--accent);
-  /* Text */
-  --bulma-body-background-color: var(--bg);
-  --bulma-body-color: var(--text);
-  --bulma-text: var(--text);
-  --bulma-text-strong: var(--text);
-  /* Input fields */
-  --bulma-input-background-color: var(--surface);
-  --bulma-input-color: var(--text);
-  --bulma-input-border-color: var(--border-color);
-  --bulma-input-focus-border-color: var(--accent);
-  --bulma-input-placeholder-color: var(--muted);
-  /* Table */
-  --bulma-table-color: var(--text);
-  --bulma-table-background-color: transparent;
-  --bulma-table-head-cell-color: var(--muted);
-  --bulma-table-striped-row-even-background-color: var(--surface3);
-  --bulma-table-row-hover-background-color: rgba(var(--accent-rgb), .04);
-  --bulma-border-color: var(--border-color);
-  /* Label and button */
-  --bulma-label-color: var(--text);
-  --bulma-button-background-color: var(--surface2);
-  --bulma-button-color: var(--text);
-  --bulma-button-border-color: var(--btn-border);
+/* ── Bootstrap dark theme overrides ─────────────────────────────────────── */
+[data-bs-theme="dark"] {
+  --bs-body-bg:               var(--bg);
+  --bs-body-color:            var(--text);
+  --bs-secondary-color:       var(--muted);
+  --bs-link-color:            var(--accent);
+  --bs-link-hover-color:      var(--accent-h);
+  --bs-border-color:          var(--border-color);
+  --bs-card-bg:               var(--surface2);
+  --bs-card-border-color:     var(--border-color);
+  --bs-table-bg:              transparent;
+  --bs-table-striped-bg:      var(--surface3);
+  --bs-table-hover-bg:        rgba(var(--accent-rgb), .04);
+  --bs-table-color:           var(--text);
+  --bs-modal-bg:              var(--surface2);
+  --bs-modal-border-color:    rgba(var(--accent-rgb), .25);
   color-scheme: dark;
 }
+
+/* Form controls */
+.form-control, .form-select {
+  background-color: var(--surface);
+  color: var(--text);
+  border-color: var(--border-color);
+}
+.form-control:focus, .form-select:focus {
+  background-color: var(--surface);
+  color: var(--text);
+  border-color: var(--accent);
+  box-shadow: 0 0 0 0.25rem rgba(var(--accent-rgb), .15);
+}
+.form-control::placeholder { color: var(--muted); }
+
+/* Link buttons */
+.btn-link { color: var(--accent); }
+.btn-link:hover { color: var(--accent-h); }
+
+/* Warning button text contrast */
+.btn-warning, .btn-warning:hover { color: #1a1200; }
+
+/* Modal styling */
+.modal-content {
+  background: linear-gradient(145deg, var(--surface2) 0%, var(--surface) 100%);
+  border: 1px solid rgba(var(--accent-rgb), .25);
+  box-shadow: var(--shadow-lg), 0 0 60px rgba(var(--accent-rgb), .06);
+  border-radius: var(--radius-lg);
+}
+.modal-header { border-bottom: none; }
+.modal-body h3 { font-family: Georgia, "Times New Roman", serif; font-size: 1.1rem; margin-bottom: 1.25rem; }
 
 body {
   font-family: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
@@ -95,27 +102,10 @@ body {
   min-height: 100vh;
 }
 
-/* ── Bulma dark-mode scoped overrides (specificity fixes not covered by CSS vars) */
-html[data-theme="dark"] .input:focus,
-html[data-theme="dark"] .textarea:focus,
-html[data-theme="dark"] .select select:focus {
-  box-shadow: 0 0 0 0.125em rgba(var(--accent-rgb), .25);
-}
-html[data-theme="dark"] .button.is-warning,
-html[data-theme="dark"] .button.is-warning:hover { color: #1a1200; }
-html[data-theme="dark"] .button.is-outlined { background: transparent; border-color: var(--btn-border); color: var(--text); }
-html[data-theme="dark"] .button.is-ghost { background: transparent; border-color: transparent; color: var(--accent); }
-html[data-theme="dark"] .button.is-ghost:hover { background: rgba(var(--accent-rgb), .08); }
-
-/* ── Gap utilities (not provided by Bulma 1.0) ──────────────────────────── */
-.gap-2 { gap: 0.5rem; }
-.gap-3 { gap: 0.75rem; }
-
 /* ── Typography — serif headings ────────────────────────────────────────── */
 .logo-text,
 .card-header-title,
-.empty-state h2,
-dialog#app-modal h3 {
+.empty-state h2 {
   font-family: Georgia, "Times New Roman", serif;
 }
 
@@ -537,7 +527,6 @@ body.edit-mode #edit-layout-btn {
 .table th, .table td {
   padding: 0.75rem 1rem;
 }
-.table tbody tr:hover { background: rgba(var(--accent-rgb), .04); }
 .td-icon { width: 40px; }
 .svc-icon { width: 28px; height: 28px; border-radius: 6px; object-fit: contain; }
 .svc-icon-placeholder {
@@ -631,48 +620,6 @@ body.edit-mode #edit-layout-btn {
   gap: 1.5rem;
 }
 
-/* ── Dialog modal ──────────────────────────────────────────────────────── */
-dialog#app-modal {
-  border: none;
-  padding: 0;
-  background: transparent;
-  max-width: 32rem;
-  width: calc(100% - 2rem);
-}
-dialog#app-modal::backdrop {
-  background: rgba(0,0,0,.5);
-  backdrop-filter: blur(8px);
-  -webkit-backdrop-filter: blur(8px);
-}
-dialog#app-modal .dialog-box {
-  background: linear-gradient(145deg, var(--surface2) 0%, var(--surface) 100%);
-  border: 1px solid rgba(var(--accent-rgb), .25);
-  box-shadow: var(--shadow-lg), 0 0 0 1px rgba(var(--accent-rgb), .1), 0 0 60px rgba(var(--accent-rgb), .06);
-  border-radius: var(--radius-lg);
-  padding: 1.5rem;
-  position: relative;
-  z-index: 1; /* sit above .dialog-backdrop fixed overlay */
-  color: var(--text);
-}
-/* Close button positioning */
-dialog#app-modal .dialog-box > .delete:first-child {
-  position: absolute;
-  right: 0.5rem;
-  top: 0.5rem;
-}
-dialog#app-modal h3 { font-size: 1.1rem; margin-bottom: 1.25rem; }
-/* Backdrop form — visually hidden but covers the area outside the dialog-box */
-dialog#app-modal .dialog-backdrop {
-  position: fixed;
-  inset: 0;
-  background: transparent;
-  display: block;
-  margin: 0;
-}
-dialog#app-modal .dialog-backdrop button {
-  display: none;
-}
-
 /* ── Icon edit row ──────────────────────────────────────────────────────── */
 .icon-edit-row {
   display: flex;
@@ -680,15 +627,6 @@ dialog#app-modal .dialog-backdrop button {
   gap: .75rem;
   margin-top: .5rem;
 }
-
-/* ── Toast ──────────────────────────────────────────────────────────────── */
-.toast-container {
-  position: fixed;
-  bottom: 1.5rem;
-  right: 1.5rem;
-  z-index: 50;
-}
-#app-toast.showing { display: flex !important; animation: fadeIn .3s ease; }
 
 /* ── Assign form info box ───────────────────────────────────────────────── */
 .assign-info {

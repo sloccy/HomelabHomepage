@@ -3,7 +3,7 @@
   <img src="/logo.webp" class="logo-img-lg" alt="Lantern">
   <h2>Welcome to Lantern</h2>
   <p>No services assigned yet. Add services from the manage view.</p>
-  <a href="/manage" class="button is-warning">Get Started →</a>
+  <a href="/manage" class="btn btn-warning">Get Started →</a>
 </div>
 {{else if not .IsEmpty}}
 {{range $i, $g := .Groups}}
@@ -30,11 +30,11 @@
         <div class="card-url">{{if .DirectOnly}}{{.Target}}{{else}}{{.Subdomain}}.{{$.Domain}}{{end}}</div>
       </a>
       <div class="reorder-btns">
-        <button class="button is-ghost is-small reorder-btn"
+        <button class="btn btn-link btn-sm reorder-btn"
                 hx-post="/api/services/{{.ID}}/move"
                 hx-vals='{"direction":"left"}'
                 hx-swap="none">←</button>
-        <button class="button is-ghost is-small reorder-btn"
+        <button class="btn btn-link btn-sm reorder-btn"
                 hx-post="/api/services/{{.ID}}/move"
                 hx-vals='{"direction":"right"}'
                 hx-swap="none">→</button>

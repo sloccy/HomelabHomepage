@@ -1,134 +1,21 @@
 package discovery
 
 import (
-	"bufio"
 	"context"
-	"encoding/json"
 	"fmt"
 	"log"
-	"net"
-	"net/http"
-	"net/url"
-	"os"
 	"regexp"
 	"strings"
 	"time"
 
+	dockertypes "github.com/docker/docker/api/types"
+	"github.com/docker/docker/api/types/container"
+	dockerevents "github.com/docker/docker/api/types/events"
+	"github.com/docker/docker/api/types/filters"
+	"github.com/docker/docker/client"
+
 	"lantern/internal/store"
 )
-
-// ── Docker API types ----------------------------------------------------------
-
-type dockerPort struct {
-	Type        string `json:"Type"`
-	PublicPort  int    `json:"PublicPort"`
-}
-
-type dockerContainer struct {
-	ID     string            `json:"Id"`
-	Names  []string          `json:"Names"`
-	Ports  []dockerPort      `json:"Ports"`
-	Labels map[string]string `json:"Labels"`
-}
-
-type dockerEvent struct {
-	Action string      `json:"Action"`
-	Actor  dockerActor `json:"Actor"`
-}
-
-type dockerActor struct {
-	ID string `json:"ID"`
-}
-
-// ── Docker HTTP client --------------------------------------------------------
-
-type dockerClient struct {
-	hc   *http.Client
-	base string
-}
-
-func newDockerClient() (*dockerClient, error) {
-	socketPath := "/var/run/docker.sock"
-	if host := os.Getenv("DOCKER_HOST"); strings.HasPrefix(host, "unix://") {
-		socketPath = strings.TrimPrefix(host, "unix://")
-	}
-	if _, err := os.Stat(socketPath); err != nil {
-		return nil, fmt.Errorf("Docker socket not available at %s: %w", socketPath, err)
-	}
-	hc := &http.Client{
-		Transport: &http.Transport{
-			DialContext: func(ctx context.Context, _, _ string) (net.Conn, error) {
-				return (&net.Dialer{}).DialContext(ctx, "unix", socketPath)
-			},
-		},
-	}
-	return &dockerClient{hc: hc, base: "http://localhost"}, nil
-}
-
-// listContainers returns all running containers.
-func (c *dockerClient) listContainers(ctx context.Context) ([]dockerContainer, error) {
-	ctx, cancel := context.WithTimeout(ctx, 15*time.Second)
-	defer cancel()
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, c.base+"/containers/json", nil)
-	if err != nil {
-		return nil, err
-	}
-	resp, err := c.hc.Do(req)
-	if err != nil {
-		return nil, err
-	}
-	defer resp.Body.Close()
-	var containers []dockerContainer
-	if err := json.NewDecoder(resp.Body).Decode(&containers); err != nil {
-		return nil, err
-	}
-	return containers, nil
-}
-
-// events returns channels for container events and errors.
-// The goroutine exits when ctx is cancelled or the stream closes.
-func (c *dockerClient) events(ctx context.Context) (<-chan dockerEvent, <-chan error) {
-	msgCh := make(chan dockerEvent, 16)
-	errCh := make(chan error, 1)
-	go func() {
-		defer close(msgCh)
-		params := url.Values{"filters": {`{"type":["container"]}`}}
-		req, err := http.NewRequestWithContext(ctx, http.MethodGet,
-			c.base+"/events?"+params.Encode(), nil)
-		if err != nil {
-			errCh <- err
-			return
-		}
-		resp, err := c.hc.Do(req)
-		if err != nil {
-			errCh <- err
-			return
-		}
-		defer resp.Body.Close()
-		scanner := bufio.NewScanner(resp.Body)
-		for scanner.Scan() {
-			line := scanner.Bytes()
-			if len(line) == 0 {
-				continue
-			}
-			var ev dockerEvent
-			if err := json.Unmarshal(line, &ev); err != nil {
-				continue
-			}
-			select {
-			case msgCh <- ev:
-			case <-ctx.Done():
-				return
-			}
-		}
-		if err := scanner.Err(); err != nil && ctx.Err() == nil {
-			errCh <- err
-		}
-	}()
-	return msgCh, errCh
-}
-
-// ── DockerWatch ---------------------------------------------------------------
 
 // DockerWatch connects to the Docker socket and watches for container start/stop events.
 // On start:    resolves config from labels, auto-assigns subdomain, creates DNS record.
@@ -148,15 +35,22 @@ func (c *dockerClient) events(ctx context.Context) (<-chan dockerEvent, <-chan e
 //	traefik.http.routers.<name>.rule=Host(`plex.example.com`)
 //	traefik.http.services.<name>.loadbalancer.server.port=32400
 func (d *Discoverer) DockerWatch(ctx context.Context) {
-	dc, err := newDockerClient()
+	dc, err := client.NewClientWithOpts(client.FromEnv, client.WithAPIVersionNegotiation())
 	if err != nil {
+		log.Printf("discovery: Docker client unavailable (%v) — skipping Docker discovery", err)
+		return
+	}
+	defer dc.Close()
+
+	// Verify connectivity.
+	if _, err := dc.Ping(ctx); err != nil {
 		log.Printf("discovery: Docker socket unavailable (%v) — skipping Docker discovery", err)
 		return
 	}
 
 	d.syncContainers(ctx, dc)
 
-	msgCh, errCh := dc.events(ctx)
+	msgCh, errCh := dockerEvents(ctx, dc)
 
 	log.Println("discovery: watching Docker events")
 	for {
@@ -169,7 +63,7 @@ func (d *Discoverer) DockerWatch(ctx context.Context) {
 			}
 			log.Printf("discovery: Docker events error: %v — reconnecting in 10s", err)
 			time.Sleep(10 * time.Second)
-			msgCh, errCh = dc.events(ctx)
+			msgCh, errCh = dockerEvents(ctx, dc)
 		case msg, ok := <-msgCh:
 			if !ok {
 				return
@@ -179,8 +73,15 @@ func (d *Discoverer) DockerWatch(ctx context.Context) {
 	}
 }
 
-func (d *Discoverer) syncContainers(ctx context.Context, dc *dockerClient) {
-	containers, err := dc.listContainers(ctx)
+// dockerEvents subscribes to container events and returns message/error channels.
+func dockerEvents(ctx context.Context, dc *client.Client) (<-chan dockerevents.Message, <-chan error) {
+	f := filters.NewArgs()
+	f.Add("type", "container")
+	return dc.Events(ctx, dockerevents.ListOptions{Filters: f})
+}
+
+func (d *Discoverer) syncContainers(ctx context.Context, dc *client.Client) {
+	containers, err := dc.ContainerList(ctx, container.ListOptions{})
 	if err != nil {
 		log.Printf("discovery: list containers: %v", err)
 		return
@@ -194,11 +95,11 @@ func (d *Discoverer) syncContainers(ctx context.Context, dc *dockerClient) {
 	log.Printf("discovery: synced %d running containers", len(containers))
 }
 
-func (d *Discoverer) handleDockerEvent(ctx context.Context, dc *dockerClient, msg dockerEvent) {
-	switch msg.Action {
+func (d *Discoverer) handleDockerEvent(ctx context.Context, dc *client.Client, msg dockerevents.Message) {
+	switch string(msg.Action) {
 	case "start":
 		time.Sleep(2 * time.Second) // brief delay for container to fully start
-		containers, err := dc.listContainers(ctx)
+		containers, err := dc.ContainerList(ctx, container.ListOptions{})
 		if err != nil {
 			return
 		}
@@ -235,7 +136,7 @@ func (d *Discoverer) detachContainer(ctx context.Context, id string) {
 
 // upsertContainerWithLabels resolves a container's configuration from Docker labels,
 // then creates or updates the service entry.
-func (d *Discoverer) upsertContainerWithLabels(ctx context.Context, id, name string, ports []dockerPort, labels map[string]string) {
+func (d *Discoverer) upsertContainerWithLabels(ctx context.Context, id, name string, ports []dockertypes.Port, labels map[string]string) {
 	if name == "" || name == "lantern" {
 		return
 	}
@@ -287,7 +188,7 @@ func (d *Discoverer) upsertContainerWithLabels(ctx context.Context, id, name str
 //  1. lantern.* labels
 //  2. Traefik v2/v3 labels
 //  3. Published ports (bestPort heuristic)
-func (d *Discoverer) resolveContainer(name string, ports []dockerPort, labels map[string]string) *containerInfo {
+func (d *Discoverer) resolveContainer(name string, ports []dockertypes.Port, labels map[string]string) *containerInfo {
 	info := &containerInfo{
 		name:      name,
 		subdomain: sanitiseSubdomain(name),
@@ -375,7 +276,6 @@ func (d *Discoverer) addDockerDiscovered(id, name, target, suggestedSub string) 
 	}(disc.ID, target)
 }
 
-
 // ── Traefik label helpers ─────────────────────────────────────────────────────
 
 var reTraefikHost = regexp.MustCompile("(?i)Host\\(`([^`]+)`\\)")
@@ -420,12 +320,12 @@ func traefikPort(labels map[string]string) int {
 // ── Port / target helpers ─────────────────────────────────────────────────────
 
 // bestPort picks the most useful published TCP port, preferring common web UI ports.
-func bestPort(ports []dockerPort) int {
+func bestPort(ports []dockertypes.Port) int {
 	preferred := []int{80, 8080, 3000, 5000, 9443, 9000, 8096, 8123, 443, 8443, 8000}
 	portSet := make(map[int]bool)
 	for _, p := range ports {
 		if p.Type == "tcp" && p.PublicPort > 0 {
-			portSet[p.PublicPort] = true
+			portSet[int(p.PublicPort)] = true
 		}
 	}
 	for _, pp := range preferred {
@@ -436,7 +336,7 @@ func bestPort(ports []dockerPort) int {
 	// Fall back to the first published TCP port (covers Plex:32400 etc.).
 	for _, p := range ports {
 		if p.Type == "tcp" && p.PublicPort > 0 {
-			return p.PublicPort
+			return int(p.PublicPort)
 		}
 	}
 	return 0

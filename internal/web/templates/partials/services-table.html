@@ -1,6 +1,6 @@
 {{if .Services}}
 <div class="table-container">
-  <table class="table is-narrow is-striped is-hoverable is-fullwidth">
+  <table class="table table-sm table-striped table-hover w-100">
     <thead>
       <tr>
         <th class="td-icon"></th>
@@ -26,14 +26,14 @@
         <td><code style="font-size:.8rem">{{.Target}}</code></td>
         <td>
           <span class="{{tagClass .Source}}">{{.Source}}</span>
-          {{if isTunneled .}}<span class="tag is-warning">tunnel</span>{{end}}
+          {{if isTunneled .}}<span class="badge text-bg-warning">tunnel</span>{{end}}
         </td>
         <td class="td-actions">
-          <div class="is-flex is-align-items-center is-justify-content-flex-end gap-2">
-            <button class="button is-outlined is-small"
+          <div class="d-flex align-items-center justify-content-end gap-2">
+            <button class="btn btn-outline-secondary btn-sm"
                     hx-get="/fragments/service-form/{{.ID}}"
                     hx-target="#modal-content">Edit</button>
-            <button class="button is-danger is-small"
+            <button class="btn btn-danger btn-sm"
                     hx-delete="/api/services/{{.ID}}"
                     hx-target="closest tr"
                     hx-swap="delete"

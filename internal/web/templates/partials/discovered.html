@@ -16,16 +16,16 @@
   </div>
   <div>
     <a href="http://{{.IP}}:{{.Port}}" target="_blank" rel="noopener"
-       class="button is-ghost is-small">↗</a>
-    <button class="button is-warning is-small"
+       class="btn btn-link btn-sm">↗</a>
+    <button class="btn btn-warning btn-sm"
             hx-get="/fragments/assign-form/{{.ID}}"
             hx-target="#modal-content">Assign</button>
-    <button class="button is-ghost is-small"
+    <button class="btn btn-link btn-sm"
             hx-post="/api/discovered/{{.ID}}/ignore"
             hx-target="closest .disc-item"
             hx-swap="delete"
             hx-confirm="Ignore {{.IP}}:{{.Port}} permanently?">Ignore</button>
-    <button class="button is-ghost is-small"
+    <button class="btn btn-link btn-sm"
             hx-delete="/api/discovered/{{.ID}}"
             hx-target="closest .disc-item"
             hx-swap="delete">Dismiss</button>

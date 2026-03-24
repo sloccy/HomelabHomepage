@@ -7,27 +7,25 @@ let _selectedCardName = null;
 
 document.addEventListener('DOMContentLoaded', () => {
   // ── Modal ─────────────────────────────────────────────────────────────────
-  const dialog = document.getElementById('app-modal');
-  if (dialog) {
-    document.body.addEventListener('openmodal', () => dialog.showModal());
-    document.body.addEventListener('closemodal', () => dialog.close());
+  const modalEl = document.getElementById('app-modal');
+  if (modalEl) {
+    const modal = bootstrap.Modal.getOrCreateInstance(modalEl);
+    document.body.addEventListener('openmodal', () => modal.show());
+    document.body.addEventListener('closemodal', () => modal.hide());
   }
 
   // ── Toast ─────────────────────────────────────────────────────────────────
   const toastEl = document.getElementById('app-toast');
   const toastMsg = document.getElementById('toast-msg');
   if (toastEl) {
-    let toastTimer;
     document.body.addEventListener('showtoast', e => {
       toastMsg.textContent = e.detail.msg;
-      toastEl.className = 'notification ' + (e.detail.type === 'error' ? 'is-danger' : 'is-success');
-      toastEl.classList.add('showing');
-      clearTimeout(toastTimer);
-      toastTimer = setTimeout(() => { toastEl.classList.remove('showing'); }, 3500);
+      toastEl.className = 'toast ' + (e.detail.type === 'error' ? 'text-bg-danger' : 'text-bg-success');
+      bootstrap.Toast.getOrCreateInstance(toastEl, {delay: 3500}).show();
     });
   }
 
-// ── Optimistic reorder: swap card-wrappers immediately, sync server async ──
+  // ── Optimistic reorder: swap card-wrappers immediately, sync server async ──
   document.body.addEventListener('click', e => {
     const btn = e.target.closest('.reorder-btn');
     if (!btn) return;
@@ -59,7 +57,6 @@ document.addEventListener('DOMContentLoaded', () => {
   // ── Edit layout toggle ────────────────────────────────────────────────────
   document.getElementById('edit-layout-toggle')?.addEventListener('change', function() {
     document.body.classList.toggle('edit-mode', this.checked);
-    // Deselect card when exiting edit mode
     if (!this.checked) {
       if (_selectedCard) _selectedCard.classList.remove('selected');
       _selectedCard = null;
@@ -96,7 +93,6 @@ document.addEventListener('DOMContentLoaded', () => {
     details.forEach(el => {
       if (localStorage.getItem(el.dataset.storageKey) === '0') el.removeAttribute('open');
     });
-    // Re-apply selection after grid re-render
     if (_selectedCardName && document.getElementById('edit-layout-toggle')?.checked) {
       const card = document.querySelector(`.service-card[data-name="${CSS.escape(_selectedCardName)}"]`);
       if (card) {
@@ -133,7 +129,6 @@ document.addEventListener('keydown', e => {
     e.preventDefault();
     document.getElementById('search-input')?.focus();
   } else if (e.key === 'Escape') {
-    // Deselect card first if one is selected
     if (_selectedCard) {
       _selectedCard.classList.remove('selected');
       _selectedCard = null;
@@ -143,7 +138,6 @@ document.addEventListener('keydown', e => {
     const s = document.getElementById('search-input');
     if (s && s.value) { s.value = ''; s.dispatchEvent(new Event('input', {bubbles: true})); s.blur(); }
   } else if (e.key >= '1' && e.key <= '9') {
-    // Disable quick-nav shortcuts while in edit mode
     if (document.getElementById('edit-layout-toggle')?.checked) return;
     const n = parseInt(e.key, 10);
     const cards = [...document.querySelectorAll('#services-grid .service-card')];
