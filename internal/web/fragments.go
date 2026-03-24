@@ -238,25 +238,32 @@ func (s *Server) buildTunnelFragData() tunnelFragData {
 	return data
 }
 
-// ---- Move service (reorder by direction) ------------------------------------
+// ---- Move (reorder by direction) --------------------------------------------
 
-func (s *Server) moveService(w http.ResponseWriter, r *http.Request) {
+type reorderItem struct {
+	ID    string
+	Order int
+	Name  string
+}
+
+// doMove swaps the item with the given id one position left or right in the
+// ordering, then calls reorder and save. Writes the HTTP response.
+func doMove(w http.ResponseWriter, r *http.Request, items []reorderItem, reorder func([]string), save func() error) {
 	id := r.PathValue("id")
 	direction := r.FormValue("direction")
 
-	services := s.store.GetAllServices()
-	sort.Slice(services, func(i, j int) bool {
-		if services[i].Order != services[j].Order {
-			return services[i].Order < services[j].Order
+	sort.Slice(items, func(i, j int) bool {
+		if items[i].Order != items[j].Order {
+			return items[i].Order < items[j].Order
 		}
-		return services[i].Name < services[j].Name
+		return items[i].Name < items[j].Name
 	})
 
-	ids := make([]string, len(services))
+	ids := make([]string, len(items))
 	idx := -1
-	for i, svc := range services {
-		ids[i] = svc.ID
-		if svc.ID == id {
+	for i, item := range items {
+		ids[i] = item.ID
+		if item.ID == id {
 			idx = i
 		}
 	}
@@ -278,62 +285,30 @@ func (s *Server) moveService(w http.ResponseWriter, r *http.Request) {
 
 	if swapIdx >= 0 && swapIdx < len(ids) {
 		ids[idx], ids[swapIdx] = ids[swapIdx], ids[idx]
-		s.store.ReorderServices(ids)
-		if err := s.store.Save(); err != nil {
+		reorder(ids)
+		if err := save(); err != nil {
 			log.Printf("web: save reorder: %v", err)
 		}
 	}
-
 	w.WriteHeader(http.StatusNoContent)
 }
 
-// ---- Move bookmark (reorder by direction) ------------------------------------
+func (s *Server) moveService(w http.ResponseWriter, r *http.Request) {
+	svcs := s.store.GetAllServices()
+	items := make([]reorderItem, len(svcs))
+	for i, svc := range svcs {
+		items[i] = reorderItem{svc.ID, svc.Order, svc.Name}
+	}
+	doMove(w, r, items, s.store.ReorderServices, s.store.Save)
+}
 
 func (s *Server) moveBookmark(w http.ResponseWriter, r *http.Request) {
-	id := r.PathValue("id")
-	direction := r.FormValue("direction")
-
-	bookmarks := s.store.GetAllBookmarks()
-	sort.Slice(bookmarks, func(i, j int) bool {
-		if bookmarks[i].Order != bookmarks[j].Order {
-			return bookmarks[i].Order < bookmarks[j].Order
-		}
-		return bookmarks[i].Name < bookmarks[j].Name
-	})
-
-	ids := make([]string, len(bookmarks))
-	idx := -1
-	for i, bm := range bookmarks {
-		ids[i] = bm.ID
-		if bm.ID == id {
-			idx = i
-		}
+	bms := s.store.GetAllBookmarks()
+	items := make([]reorderItem, len(bms))
+	for i, bm := range bms {
+		items[i] = reorderItem{bm.ID, bm.Order, bm.Name}
 	}
-	if idx < 0 {
-		http.NotFound(w, r)
-		return
-	}
-
-	var swapIdx int
-	switch direction {
-	case "left":
-		swapIdx = idx - 1
-	case "right":
-		swapIdx = idx + 1
-	default:
-		w.WriteHeader(http.StatusBadRequest)
-		return
-	}
-
-	if swapIdx >= 0 && swapIdx < len(ids) {
-		ids[idx], ids[swapIdx] = ids[swapIdx], ids[idx]
-		s.store.ReorderBookmarks(ids)
-		if err := s.store.Save(); err != nil {
-			log.Printf("web: save reorder bookmarks: %v", err)
-		}
-	}
-
-	w.WriteHeader(http.StatusNoContent)
+	doMove(w, r, items, s.store.ReorderBookmarks, s.store.Save)
 }
 
 // ---- Helpers ----------------------------------------------------------------

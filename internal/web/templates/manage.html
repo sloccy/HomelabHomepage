@@ -9,9 +9,9 @@
   <div class="logo">
     <img src="/logo.webp" class="logo-img" alt="Lantern">
     <span class="logo-text">Lantern</span>
-    <span class="tag is-warning">Manage</span>
+    <span class="badge text-bg-warning">Manage</span>
   </div>
-  <a href="/" class="button is-ghost">← Home</a>
+  <a href="/" class="btn btn-link">← Home</a>
 </header>
 
 <main class="manage-main">
@@ -49,7 +49,7 @@
     <header class="card-header">
       <p class="card-header-title">Services</p>
       <div>
-        <button class="button is-warning is-small"
+        <button class="btn btn-warning btn-sm"
                 hx-get="/fragments/service-form"
                 hx-target="#modal-content">+ Add Service</button>
       </div>
@@ -67,7 +67,7 @@
     <header class="card-header">
       <p class="card-header-title">Bookmarks</p>
       <div>
-        <button class="button is-warning is-small"
+        <button class="btn btn-warning btn-sm"
                 hx-get="/fragments/bookmark-form"
                 hx-target="#modal-content">+ Add Bookmark</button>
       </div>
@@ -86,7 +86,7 @@
     <header class="card-header">
       <p class="card-header-title">Discovered</p>
       <div>
-        <button class="button is-ghost is-small"
+        <button class="btn btn-link btn-sm"
                 onclick="const d=document.getElementById('ignored-section');d.open=!d.open">Ignored</button>
       </div>
     </header>

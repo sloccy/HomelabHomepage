@@ -11,43 +11,43 @@
 
   <div class="mb-3">
     <label>Service Name</label>
-    <input class="input" name="name" value="{{.Discovered.Title}}" placeholder="My Service">
+    <input class="form-control" name="name" value="{{.Discovered.Title}}" placeholder="My Service">
   </div>
   <div>
     {{$sub := or .Discovered.SuggestedSubdomain .Discovered.ServiceName}}
     <div class="mb-3 subdomain-group">
       <label>Subdomain</label>
       <div class="subdomain-wrap" data-domain="{{.Domain}}">
-        <input class="input" name="subdomain" value="{{$sub}}" required placeholder="myservice">
+        <input class="form-control" name="subdomain" value="{{$sub}}" required placeholder="myservice">
         <div class="subdomain-hint">{{if $sub}}{{$sub}}.{{.Domain}}{{end}}</div>
       </div>
     </div>
     <div class="mb-3">
       <label>Category</label>
-      <input class="input" name="category" list="categories-list" placeholder="Optional">
+      <input class="form-control" name="category" list="categories-list" placeholder="Optional">
       <datalist id="categories-list">
         {{range .Categories}}<option value="{{.}}">{{end}}
       </datalist>
     </div>
-    <div class="is-flex is-flex-wrap-wrap gap-3 mb-3 is-align-items-center">
-      <label class="checkbox gap-2">
+    <div class="d-flex flex-wrap gap-3 mb-3 align-items-center">
+      <label class="d-flex gap-2 align-items-center">
         <input type="checkbox" id="cb-direct" name="direct_only">
         Direct link
       </label>
       {{if .TunnelEnabled}}
-      <label class="checkbox gap-2">
+      <label class="d-flex gap-2 align-items-center">
         <input type="checkbox" id="cb-tunnel" name="tunnel">
         Cloudflare Tunnel
       </label>
       {{end}}
-      <label class="checkbox gap-2">
+      <label class="d-flex gap-2 align-items-center">
         <input type="checkbox" id="cb-skip-health" name="skip_health">
         Skip health check
       </label>
     </div>
   </div>
-  <div class="is-flex gap-2 is-justify-content-flex-end mt-3">
-    <button type="button" class="button is-ghost" onclick="this.closest('dialog').close()">Cancel</button>
-    <button type="submit" class="button is-warning">Assign</button>
+  <div class="d-flex gap-2 justify-content-end mt-3">
+    <button type="button" class="btn btn-link" data-bs-dismiss="modal">Cancel</button>
+    <button type="submit" class="btn btn-warning">Assign</button>
   </div>
 </form>

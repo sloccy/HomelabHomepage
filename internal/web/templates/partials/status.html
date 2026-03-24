@@ -1,7 +1,7 @@
 <header class="card-header">
   <p class="card-header-title">Status</p>
   <div>
-    <button class="button is-warning is-small"
+    <button class="btn btn-warning btn-sm"
             {{if not .Scanning}}
             hx-post="/api/scan"
             hx-target="#status-section"

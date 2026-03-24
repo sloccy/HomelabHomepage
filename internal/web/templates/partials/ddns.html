@@ -1,6 +1,6 @@
 {{if .Domains}}
 <div class="table-container">
-  <table class="table is-narrow is-striped is-hoverable is-fullwidth">
+  <table class="table table-sm table-striped table-hover w-100">
     <thead><tr><th>Domain</th><th>Points To</th><th></th></tr></thead>
     <tbody>
       {{range .Domains}}
@@ -8,8 +8,8 @@
         <td><code>{{.}}</code></td>
         <td>{{$.PublicIP}}</td>
         <td class="td-actions">
-          <div class="is-flex is-align-items-center is-justify-content-flex-end gap-2">
-            <button class="button is-danger is-small"
+          <div class="d-flex align-items-center justify-content-end gap-2">
+            <button class="btn btn-danger btn-sm"
                     hx-delete="/api/ddns/{{.}}"
                     hx-target="closest tr"
                     hx-swap="delete"
@@ -29,8 +29,8 @@
         hx-target="#ddns-list"
         hx-swap="innerHTML"
         hx-on::after-request="if(event.detail.successful) this.reset()">
-    <input class="input" name="domain"
+    <input class="form-control" name="domain"
            placeholder="home.example.com" required>
-    <button class="button is-warning is-small" type="submit">+ Add</button>
+    <button class="btn btn-warning btn-sm" type="submit">+ Add</button>
   </form>
 </div>

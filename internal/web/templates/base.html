@@ -1,44 +1,19 @@
 {{define "base"}}
 <!DOCTYPE html>
-<html lang="en" data-theme="dark">
+<html lang="en" data-bs-theme="dark">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>{{block "title" .}}Lantern{{end}}</title>
   <link rel="icon" type="image/png" href="/favicon-32.png?v={{.Version}}">
-  <!--
-    CSS STACK — READ BEFORE EDITING TEMPLATES OR style.css
-    =======================================================
-    We use Bulma 1.0 as a plain CDN stylesheet (no build step, no JS framework).
-
-    BULMA COMPONENT CLASSES IN USE:
-      button, is-small, is-ghost, is-warning, is-danger, is-outlined
-      card, card-header, card-header-title, card-content
-      table, is-narrow, is-striped, is-hoverable, is-fullwidth
-      tag, is-info, is-success, is-light, is-warning
-      input, notification, is-danger, is-success
-      is-flex, is-flex-wrap-wrap, is-align-items-center, is-justify-content-flex-end
-      mb-3, mt-3, has-text-centered, p-4, is-sr-only
-    CUSTOM HELPERS (defined in style.css, not Bulma):
-      gap-2, gap-3
-
-    LAYOUT NOTE:
-      All custom layout, animations, and component styling live in style.css.
-      Bulma provides base component styles; style.css overrides via .manage-card
-      and other scoped selectors for the dark theme.
-
-    MODAL NOTE:
-      We use the native <dialog> element with .showModal() / .close() for the
-      shared app modal. Do NOT use Bulma's .modal class — it conflicts with the
-      native dialog display mechanism. Use .dialog-box for the inner content.
-  -->
   <!-- Critical CSS: sets background/text/font before any stylesheet loads to prevent white flash -->
   <style>:root{--bg:#0d0b08;--bg-warm:#1a1510;--text:#e8e0d0}body{font-family:system-ui,-apple-system,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;background:radial-gradient(ellipse at 50% 0%,#1a1510 0%,#0d0b08 70%);color:#e8e0d0;min-height:100vh}</style>
   <link rel="dns-prefetch" href="https://cdn.jsdelivr.net">
   <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
-  <link rel="preload" href="https://cdn.jsdelivr.net/npm/bulma@1.0.4/css/bulma.min.css" as="style">
-  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bulma@1.0.4/css/bulma.min.css" fetchpriority="high">
+  <link rel="preload" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" as="style">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" fetchpriority="high">
   <link rel="stylesheet" href="/style.css?v={{.Version}}">
+  <script defer src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
   <script defer src="https://cdn.jsdelivr.net/npm/htmx.org@2.0.8/dist/htmx.min.js"></script>
   <script defer src="/app.js?v={{.Version}}"></script>
 </head>
@@ -48,19 +23,22 @@
 
 {{block "content" .}}{{end}}
 
-<!-- Modal: native <dialog> — opened with .showModal(), closed with .close() -->
-<dialog id="app-modal">
-  <div class="dialog-box">
-    <button class="delete" onclick="this.closest('dialog').close()"></button>
-    <div id="modal-content"></div>
+<!-- Bootstrap Modal -->
+<div class="modal fade" id="app-modal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header border-0 pb-0">
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body pt-1" id="modal-content"></div>
+    </div>
   </div>
-  <form method="dialog" class="dialog-backdrop"><button>close</button></form>
-</dialog>
+</div>
 
-<!-- Toast -->
-<div id="toast-container" class="toast-container">
-  <div id="app-toast" class="notification" role="alert" style="display:none">
-    <span id="toast-msg"></span>
+<!-- Bootstrap Toast -->
+<div class="toast-container position-fixed bottom-0 end-0 p-3">
+  <div id="app-toast" class="toast" role="alert" aria-atomic="true">
+    <div class="toast-body" id="toast-msg"></div>
   </div>
 </div>
 

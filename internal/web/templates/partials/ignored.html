@@ -1,6 +1,6 @@
 {{if .}}
 <div class="table-container">
-  <table class="table is-narrow is-striped is-hoverable is-fullwidth">
+  <table class="table table-sm table-striped table-hover w-100">
     <thead><tr><th>IP:Port</th><th>Title</th><th>Ignored At</th><th></th></tr></thead>
     <tbody>
       {{range .}}
@@ -9,8 +9,8 @@
         <td>{{if .Title}}{{.Title}}{{else}}—{{end}}</td>
         <td>{{fmtTime .IgnoredAt}}</td>
         <td class="td-actions">
-          <div class="is-flex is-align-items-center is-justify-content-flex-end gap-2">
-            <button class="button is-outlined is-small"
+          <div class="d-flex align-items-center justify-content-end gap-2">
+            <button class="btn btn-outline-secondary btn-sm"
                     hx-delete="/api/ignored/{{.ID}}"
                     hx-target="closest tr"
                     hx-swap="delete">Un-ignore</button>

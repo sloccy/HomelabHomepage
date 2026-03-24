@@ -1,14 +1,14 @@
 {{if .Subnets}}
 <div class="table-container">
-  <table class="table is-narrow is-striped is-hoverable is-fullwidth">
+  <table class="table table-sm table-striped table-hover w-100">
     <thead><tr><th>CIDR</th><th></th></tr></thead>
     <tbody>
       {{range .Subnets}}
       <tr>
         <td><code>{{.}}</code></td>
         <td class="td-actions">
-          <div class="is-flex is-align-items-center is-justify-content-flex-end gap-2">
-            <button class="button is-danger is-small"
+          <div class="d-flex align-items-center justify-content-end gap-2">
+            <button class="btn btn-danger btn-sm"
                     hx-delete="/api/scan/subnets?cidr={{qesc .}}"
                     hx-target="closest tr"
                     hx-swap="delete"
@@ -28,7 +28,7 @@
         hx-target="#subnets-list"
         hx-swap="innerHTML"
         hx-on::after-request="this.reset()">
-    <input class="input" name="cidr" placeholder="10.0.1.0/24" required>
-    <button class="button is-warning is-small" type="submit">+ Add</button>
+    <input class="form-control" name="cidr" placeholder="10.0.1.0/24" required>
+    <button class="btn btn-warning btn-sm" type="submit">+ Add</button>
   </form>
 </div>

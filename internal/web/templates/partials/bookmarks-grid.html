@@ -23,11 +23,11 @@
           <div class="card-url">{{.URL}}</div>
         </a>
         <div class="reorder-btns">
-          <button class="button is-ghost is-small reorder-btn"
+          <button class="btn btn-link btn-sm reorder-btn"
                   hx-post="/api/bookmarks/{{.ID}}/move"
                   hx-vals='{"direction":"left"}'
                   hx-swap="none">←</button>
-          <button class="button is-ghost is-small reorder-btn"
+          <button class="btn btn-link btn-sm reorder-btn"
                   hx-post="/api/bookmarks/{{.ID}}/move"
                   hx-vals='{"direction":"right"}'
                   hx-swap="none">→</button>

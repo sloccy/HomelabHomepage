@@ -23,7 +23,7 @@
     </div>
     {{end}}
     <div>
-      <button class="button is-danger is-small"
+      <button class="btn btn-danger btn-sm"
               hx-delete="/api/tunnel"
               hx-target="#tunnel-section"
               hx-swap="outerHTML"
@@ -34,7 +34,7 @@
   </div>
   {{else}}
   <div style="padding:1rem 2rem">
-    <button class="button is-warning"
+    <button class="btn btn-warning"
             hx-post="/api/tunnel"
             hx-target="#tunnel-section"
             hx-swap="outerHTML"

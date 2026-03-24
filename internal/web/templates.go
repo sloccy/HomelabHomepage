@@ -3,6 +3,7 @@ package web
 import (
 	"bytes"
 	"embed"
+	"encoding/json"
 	"fmt"
 	"html/template"
 	"io/fs"
@@ -88,53 +89,33 @@ func hxTrigger(w http.ResponseWriter, kvs ...any) {
 	if len(kvs) == 0 {
 		return
 	}
-	var sb strings.Builder
-	sb.WriteString("{")
+	m := make(map[string]any, len(kvs)/2)
 	for i := 0; i+1 < len(kvs); i += 2 {
-		if i > 0 {
-			sb.WriteString(",")
-		}
-		key := fmt.Sprintf("%v", kvs[i])
-		sb.WriteString(`"` + key + `":`)
-		val := kvs[i+1]
-		if val == nil {
-			sb.WriteString("null")
-		} else {
-			switch v := val.(type) {
-			case map[string]string:
-				sb.WriteString("{")
-				first := true
-				for mk, mv := range v {
-					if !first {
-						sb.WriteString(",")
-					}
-					sb.WriteString(fmt.Sprintf(`"%s":"%s"`, mk, mv))
-					first = false
-				}
-				sb.WriteString("}")
-			default:
-				sb.WriteString(fmt.Sprintf(`"%v"`, v))
-			}
-		}
+		m[fmt.Sprintf("%v", kvs[i])] = kvs[i+1]
 	}
-	sb.WriteString("}")
-	w.Header().Set("HX-Trigger", sb.String())
+	b, _ := json.Marshal(m)
+	w.Header().Set("HX-Trigger", string(b))
 }
 
 // toastTrigger writes HX-Trigger headers that close the modal and show a toast.
 func toastTrigger(w http.ResponseWriter, msg, typ string, extraEvents ...string) {
-	var sb strings.Builder
-	sb.WriteString(fmt.Sprintf(`{"closemodal":null,"showtoast":{"msg":%q,"type":%q}`, msg, typ))
-	for _, ev := range extraEvents {
-		sb.WriteString(fmt.Sprintf(`,%q:null`, ev))
+	m := map[string]any{
+		"closemodal": nil,
+		"showtoast":  map[string]string{"msg": msg, "type": typ},
 	}
-	sb.WriteString("}")
-	w.Header().Set("HX-Trigger", sb.String())
+	for _, ev := range extraEvents {
+		m[ev] = nil
+	}
+	b, _ := json.Marshal(m)
+	w.Header().Set("HX-Trigger", string(b))
 }
 
 // errorTrigger writes HX-Trigger for an error toast (no modal close).
 func errorTrigger(w http.ResponseWriter, msg string) {
-	w.Header().Set("HX-Trigger", fmt.Sprintf(`{"showtoast":{"msg":%q,"type":"error"}}`, msg))
+	b, _ := json.Marshal(map[string]any{
+		"showtoast": map[string]string{"msg": msg, "type": "error"},
+	})
+	w.Header().Set("HX-Trigger", string(b))
 }
 
 // ---- Template function map --------------------------------------------------
@@ -195,15 +176,15 @@ var funcMap = template.FuncMap{
 		return "https://" + svc.Subdomain + "." + domain
 	},
 
-	// tagClass returns CSS classes for a source tag.
+	// tagClass returns CSS classes for a source badge.
 	"tagClass": func(source string) string {
 		switch source {
 		case "docker":
-			return "tag is-info"
+			return "badge text-bg-info"
 		case "network":
-			return "tag is-success"
+			return "badge text-bg-success"
 		default:
-			return "tag is-light"
+			return "badge text-bg-secondary"
 		}
 	},
 
@@ -343,40 +324,55 @@ type subnetsFragData struct {
 
 // ---- Helper functions -------------------------------------------------------
 
-func buildServicesGrid(services []*store.Service, domain string, health map[string]string, searching bool) servicesGridData {
-	sorted := make([]*store.Service, len(services))
-	copy(sorted, services)
+// sortAndGroup sorts items by Order then Name, groups them by Category, and
+// returns ordered category keys (empty category first, then alphabetical) plus
+// a map from category name to its items.
+func sortAndGroup[T any](items []T, order func(T) int, name func(T) string, category func(T) string) ([]string, map[string][]T) {
+	sorted := make([]T, len(items))
+	copy(sorted, items)
 	sort.Slice(sorted, func(i, j int) bool {
-		if sorted[i].Order != sorted[j].Order {
-			return sorted[i].Order < sorted[j].Order
+		if order(sorted[i]) != order(sorted[j]) {
+			return order(sorted[i]) < order(sorted[j])
 		}
-		return strings.ToLower(sorted[i].Name) < strings.ToLower(sorted[j].Name)
+		return strings.ToLower(name(sorted[i])) < strings.ToLower(name(sorted[j]))
 	})
 
-	groupIdx := make(map[string]int)
-	var groups []serviceGroup
-	for _, svc := range sorted {
-		cat := svc.Category
-		if _, ok := groupIdx[cat]; !ok {
-			groupIdx[cat] = len(groups)
-			groups = append(groups, serviceGroup{Name: cat})
+	groups := make(map[string][]T)
+	var keys []string
+	seen := make(map[string]bool)
+	for _, item := range sorted {
+		cat := category(item)
+		if !seen[cat] {
+			seen[cat] = true
+			keys = append(keys, cat)
 		}
-		i := groupIdx[cat]
-		groups[i].Services = append(groups[i].Services, svc)
+		groups[cat] = append(groups[cat], item)
 	}
 
-	sort.SliceStable(groups, func(i, j int) bool {
-		if groups[i].Name == "" {
+	sort.SliceStable(keys, func(i, j int) bool {
+		if keys[i] == "" {
 			return true
 		}
-		if groups[j].Name == "" {
+		if keys[j] == "" {
 			return false
 		}
-		return strings.ToLower(groups[i].Name) < strings.ToLower(groups[j].Name)
+		return strings.ToLower(keys[i]) < strings.ToLower(keys[j])
 	})
+	return keys, groups
+}
 
+func buildServicesGrid(services []*store.Service, domain string, health map[string]string, searching bool) servicesGridData {
+	keys, groups := sortAndGroup(services,
+		func(s *store.Service) int { return s.Order },
+		func(s *store.Service) string { return s.Name },
+		func(s *store.Service) string { return s.Category },
+	)
+	svcGroups := make([]serviceGroup, len(keys))
+	for i, k := range keys {
+		svcGroups[i] = serviceGroup{Name: k, Services: groups[k]}
+	}
 	return servicesGridData{
-		Groups:    groups,
+		Groups:    svcGroups,
 		Domain:    domain,
 		Health:    health,
 		IsEmpty:   len(services) == 0,
@@ -385,36 +381,16 @@ func buildServicesGrid(services []*store.Service, domain string, health map[stri
 }
 
 func buildBookmarksGrid(bookmarks []*store.Bookmark) bookmarksGridData {
-	sorted := make([]*store.Bookmark, len(bookmarks))
-	copy(sorted, bookmarks)
-	sort.Slice(sorted, func(i, j int) bool {
-		if sorted[i].Order != sorted[j].Order {
-			return sorted[i].Order < sorted[j].Order
-		}
-		return strings.ToLower(sorted[i].Name) < strings.ToLower(sorted[j].Name)
-	})
-
-	groupIdx := make(map[string]int)
-	var groups []bookmarkGroup
-	for _, bm := range sorted {
-		cat := bm.Category
-		if _, ok := groupIdx[cat]; !ok {
-			groupIdx[cat] = len(groups)
-			groups = append(groups, bookmarkGroup{Name: cat})
-		}
-		i := groupIdx[cat]
-		groups[i].Bookmarks = append(groups[i].Bookmarks, bm)
+	keys, groups := sortAndGroup(bookmarks,
+		func(b *store.Bookmark) int { return b.Order },
+		func(b *store.Bookmark) string { return b.Name },
+		func(b *store.Bookmark) string { return b.Category },
+	)
+	bmGroups := make([]bookmarkGroup, len(keys))
+	for i, k := range keys {
+		bmGroups[i] = bookmarkGroup{Name: k, Bookmarks: groups[k]}
 	}
-	sort.SliceStable(groups, func(i, j int) bool {
-		if groups[i].Name == "" {
-			return true
-		}
-		if groups[j].Name == "" {
-			return false
-		}
-		return strings.ToLower(groups[i].Name) < strings.ToLower(groups[j].Name)
-	})
-	return bookmarksGridData{Groups: groups}
+	return bookmarksGridData{Groups: bmGroups}
 }
 
 func getUniqueCategories(services []*store.Service, bookmarks []*store.Bookmark) []string {
