@@ -147,10 +147,12 @@ var funcMap = template.FuncMap{
 		}
 		if src != "" {
 			proxyURL := "/api/favicon?url=" + url.QueryEscape(src)
+			ph := strings.TrimSuffix(cls, "-icon") + "-icon-placeholder"
 			return template.HTML(fmt.Sprintf(
-				`<img class="%s" src="%s" alt="" onerror="this.style.display='none'">`,
+				`<img class="%s" src="%s" alt="" onerror="this.outerHTML='<div class=&quot;%s&quot;>📦</div>'">`,
 				template.HTMLEscapeString(cls),
 				template.HTMLEscapeString(proxyURL),
+				template.HTMLEscapeString(ph),
 			))
 		}
 		ph := strings.TrimSuffix(cls, "-icon") + "-icon-placeholder"

@@ -1,9 +1,12 @@
 package web
 
 import (
+	"context"
 	"log"
 	"net/http"
+	"time"
 
+	"lantern/internal/discovery"
 	"lantern/internal/store"
 )
 
@@ -41,6 +44,7 @@ func (s *Server) createBookmark(w http.ResponseWriter, r *http.Request) {
 	if err := s.store.Save(); err != nil {
 		log.Printf("web: save: %v", err)
 	}
+	go s.fetchBookmarkFavicon(bm.ID, bmURL)
 	toastTrigger(w, "Bookmark added", "success", "refreshBookmarksTable")
 	w.WriteHeader(http.StatusNoContent)
 }
@@ -66,6 +70,7 @@ func (s *Server) updateBookmark(w http.ResponseWriter, r *http.Request) {
 	if err := s.store.Save(); err != nil {
 		log.Printf("web: save: %v", err)
 	}
+	go s.fetchBookmarkFavicon(id, updated.URL)
 	toastTrigger(w, "Bookmark updated", "success", "refreshBookmarksTable")
 	w.WriteHeader(http.StatusNoContent)
 }
@@ -80,4 +85,25 @@ func (s *Server) deleteBookmark(w http.ResponseWriter, r *http.Request) {
 		log.Printf("web: save: %v", err)
 	}
 	w.WriteHeader(http.StatusOK)
+}
+
+// fetchBookmarkFavicon asynchronously fetches and persists the favicon for a
+// bookmark, then sets Icon = "file" so subsequent renders use the fast disk path.
+func (s *Server) fetchBookmarkFavicon(id, bmURL string) {
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+	data := discovery.FetchFaviconForTarget(ctx, bmURL)
+	if len(data) == 0 {
+		return
+	}
+	if err := s.store.WriteIcon(id, data); err != nil {
+		log.Printf("web: bookmark favicon: %v", err)
+		return
+	}
+	if bm := s.store.GetBookmarkByID(id); bm != nil && bm.Icon != "file" {
+		updated := *bm
+		updated.Icon = "file"
+		s.store.UpdateBookmark(id, &updated)
+		_ = s.store.Save()
+	}
 }

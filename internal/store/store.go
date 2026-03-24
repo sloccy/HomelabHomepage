@@ -625,6 +625,17 @@ func (s *Store) RemoveScanSubnet(cidr string) {
 
 // ---- Bookmarks --------------------------------------------------------------
 
+func (s *Store) GetBookmarkByID(id string) *Bookmark {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	for _, b := range s.d.Bookmarks {
+		if b.ID == id {
+			return b
+		}
+	}
+	return nil
+}
+
 func (s *Store) GetAllBookmarks() []*Bookmark {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
