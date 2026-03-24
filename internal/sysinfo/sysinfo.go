@@ -75,14 +75,15 @@ func sample() (*Stats, error) {
 
 	var diskUsedGB, diskTotalGB uint64
 	var diskPct float64
+	setDisk := func(du *disk.UsageStat) {
+		diskUsedGB = du.Used / (1024 * 1024 * 1024)
+		diskTotalGB = du.Total / (1024 * 1024 * 1024)
+		diskPct = du.UsedPercent
+	}
 	if du, err := disk.Usage("/data"); err == nil {
-		diskUsedGB = du.Used / (1024 * 1024 * 1024)
-		diskTotalGB = du.Total / (1024 * 1024 * 1024)
-		diskPct = du.UsedPercent
+		setDisk(du)
 	} else if du, err := disk.Usage("/"); err == nil {
-		diskUsedGB = du.Used / (1024 * 1024 * 1024)
-		diskTotalGB = du.Total / (1024 * 1024 * 1024)
-		diskPct = du.UsedPercent
+		setDisk(du)
 	}
 
 	return &Stats{

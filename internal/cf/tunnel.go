@@ -134,7 +134,10 @@ func (c *Client) modifyIngress(ctx context.Context, fn func([]cloudflare.Unvalid
 		TunnelID: c.tunnelID,
 		Config:   cloudflare.TunnelConfiguration{Ingress: named},
 	})
-	return err
+	if err != nil {
+		return fmt.Errorf("update tunnel configuration: %w", err)
+	}
+	return nil
 }
 
 // createCNAME creates a proxied CNAME record pointing to the tunnel endpoint.
