@@ -160,7 +160,7 @@ func (d *Discoverer) upsertContainerWithLabels(ctx context.Context, id, name str
 		return
 	}
 
-	info := d.resolveContainer(name, ports, labels)
+	info := d.resolveContainer(ctx, name, ports, labels)
 	if info == nil {
 		return // no usable port/target
 	}
@@ -169,7 +169,7 @@ func (d *Discoverer) upsertContainerWithLabels(ctx context.Context, id, name str
 	if existing := d.store.GetServiceByContainerName(name); existing != nil {
 		updated := *existing
 		updated.ContainerID = id
-		updated.Target = info.target
+		updated.Target = preserveScheme(existing.Target, info.target)
 		d.store.UpdateService(existing.ID, &updated)
 		if err := d.store.Save(); err != nil {
 			log.Printf("discovery: save: %v", err)
@@ -186,7 +186,7 @@ func (d *Discoverer) upsertContainerWithLabels(ctx context.Context, id, name str
 			updated := *existing
 			updated.ContainerID = id
 			updated.ContainerName = name // backfill for pre-fix records
-			updated.Target = info.target
+			updated.Target = preserveScheme(existing.Target, info.target)
 			d.store.UpdateService(existing.ID, &updated)
 			if err := d.store.Save(); err != nil {
 				log.Printf("discovery: save: %v", err)
@@ -207,7 +207,7 @@ func (d *Discoverer) upsertContainerWithLabels(ctx context.Context, id, name str
 //  1. lantern.* labels
 //  2. Traefik v2/v3 labels
 //  3. Published ports (bestPort heuristic)
-func (d *Discoverer) resolveContainer(name string, ports []dockertypes.Port, labels map[string]string) *containerInfo {
+func (d *Discoverer) resolveContainer(ctx context.Context, name string, ports []dockertypes.Port, labels map[string]string) *containerInfo {
 	info := &containerInfo{
 		name:      name,
 		subdomain: sanitiseSubdomain(name),
@@ -249,12 +249,12 @@ func (d *Discoverer) resolveContainer(name string, ports []dockertypes.Port, lab
 		return nil
 	}
 
-	// Scheme: explicit label > port heuristic.
+	// Scheme: explicit label > live probe (falls back to port heuristic if unreachable).
 	scheme := "http"
 	if s := labels["lantern.scheme"]; s == "https" || s == "http" {
 		scheme = s
-	} else if util.IsHTTPSPort(port) {
-		scheme = "https"
+	} else {
+		scheme = detectScheme(ctx, d.cfg.ServerIP, port)
 	}
 
 	info.target = fmt.Sprintf("%s://%s:%d", scheme, d.cfg.ServerIP, port)
@@ -395,6 +395,18 @@ func portsFromNat(pm nat.PortMap) []dockertypes.Port {
 		}
 	}
 	return ports
+}
+
+// preserveScheme keeps the scheme from oldTarget and replaces the rest with
+// the host:port from newTarget. This ensures a user-corrected scheme (e.g.
+// changing https→http) survives container restarts.
+func preserveScheme(oldTarget, newTarget string) string {
+	if i := strings.Index(oldTarget, "://"); i >= 0 {
+		if j := strings.Index(newTarget, "://"); j >= 0 {
+			return oldTarget[:i] + newTarget[j:]
+		}
+	}
+	return newTarget
 }
 
 // ── String helpers ────────────────────────────────────────────────────────────

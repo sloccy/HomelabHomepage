@@ -909,6 +909,41 @@ func tryProbe(ctx context.Context, ip string, port int, scheme string) *probeRes
 	}
 }
 
+// detectScheme probes ip:port to determine the actual HTTP or HTTPS scheme.
+// It tries the heuristic guess first, then falls back to the opposite scheme.
+// Returns the heuristic default if neither probe succeeds (e.g. service is down).
+func detectScheme(ctx context.Context, ip string, port int) string {
+	scheme := "http"
+	if util.IsHTTPSPort(port) {
+		scheme = "https"
+	}
+	if schemeReachable(ctx, ip, port, scheme) {
+		return scheme
+	}
+	alt := "https"
+	if scheme == "https" {
+		alt = "http"
+	}
+	if schemeReachable(ctx, ip, port, alt) {
+		return alt
+	}
+	return scheme // fallback to heuristic
+}
+
+func schemeReachable(ctx context.Context, ip string, port int, scheme string) bool {
+	rawURL := fmt.Sprintf("%s://%s:%d/", scheme, ip, port)
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, rawURL, nil)
+	if err != nil {
+		return false
+	}
+	resp, err := httpClient.Do(req)
+	if err != nil {
+		return false
+	}
+	resp.Body.Close()
+	return resp.StatusCode != http.StatusBadRequest
+}
+
 // ── HTML helpers ──────────────────────────────────────────────────────────────
 
 func extractTitle(html string) string {
