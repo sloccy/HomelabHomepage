@@ -836,10 +836,24 @@ func (d *Discoverer) scanNetwork(ctx context.Context, cidrs []string, withTCP bo
 }
 
 func probeHTTP(ctx context.Context, ip string, port int) *probeResult {
+	// Try the heuristic scheme first; fall back to the opposite if it fails.
+	// This handles plain HTTP services on well-known HTTPS ports (e.g. 5001)
+	// and HTTPS services on non-standard ports.
 	scheme := "http"
 	if util.IsHTTPSPort(port) {
 		scheme = "https"
 	}
+	if r := tryProbe(ctx, ip, port, scheme); r != nil {
+		return r
+	}
+	alt := "https"
+	if scheme == "https" {
+		alt = "http"
+	}
+	return tryProbe(ctx, ip, port, alt)
+}
+
+func tryProbe(ctx context.Context, ip string, port int, scheme string) *probeResult {
 	rawURL := fmt.Sprintf("%s://%s:%d/", scheme, ip, port)
 
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, rawURL, nil)
