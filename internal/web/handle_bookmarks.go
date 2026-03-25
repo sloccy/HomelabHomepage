@@ -104,6 +104,8 @@ func (s *Server) fetchBookmarkFavicon(id, bmURL string) {
 		updated := *bm
 		updated.Icon = "file"
 		s.store.UpdateBookmark(id, &updated)
-		_ = s.store.Save()
+		if err := s.store.Save(); err != nil {
+			log.Printf("web: bookmark favicon save: %v", err)
+		}
 	}
 }

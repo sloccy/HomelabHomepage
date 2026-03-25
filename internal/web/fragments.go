@@ -1,9 +1,7 @@
 package web
 
 import (
-	"bytes"
 	"log"
-	"net"
 	"net/http"
 	"sort"
 	"strings"
@@ -11,6 +9,7 @@ import (
 
 	"lantern/internal/store"
 	"lantern/internal/sysinfo"
+	"lantern/internal/util"
 )
 
 func (s *Server) uniqueCategories() []string {
@@ -121,20 +120,7 @@ func (s *Server) fragServiceFormEdit(w http.ResponseWriter, r *http.Request) {
 
 func (s *Server) fragDiscovered(w http.ResponseWriter, r *http.Request) {
 	discovered := s.store.GetAllDiscovered()
-	sort.Slice(discovered, func(i, j int) bool {
-		a := net.ParseIP(discovered[i].IP).To4()
-		b := net.ParseIP(discovered[j].IP).To4()
-		if a == nil {
-			a = net.ParseIP(discovered[i].IP)
-		}
-		if b == nil {
-			b = net.ParseIP(discovered[j].IP)
-		}
-		if cmp := bytes.Compare(a, b); cmp != 0 {
-			return cmp < 0
-		}
-		return discovered[i].Port < discovered[j].Port
-	})
+	util.SortDiscoveredByIP(discovered)
 	renderTemplate(w, "discovered.html", discovered)
 }
 

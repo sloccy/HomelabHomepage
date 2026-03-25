@@ -3,6 +3,7 @@ package proxy
 import (
 	"crypto/tls"
 	"fmt"
+	"html"
 	"net/http"
 	"net/http/httputil"
 	"net/url"
@@ -99,7 +100,9 @@ func (h *Handler) buildProxy(sub string, target *url.URL) *httputil.ReverseProxy
 		if s := h.store.GetServiceBySubdomain(sub); s != nil {
 			svcName = s.Name
 		}
-		h.errorPage(w, r, 502, fmt.Sprintf("Could not reach <strong>%s</strong>.<br><small>%v</small>", svcName, err), svcName)
+		msg := fmt.Sprintf("Could not reach <strong>%s</strong>.<br><small>%s</small>",
+			html.EscapeString(svcName), html.EscapeString(err.Error()))
+		h.errorPage(w, r, 502, msg, svcName)
 	}
 	// Wrap the default Director to set forwarding headers.
 	// req is a clone of the incoming request; req.Host is still the original

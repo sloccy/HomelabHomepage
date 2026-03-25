@@ -15,6 +15,7 @@ import (
 	"github.com/docker/docker/client"
 
 	"lantern/internal/store"
+	"lantern/internal/util"
 )
 
 // DockerWatch connects to the Docker socket and watches for container start/stop events.
@@ -131,7 +132,9 @@ type containerInfo struct {
 func (d *Discoverer) detachContainer(ctx context.Context, id string) {
 	d.store.ClearContainerID(id)
 	d.store.RemoveDiscoveredByContainerID(id)
-	_ = d.store.Save()
+	if err := d.store.Save(); err != nil {
+		log.Printf("discovery: save: %v", err)
+	}
 }
 
 // upsertContainerWithLabels resolves a container's configuration from Docker labels,
@@ -158,7 +161,9 @@ func (d *Discoverer) upsertContainerWithLabels(ctx context.Context, id, name str
 	if existing := d.store.GetServiceByContainerName(name); existing != nil {
 		existing.ContainerID = id
 		existing.Target = info.target
-		_ = d.store.Save()
+		if err := d.store.Save(); err != nil {
+			log.Printf("discovery: save: %v", err)
+		}
 		log.Printf("discovery: reattached %q → %s (%s)", name, existing.Subdomain, id)
 		return
 	}
@@ -171,7 +176,9 @@ func (d *Discoverer) upsertContainerWithLabels(ctx context.Context, id, name str
 			existing.ContainerID = id
 			existing.ContainerName = name // backfill for pre-fix records
 			existing.Target = info.target
-			_ = d.store.Save()
+			if err := d.store.Save(); err != nil {
+				log.Printf("discovery: save: %v", err)
+			}
 			log.Printf("discovery: reattached %q → %s (%s)", name, existing.Subdomain, id)
 			return
 		}
@@ -259,7 +266,9 @@ func (d *Discoverer) addDockerDiscovered(id, name, target, suggestedSub string) 
 		DiscoveredAt:       time.Now(),
 	}
 	d.store.AddDiscovered(disc)
-	_ = d.store.Save()
+	if err := d.store.Save(); err != nil {
+		log.Printf("discovery: save: %v", err)
+	}
 
 	go func(id, target string) {
 		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
@@ -272,7 +281,9 @@ func (d *Discoverer) addDockerDiscovered(id, name, target, suggestedSub string) 
 			return
 		}
 		d.store.UpdateDiscoveredIcon(id, "file")
-		_ = d.store.Save()
+		if err := d.store.Save(); err != nil {
+			log.Printf("discovery: save favicon: %v", err)
+		}
 	}(disc.ID, target)
 }
 
@@ -365,19 +376,4 @@ func containerName(names []string) string {
 	return strings.TrimPrefix(names[0], "/")
 }
 
-func sanitiseSubdomain(name string) string {
-	name = strings.ToLower(name)
-	var b strings.Builder
-	for _, r := range name {
-		if (r >= 'a' && r <= 'z') || (r >= '0' && r <= '9') || r == '-' {
-			b.WriteRune(r)
-		} else if r == '_' || r == '.' || r == ' ' {
-			b.WriteRune('-')
-		}
-	}
-	s := strings.Trim(b.String(), "-")
-	if s == "" {
-		s = "service"
-	}
-	return s
-}
+var sanitiseSubdomain = util.SanitiseSubdomain

@@ -1,33 +1,19 @@
 package web
 
 import (
-	"bytes"
 	"context"
 	"log"
 	"net"
 	"net/http"
-	"sort"
 	"time"
 
 	"lantern/internal/store"
+	"lantern/internal/util"
 )
 
 func (s *Server) listDiscovered(w http.ResponseWriter, r *http.Request) {
 	discovered := s.store.GetAllDiscovered()
-	sort.Slice(discovered, func(i, j int) bool {
-		a := net.ParseIP(discovered[i].IP).To4()
-		b := net.ParseIP(discovered[j].IP).To4()
-		if a == nil {
-			a = net.ParseIP(discovered[i].IP)
-		}
-		if b == nil {
-			b = net.ParseIP(discovered[j].IP)
-		}
-		if cmp := bytes.Compare(a, b); cmp != 0 {
-			return cmp < 0
-		}
-		return discovered[i].Port < discovered[j].Port
-	})
+	util.SortDiscoveredByIP(discovered)
 	writeJSON(w, http.StatusOK, discovered)
 }
 

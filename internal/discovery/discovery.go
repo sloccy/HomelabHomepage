@@ -2,8 +2,6 @@ package discovery
 
 import (
 	"context"
-	"crypto/rand"
-	"encoding/hex"
 	"fmt"
 	"log"
 	"strings"
@@ -13,6 +11,7 @@ import (
 	"lantern/internal/cf"
 	"lantern/internal/config"
 	"lantern/internal/store"
+	"lantern/internal/util"
 )
 
 // Discoverer orchestrates both network scanning and Docker watching.
@@ -147,7 +146,9 @@ func (d *Discoverer) runLightScan(ctx context.Context) {
 			_ = d.store.WriteIcon(actualID, r.iconBytes)
 		}
 	}
-	_ = d.store.Save()
+	if err := d.store.Save(); err != nil {
+		d.logf("save: %v", err)
+	}
 }
 
 func (d *Discoverer) runScan(ctx context.Context) {
@@ -218,13 +219,17 @@ func (d *Discoverer) runScan(ctx context.Context) {
 		count++
 		// Flush to disk every 10 results so the UI shows partial progress.
 		if count%10 == 0 {
-			_ = d.store.Save()
+			if err := d.store.Save(); err != nil {
+				d.logf("save: %v", err)
+			}
 		}
 	}
 
 	now := time.Now()
 	d.store.SetLastScan(now)
-	_ = d.store.Save()
+	if err := d.store.Save(); err != nil {
+		d.logf("save: %v", err)
+	}
 
 	d.mu.Lock()
 	d.lastScan = now
@@ -235,8 +240,4 @@ func (d *Discoverer) runScan(ctx context.Context) {
 		count, time.Since(start).Round(time.Second))
 }
 
-func newID() string {
-	b := make([]byte, 8)
-	_, _ = rand.Read(b)
-	return hex.EncodeToString(b)
-}
+var newID = util.NewID

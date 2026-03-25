@@ -3,8 +3,6 @@ package web
 import (
 	"compress/gzip"
 	"context"
-	"crypto/rand"
-	"encoding/hex"
 	"encoding/json"
 	"io"
 	"net/http"
@@ -16,6 +14,7 @@ import (
 	"lantern/internal/config"
 	"lantern/internal/store"
 	"lantern/internal/tunnel"
+	"lantern/internal/util"
 )
 
 // Scanner is the subset of discovery.Discoverer the web server needs.
@@ -250,19 +249,6 @@ func apiError(w http.ResponseWriter, code int, msg string) {
 	writeJSON(w, code, map[string]string{"error": msg})
 }
 
-func sanitiseSubdomain(s string) string {
-	s = strings.ToLower(strings.TrimSpace(s))
-	var b strings.Builder
-	for _, r := range s {
-		if (r >= 'a' && r <= 'z') || (r >= '0' && r <= '9') || r == '-' {
-			b.WriteRune(r)
-		} else if r == '_' || r == '.' {
-			b.WriteRune('-')
-		}
-	}
-	return strings.Trim(b.String(), "-")
-}
-
 func firstNonEmpty(a, b string) string {
 	if a != "" {
 		return a
@@ -270,8 +256,5 @@ func firstNonEmpty(a, b string) string {
 	return b
 }
 
-func newID() string {
-	b := make([]byte, 8)
-	_, _ = rand.Read(b)
-	return hex.EncodeToString(b)
-}
+var sanitiseSubdomain = util.SanitiseSubdomain
+var newID = util.NewID

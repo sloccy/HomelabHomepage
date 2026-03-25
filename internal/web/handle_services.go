@@ -10,6 +10,7 @@ import (
 
 	"lantern/internal/discovery"
 	"lantern/internal/store"
+	"lantern/internal/util"
 )
 
 func (s *Server) listServices(w http.ResponseWriter, r *http.Request) {
@@ -42,9 +43,9 @@ func (s *Server) createService(w http.ResponseWriter, r *http.Request) {
 	req.Subdomain = r.FormValue("subdomain")
 	req.Target = r.FormValue("target")
 	req.Category = r.FormValue("category")
-	req.Tunnel = r.FormValue("tunnel") == "on" || r.FormValue("tunnel") == "true" || r.FormValue("tunnel") == "1"
-	req.DirectOnly = r.FormValue("direct_only") == "on" || r.FormValue("direct_only") == "true" || r.FormValue("direct_only") == "1"
-	req.SkipHealth = r.FormValue("skip_health") == "on" || r.FormValue("skip_health") == "true" || r.FormValue("skip_health") == "1"
+	req.Tunnel = util.ParseFormBool(r.FormValue("tunnel"))
+	req.DirectOnly = util.ParseFormBool(r.FormValue("direct_only"))
+	req.SkipHealth = util.ParseFormBool(r.FormValue("skip_health"))
 
 	// Read uploaded icon if provided (stored as a file after the service ID is known).
 	var uploadedIconData []byte
@@ -208,7 +209,9 @@ func (s *Server) createService(w http.ResponseWriter, r *http.Request) {
 				updated := *existing
 				updated.Icon = "file"
 				s.store.UpdateService(id, &updated)
-				_ = s.store.Save()
+				if err := s.store.Save(); err != nil {
+					log.Printf("web: favicon save: %v", err)
+				}
 			}
 		}(svc.ID, svc.Target)
 	}
@@ -254,17 +257,17 @@ func (s *Server) updateService(w http.ResponseWriter, r *http.Request) {
 	}
 	// tunnel checkbox: only meaningful when the form includes a tunnel_present hidden field
 	if r.FormValue("tunnel_present") == "1" {
-		v := r.FormValue("tunnel") == "on" || r.FormValue("tunnel") == "true"
+		v := util.ParseFormBool(r.FormValue("tunnel"))
 		req.Tunnel = &v
 	}
 	// skip_health checkbox: only meaningful when the form includes a skip_health_present hidden field
 	if r.FormValue("skip_health_present") == "1" {
-		v := r.FormValue("skip_health") == "on" || r.FormValue("skip_health") == "true"
+		v := util.ParseFormBool(r.FormValue("skip_health"))
 		req.SkipHealth = &v
 	}
 	// direct_only checkbox: only meaningful when the form includes a direct_only_present hidden field
 	if r.FormValue("direct_only_present") == "1" {
-		v := r.FormValue("direct_only") == "on" || r.FormValue("direct_only") == "true"
+		v := util.ParseFormBool(r.FormValue("direct_only"))
 		req.DirectOnly = &v
 	}
 

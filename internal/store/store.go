@@ -91,6 +91,7 @@ type data struct {
 // Store is a thread-safe, JSON-backed persistence layer.
 type Store struct {
 	mu               sync.RWMutex
+	saveMu           sync.Mutex // serialises concurrent disk writes
 	d                data
 	path             string
 	iconDir          string
@@ -164,6 +165,8 @@ func (s *Store) Save() error {
 	if err != nil {
 		return err
 	}
+	s.saveMu.Lock()
+	defer s.saveMu.Unlock()
 	tmp := s.path + ".tmp"
 	if err := os.WriteFile(tmp, raw, 0o644); err != nil {
 		return err
@@ -299,9 +302,9 @@ func (s *Store) ClearContainerID(cid string) {
 
 func (s *Store) AddService(svc *Service) {
 	s.mu.Lock()
+	defer s.mu.Unlock()
 	s.d.Services[svc.Subdomain] = svc
 	s.rebuildIndexes()
-	s.mu.Unlock()
 }
 
 // UpdateService replaces a service and returns the old DNS record ID (if subdomain changed).
@@ -388,19 +391,17 @@ func (s *Store) GetDiscoveredByContainerID(cid string) *DiscoveredService {
 
 func (s *Store) AddDiscovered(d *DiscoveredService) {
 	s.mu.Lock()
+	defer s.mu.Unlock()
 	// Deduplicate by IP+port or ContainerID
 	for _, existing := range s.d.Discovered {
 		if existing.ContainerID != "" && existing.ContainerID == d.ContainerID {
-			s.mu.Unlock()
 			return
 		}
 		if existing.IP == d.IP && existing.Port == d.Port {
-			s.mu.Unlock()
 			return
 		}
 	}
 	s.d.Discovered = append(s.d.Discovered, d)
-	s.mu.Unlock()
 }
 
 func (s *Store) RemoveDiscovered(id string) {
@@ -646,8 +647,8 @@ func (s *Store) GetAllBookmarks() []*Bookmark {
 
 func (s *Store) AddBookmark(b *Bookmark) {
 	s.mu.Lock()
+	defer s.mu.Unlock()
 	s.d.Bookmarks = append(s.d.Bookmarks, b)
-	s.mu.Unlock()
 }
 
 func (s *Store) UpdateBookmark(id string, updated *Bookmark) bool {
@@ -700,16 +701,16 @@ func (s *Store) GetSettings() Settings {
 
 func (s *Store) UpdateSettings(settings Settings) {
 	s.mu.Lock()
+	defer s.mu.Unlock()
 	s.d.Settings = settings
-	s.mu.Unlock()
 }
 
 // ---- Scan status / public IP ------------------------------------------------
 
 func (s *Store) SetLastScan(t time.Time) {
 	s.mu.Lock()
+	defer s.mu.Unlock()
 	s.d.LastScan = t
-	s.mu.Unlock()
 }
 
 func (s *Store) GetLastScan() time.Time {
@@ -720,8 +721,8 @@ func (s *Store) GetLastScan() time.Time {
 
 func (s *Store) SetPublicIP(ip string) {
 	s.mu.Lock()
+	defer s.mu.Unlock()
 	s.d.PublicIP = ip
-	s.mu.Unlock()
 }
 
 func (s *Store) GetPublicIP() string {
@@ -740,12 +741,12 @@ func (s *Store) GetTunnel() *TunnelInfo {
 
 func (s *Store) SetTunnel(info *TunnelInfo) {
 	s.mu.Lock()
+	defer s.mu.Unlock()
 	s.d.Tunnel = info
-	s.mu.Unlock()
 }
 
 func (s *Store) ClearTunnel() {
 	s.mu.Lock()
+	defer s.mu.Unlock()
 	s.d.Tunnel = nil
-	s.mu.Unlock()
 }
