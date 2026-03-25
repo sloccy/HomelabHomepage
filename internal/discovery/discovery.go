@@ -127,6 +127,33 @@ func (d *Discoverer) assignedTargets() map[string]bool {
 	return m
 }
 
+// isAssignedTarget reports whether a probe result matches an already-assigned service.
+func isAssignedTarget(targets map[string]bool, r *probeResult) bool {
+	return targets[r.url] ||
+		targets[fmt.Sprintf("http://%s:%d", r.ip, r.port)] ||
+		targets[fmt.Sprintf("https://%s:%d", r.ip, r.port)]
+}
+
+// upsertProbeResult stores a probe result as a network-discovered service and
+// writes any fetched icon bytes to disk. Returns the stored entry's ID.
+func (d *Discoverer) upsertProbeResult(r *probeResult) string {
+	id := d.store.UpsertNetworkDiscovered(&store.DiscoveredService{
+		ID:           newID(),
+		IP:           r.ip,
+		Port:         r.port,
+		Title:        r.title,
+		Icon:         r.icon,
+		ServiceName:  r.serviceName,
+		Confidence:   r.confidence,
+		Source:       "network",
+		DiscoveredAt: time.Now(),
+	})
+	if len(r.iconBytes) > 0 {
+		_ = d.store.WriteIcon(id, r.iconBytes)
+	}
+	return id
+}
+
 // runLightScan runs mDNS, SSDP, and WS-Discovery without a TCP sweep.
 // Used for scheduled background discovery; does not affect d.scanning.
 func (d *Discoverer) runLightScan(ctx context.Context) {
@@ -134,25 +161,10 @@ func (d *Discoverer) runLightScan(ctx context.Context) {
 
 	ch := d.scanNetwork(ctx, nil, false)
 	for r := range ch {
-		if assignedTargets[r.url] ||
-			assignedTargets[fmt.Sprintf("http://%s:%d", r.ip, r.port)] ||
-			assignedTargets[fmt.Sprintf("https://%s:%d", r.ip, r.port)] {
+		if isAssignedTarget(assignedTargets, r) {
 			continue
 		}
-		actualID := d.store.UpsertNetworkDiscovered(&store.DiscoveredService{
-			ID:           newID(),
-			IP:           r.ip,
-			Port:         r.port,
-			Title:        r.title,
-			Icon:         r.icon,
-			ServiceName:  r.serviceName,
-			Confidence:   r.confidence,
-			Source:       "network",
-			DiscoveredAt: time.Now(),
-		})
-		if len(r.iconBytes) > 0 {
-			_ = d.store.WriteIcon(actualID, r.iconBytes)
-		}
+		d.upsertProbeResult(r)
 	}
 	if err := d.store.Save(); err != nil {
 		d.logf("save: %v", err)
@@ -198,25 +210,10 @@ func (d *Discoverer) runScan(ctx context.Context) {
 			continue
 		}
 		// Skip IPs/ports already assigned as services.
-		if assignedTargets[r.url] ||
-			assignedTargets[fmt.Sprintf("http://%s:%d", r.ip, r.port)] ||
-			assignedTargets[fmt.Sprintf("https://%s:%d", r.ip, r.port)] {
+		if isAssignedTarget(assignedTargets, r) {
 			continue
 		}
-		actualID := d.store.UpsertNetworkDiscovered(&store.DiscoveredService{
-			ID:           newID(),
-			IP:           r.ip,
-			Port:         r.port,
-			Title:        r.title,
-			Icon:         r.icon,
-			ServiceName:  r.serviceName,
-			Confidence:   r.confidence,
-			Source:       "network",
-			DiscoveredAt: time.Now(),
-		})
-		if len(r.iconBytes) > 0 {
-			_ = d.store.WriteIcon(actualID, r.iconBytes)
-		}
+		d.upsertProbeResult(r)
 		count++
 		// Flush to disk every 10 results so the UI shows partial progress.
 		if count%10 == 0 {

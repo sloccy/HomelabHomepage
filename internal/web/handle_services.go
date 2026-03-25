@@ -465,6 +465,7 @@ func (s *Server) deleteService(w http.ResponseWriter, r *http.Request) {
 		})
 		hxTrigger(w, "refreshDiscovered", nil)
 	}
+	s.store.DeleteIcon(id)
 	if err := s.store.Save(); err != nil {
 		log.Printf("web: save: %v", err)
 	}

@@ -32,6 +32,7 @@ type Server struct {
 	scanner        Scanner
 	tunnel         *tunnel.Manager
 	mux            *http.ServeMux
+	handler        http.Handler // composed middleware chain, built once in New
 	version        string
 	healthMu       sync.RWMutex
 	health         map[string]string // service ID → "up" | "down"
@@ -43,6 +44,7 @@ func New(cfg *config.Config, st *store.Store, cfClient *cf.Client, version strin
 	s := &Server{cfg: cfg, store: st, cf: cfClient, version: version, faviconCache: make(map[string]*faviconEntry)}
 	s.mux = http.NewServeMux()
 	s.routes()
+	s.handler = gzipHandler(securityHeaders(s.mux))
 	return s
 }
 
@@ -50,7 +52,7 @@ func (s *Server) SetScanner(sc Scanner)              { s.scanner = sc }
 func (s *Server) SetTunnelManager(t *tunnel.Manager) { s.tunnel = t }
 
 func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	gzipHandler(securityHeaders(s.mux)).ServeHTTP(w, r)
+	s.handler.ServeHTTP(w, r)
 }
 
 func securityHeaders(next http.Handler) http.Handler {
