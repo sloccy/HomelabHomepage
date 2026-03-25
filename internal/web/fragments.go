@@ -7,7 +7,6 @@ import (
 	"strings"
 	"time"
 
-	"lantern/internal/store"
 	"lantern/internal/sysinfo"
 	"lantern/internal/util"
 )
@@ -156,7 +155,7 @@ func (s *Server) fragBookmarkFormAdd(w http.ResponseWriter, r *http.Request) {
 
 func (s *Server) fragBookmarkFormEdit(w http.ResponseWriter, r *http.Request) {
 	id := r.PathValue("id")
-	bm := findBookmarkByID(s.store.GetAllBookmarks(), id)
+	bm := s.store.GetBookmarkByID(id)
 	if bm == nil {
 		http.NotFound(w, r)
 		return
@@ -296,15 +295,3 @@ func (s *Server) moveBookmark(w http.ResponseWriter, r *http.Request) {
 	}
 	doMove(w, r, items, s.store.ReorderBookmarks, s.store.Save)
 }
-
-// ---- Helpers ----------------------------------------------------------------
-
-func findBookmarkByID(bms []*store.Bookmark, id string) *store.Bookmark {
-	for _, bm := range bms {
-		if bm.ID == id {
-			return bm
-		}
-	}
-	return nil
-}
-

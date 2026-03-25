@@ -626,6 +626,9 @@ body.edit-mode #edit-layout-btn {
   gap: 1.5rem;
 }
 
+/* ── Icon preview image ─────────────────────────────────────────────────── */
+.icon-preview-img { border-radius:10px; object-fit:contain; background:var(--surface); }
+
 /* ── Icon edit row ──────────────────────────────────────────────────────── */
 .icon-edit-row {
   display: flex;
@@ -681,10 +684,6 @@ body.edit-mode #edit-layout-btn {
 form:has([name="direct_only"]:checked) .subdomain-group { display: none !important; }
 
 /* ── Animations ─────────────────────────────────────────────────────────── */
-@keyframes fadeIn {
-  from { opacity: 0; transform: translateY(4px); }
-  to   { opacity: 1; transform: translateY(0); }
-}
 @keyframes spin {
   to { transform: rotate(360deg); }
 }

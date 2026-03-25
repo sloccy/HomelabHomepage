@@ -7,8 +7,6 @@ import (
 	"log"
 	"net"
 	"net/textproto"
-	"net/url"
-	"strconv"
 	"strings"
 	"time"
 )
@@ -67,30 +65,11 @@ func discoverSSDP(ctx context.Context, timeout time.Duration) []openPort {
 		}
 		seen[loc] = true
 
-		u, err := url.Parse(loc)
-		if err != nil || u.Hostname() == "" {
+		p, ok := resolveURLToPort(loc)
+		if !ok {
 			continue
 		}
-
-		host := u.Hostname()
-		if net.ParseIP(host) == nil {
-			addrs, err := net.LookupHost(host)
-			if err != nil || len(addrs) == 0 {
-				continue
-			}
-			host = addrs[0]
-		}
-
-		port := 80
-		if p := u.Port(); p != "" {
-			if n, err := strconv.Atoi(p); err == nil {
-				port = n
-			}
-		} else if strings.EqualFold(u.Scheme, "https") {
-			port = 443
-		}
-
-		ports = append(ports, openPort{ip: host, port: port})
+		ports = append(ports, p)
 	}
 
 	log.Printf("discovery: ssdp: found %d unique services", len(ports))

@@ -198,11 +198,7 @@ func (s *Server) createService(w http.ResponseWriter, r *http.Request) {
 		go func(id, target string) {
 			ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 			defer cancel()
-			data := discovery.FetchFaviconForTarget(ctx, target)
-			if len(data) == 0 {
-				return
-			}
-			if err := s.store.WriteIcon(id, data); err != nil {
+			if !fetchAndWriteFavicon(ctx, s.store, id, target) {
 				return
 			}
 			if existing := s.store.GetServiceByID(id); existing != nil {
@@ -570,4 +566,15 @@ func (s *Server) pullServiceFavicon(w http.ResponseWriter, r *http.Request) {
 		log.Printf("web: save: %v", err)
 	}
 	renderTemplate(w, "icon-preview.html", &updated)
+}
+
+// fetchAndWriteFavicon fetches the favicon for target and writes it to the store
+// under id. Returns true if data was fetched and written successfully.
+// The caller is responsible for updating the entity's Icon field.
+func fetchAndWriteFavicon(ctx context.Context, st *store.Store, id, target string) bool {
+	data := discovery.FetchFaviconForTarget(ctx, target)
+	if len(data) == 0 {
+		return false
+	}
+	return st.WriteIcon(id, data) == nil
 }

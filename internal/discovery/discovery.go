@@ -115,14 +115,22 @@ func (d *Discoverer) Status() (scanning bool, last, next time.Time) {
 	return d.scanning, d.lastScan, d.nextScan
 }
 
+// assignedTargets builds a set of already-assigned service target URLs for
+// deduplication during discovery. Both the raw target and a trailing-slash-
+// stripped form are stored so either format matches.
+func (d *Discoverer) assignedTargets() map[string]bool {
+	m := make(map[string]bool)
+	for _, svc := range d.store.GetAllServices() {
+		m[svc.Target] = true
+		m[strings.TrimRight(svc.Target, "/")] = true
+	}
+	return m
+}
+
 // runLightScan runs mDNS, SSDP, and WS-Discovery without a TCP sweep.
 // Used for scheduled background discovery; does not affect d.scanning.
 func (d *Discoverer) runLightScan(ctx context.Context) {
-	assignedTargets := make(map[string]bool)
-	for _, svc := range d.store.GetAllServices() {
-		assignedTargets[svc.Target] = true
-		assignedTargets[strings.TrimRight(svc.Target, "/")] = true
-	}
+	assignedTargets := d.assignedTargets()
 
 	ch := d.scanNetwork(ctx, nil, false)
 	for r := range ch {
@@ -166,14 +174,7 @@ func (d *Discoverer) runScan(ctx context.Context) {
 		d.logf("No subnets configured — will auto-detect from local interfaces")
 	}
 
-	// Build assigned-targets set once (O(1) lookup per result).
-	// Store both the raw target and a trailing-slash-stripped form so either
-	// format matches regardless of how the target was originally saved.
-	assignedTargets := make(map[string]bool)
-	for _, svc := range d.store.GetAllServices() {
-		assignedTargets[svc.Target] = true
-		assignedTargets[strings.TrimRight(svc.Target, "/")] = true
-	}
+	assignedTargets := d.assignedTargets()
 	d.logf("Skipping %d already-assigned service targets", len(assignedTargets)/2)
 
 	// Build ignored set: ip:port pairs the user has permanently suppressed.

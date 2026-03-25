@@ -5,7 +5,9 @@ import (
 	"fmt"
 	"log"
 
-	cloudflare "github.com/cloudflare/cloudflare-go"
+	cloudflare "github.com/cloudflare/cloudflare-go/v6"
+	"github.com/cloudflare/cloudflare-go/v6/dns"
+	"github.com/cloudflare/cloudflare-go/v6/zero_trust"
 )
 
 // TunnelEnabled reports whether Cloudflare Tunnel management is active.
@@ -26,8 +28,11 @@ func (c *Client) AddTunnelRoute(ctx context.Context, hostname, backend string) (
 	if !c.TunnelEnabled() {
 		return "", nil
 	}
-	if err := c.modifyIngress(ctx, func(rules []cloudflare.UnvalidatedIngressRule) []cloudflare.UnvalidatedIngressRule {
-		return append(rules, cloudflare.UnvalidatedIngressRule{Hostname: hostname, Service: backend})
+	if err := c.modifyIngress(ctx, func(rules []zero_trust.TunnelCloudflaredConfigurationUpdateParamsConfigIngress) []zero_trust.TunnelCloudflaredConfigurationUpdateParamsConfigIngress {
+		return append(rules, zero_trust.TunnelCloudflaredConfigurationUpdateParamsConfigIngress{
+			Hostname: cloudflare.F(hostname),
+			Service:  cloudflare.F(backend),
+		})
 	}); err != nil {
 		return "", fmt.Errorf("add tunnel route %s: %w", hostname, err)
 	}
@@ -49,10 +54,10 @@ func (c *Client) RemoveTunnelRoute(ctx context.Context, hostname, cnameID string
 	if !c.TunnelEnabled() {
 		return nil
 	}
-	if err := c.modifyIngress(ctx, func(rules []cloudflare.UnvalidatedIngressRule) []cloudflare.UnvalidatedIngressRule {
-		var filtered []cloudflare.UnvalidatedIngressRule
+	if err := c.modifyIngress(ctx, func(rules []zero_trust.TunnelCloudflaredConfigurationUpdateParamsConfigIngress) []zero_trust.TunnelCloudflaredConfigurationUpdateParamsConfigIngress {
+		var filtered []zero_trust.TunnelCloudflaredConfigurationUpdateParamsConfigIngress
 		for _, r := range rules {
-			if r.Hostname != hostname {
+			if r.Hostname.Value != hostname {
 				filtered = append(filtered, r)
 			}
 		}
@@ -75,14 +80,17 @@ func (c *Client) ReplaceTunnelRoute(ctx context.Context, oldHostname, newHostnam
 	if !c.TunnelEnabled() {
 		return "", nil
 	}
-	if err := c.modifyIngress(ctx, func(rules []cloudflare.UnvalidatedIngressRule) []cloudflare.UnvalidatedIngressRule {
-		var filtered []cloudflare.UnvalidatedIngressRule
+	if err := c.modifyIngress(ctx, func(rules []zero_trust.TunnelCloudflaredConfigurationUpdateParamsConfigIngress) []zero_trust.TunnelCloudflaredConfigurationUpdateParamsConfigIngress {
+		var filtered []zero_trust.TunnelCloudflaredConfigurationUpdateParamsConfigIngress
 		for _, r := range rules {
-			if r.Hostname != oldHostname {
+			if r.Hostname.Value != oldHostname {
 				filtered = append(filtered, r)
 			}
 		}
-		return append(filtered, cloudflare.UnvalidatedIngressRule{Hostname: newHostname, Service: backend})
+		return append(filtered, zero_trust.TunnelCloudflaredConfigurationUpdateParamsConfigIngress{
+			Hostname: cloudflare.F(newHostname),
+			Service:  cloudflare.F(backend),
+		})
 	}); err != nil {
 		return "", fmt.Errorf("replace tunnel route %s→%s: %w", oldHostname, newHostname, err)
 	}
@@ -101,23 +109,30 @@ func (c *Client) ReplaceTunnelRoute(ctx context.Context, oldHostname, newHostnam
 
 // modifyIngress applies fn to the current tunnel ingress rules while holding
 // the tunnel mutex, always ensuring the catch-all rule is last.
-func (c *Client) modifyIngress(ctx context.Context, fn func([]cloudflare.UnvalidatedIngressRule) []cloudflare.UnvalidatedIngressRule) error {
+func (c *Client) modifyIngress(ctx context.Context, fn func([]zero_trust.TunnelCloudflaredConfigurationUpdateParamsConfigIngress) []zero_trust.TunnelCloudflaredConfigurationUpdateParamsConfigIngress) error {
 	c.tunnelMu.Lock()
 	defer c.tunnelMu.Unlock()
 
-	result, err := c.api.GetTunnelConfiguration(ctx, cloudflare.AccountIdentifier(c.accountID), c.tunnelID)
+	result, err := c.api.ZeroTrust.Tunnels.Cloudflared.Configurations.Get(ctx, c.tunnelID, zero_trust.TunnelCloudflaredConfigurationGetParams{
+		AccountID: cloudflare.F(c.accountID),
+	})
 	if err != nil {
 		return fmt.Errorf("get tunnel config: %w", err)
 	}
 
+	// Convert the response ingress rules to param types for the update.
 	// Separate named rules from the catch-all (Hostname == "").
-	var named []cloudflare.UnvalidatedIngressRule
-	var catchAll *cloudflare.UnvalidatedIngressRule
-	for i, r := range result.Config.Ingress {
+	var named []zero_trust.TunnelCloudflaredConfigurationUpdateParamsConfigIngress
+	var catchAll *zero_trust.TunnelCloudflaredConfigurationUpdateParamsConfigIngress
+	for _, r := range result.Config.Ingress {
+		rule := zero_trust.TunnelCloudflaredConfigurationUpdateParamsConfigIngress{
+			Hostname: cloudflare.F(r.Hostname),
+			Service:  cloudflare.F(r.Service),
+		}
 		if r.Hostname == "" {
-			catchAll = &result.Config.Ingress[i]
+			catchAll = &rule
 		} else {
-			named = append(named, r)
+			named = append(named, rule)
 		}
 	}
 
@@ -127,12 +142,16 @@ func (c *Client) modifyIngress(ctx context.Context, fn func([]cloudflare.Unvalid
 	if catchAll != nil {
 		named = append(named, *catchAll)
 	} else {
-		named = append(named, cloudflare.UnvalidatedIngressRule{Service: "http_status:404"})
+		named = append(named, zero_trust.TunnelCloudflaredConfigurationUpdateParamsConfigIngress{
+			Service: cloudflare.F("http_status:404"),
+		})
 	}
 
-	_, err = c.api.UpdateTunnelConfiguration(ctx, cloudflare.AccountIdentifier(c.accountID), cloudflare.TunnelConfigurationParams{
-		TunnelID: c.tunnelID,
-		Config:   cloudflare.TunnelConfiguration{Ingress: named},
+	_, err = c.api.ZeroTrust.Tunnels.Cloudflared.Configurations.Update(ctx, c.tunnelID, zero_trust.TunnelCloudflaredConfigurationUpdateParams{
+		AccountID: cloudflare.F(c.accountID),
+		Config: cloudflare.F(zero_trust.TunnelCloudflaredConfigurationUpdateParamsConfig{
+			Ingress: cloudflare.F(named),
+		}),
 	})
 	if err != nil {
 		return fmt.Errorf("update tunnel configuration: %w", err)
@@ -145,13 +164,15 @@ func (c *Client) createCNAME(ctx context.Context, hostname string) (string, erro
 	if c.noop || c.zoneID == "" {
 		return "", nil
 	}
-	proxied := true
-	rec, err := c.api.CreateDNSRecord(ctx, cloudflare.ZoneIdentifier(c.zoneID), cloudflare.CreateDNSRecordParams{
-		Type:    "CNAME",
-		Name:    hostname,
-		Content: c.tunnelID + ".cfargotunnel.com",
-		TTL:     1, // automatic TTL for proxied records
-		Proxied: &proxied,
+	rec, err := c.api.DNS.Records.New(ctx, dns.RecordNewParams{
+		ZoneID: cloudflare.F(c.zoneID),
+		Body: dns.CNAMERecordParam{
+			Type:    cloudflare.F(dns.CNAMERecordTypeCNAME),
+			Name:    cloudflare.F(hostname),
+			Content: cloudflare.F(c.tunnelID + ".cfargotunnel.com"),
+			TTL:     cloudflare.F(dns.TTL1),
+			Proxied: cloudflare.F(true),
+		},
 	})
 	if err != nil {
 		return "", fmt.Errorf("create CNAME %s: %w", hostname, err)

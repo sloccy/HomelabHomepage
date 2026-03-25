@@ -6,7 +6,6 @@ import (
 	"net/http"
 	"time"
 
-	"lantern/internal/discovery"
 	"lantern/internal/store"
 )
 
@@ -92,12 +91,7 @@ func (s *Server) deleteBookmark(w http.ResponseWriter, r *http.Request) {
 func (s *Server) fetchBookmarkFavicon(id, bmURL string) {
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
-	data := discovery.FetchFaviconForTarget(ctx, bmURL)
-	if len(data) == 0 {
-		return
-	}
-	if err := s.store.WriteIcon(id, data); err != nil {
-		log.Printf("web: bookmark favicon: %v", err)
+	if !fetchAndWriteFavicon(ctx, s.store, id, bmURL) {
 		return
 	}
 	if bm := s.store.GetBookmarkByID(id); bm != nil && bm.Icon != "file" {

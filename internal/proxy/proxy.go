@@ -65,12 +65,12 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 func (h *Handler) proxySubdomain(w http.ResponseWriter, r *http.Request, sub string) {
 	svc := h.store.GetServiceBySubdomain(sub)
 	if svc == nil {
-		h.errorPage(w, r, 404, fmt.Sprintf("No service assigned to <strong>%s.%s</strong>", sub, h.cfg.Domain), "")
+		h.errorPage(w, r, 404, fmt.Sprintf("No service assigned to <strong>%s.%s</strong>", sub, h.cfg.Domain))
 		return
 	}
 	target, err := url.Parse(svc.Target)
 	if err != nil {
-		h.errorPage(w, r, 502, "Invalid target URL for this service.", svc.Name)
+		h.errorPage(w, r, 502, "Invalid target URL for this service.")
 		return
 	}
 
@@ -102,7 +102,7 @@ func (h *Handler) buildProxy(sub string, target *url.URL) *httputil.ReverseProxy
 		}
 		msg := fmt.Sprintf("Could not reach <strong>%s</strong>.<br><small>%s</small>",
 			html.EscapeString(svcName), html.EscapeString(err.Error()))
-		h.errorPage(w, r, 502, msg, svcName)
+		h.errorPage(w, r, 502, msg)
 	}
 	// Wrap the default Director to set forwarding headers.
 	// req is a clone of the incoming request; req.Host is still the original
@@ -142,7 +142,7 @@ func (h *Handler) buildProxy(sub string, target *url.URL) *httputil.ReverseProxy
 	return rp
 }
 
-func (h *Handler) errorPage(w http.ResponseWriter, r *http.Request, code int, msg, svcName string) {
+func (h *Handler) errorPage(w http.ResponseWriter, r *http.Request, code int, msg string) {
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	w.WriteHeader(code)
 	title := "Service Unavailable"

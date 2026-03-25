@@ -1,13 +1,10 @@
 <div id="icon-preview">
   {{if isFileIcon .Icon}}
-  <img src="/api/icons/{{.ID}}" width="64" height="64"
-       style="border-radius:10px;object-fit:contain;background:var(--surface)">
+  <img src="/api/icons/{{.ID}}" width="64" height="64" class="icon-preview-img">
   {{else if isDataIcon .Icon}}
-  <img src="{{safeURL .Icon}}" width="64" height="64"
-       style="border-radius:10px;object-fit:contain;background:var(--surface)">
+  <img src="{{safeURL .Icon}}" width="64" height="64" class="icon-preview-img">
   {{else if .Target}}
-  <img src="{{safeURL (faviconURL .Target)}}" width="64" height="64"
-       style="border-radius:10px;object-fit:contain;background:var(--surface)"
+  <img src="{{safeURL (faviconURL .Target)}}" width="64" height="64" class="icon-preview-img"
        onerror="this.style.display='none'">
   {{else}}
   <div style="width:64px;height:64px;background:var(--surface);border-radius:10px;

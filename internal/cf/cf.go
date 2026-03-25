@@ -7,13 +7,16 @@ import (
 	"fmt"
 	"sync"
 
-	cloudflare "github.com/cloudflare/cloudflare-go"
+	cloudflare "github.com/cloudflare/cloudflare-go/v6"
+	"github.com/cloudflare/cloudflare-go/v6/dns"
+	"github.com/cloudflare/cloudflare-go/v6/option"
+	"github.com/cloudflare/cloudflare-go/v6/zero_trust"
 )
 
 // Client wraps the Cloudflare API for DNS record and tunnel management.
 // When created with an empty token, all methods become no-ops that return nil errors.
 type Client struct {
-	api       *cloudflare.API
+	api       *cloudflare.Client
 	zoneID    string
 	accountID string
 	tunnelID  string
@@ -28,12 +31,8 @@ func New(token, zoneID, tunnelID, accountID string) (*Client, error) {
 	if token == "" || zoneID == "" {
 		return &Client{noop: true}, nil
 	}
-	api, err := cloudflare.NewWithAPIToken(token)
-	if err != nil {
-		return nil, fmt.Errorf("create cloudflare client: %w", err)
-	}
 	return &Client{
-		api:       api,
+		api:       cloudflare.NewClient(option.WithAPIToken(token)),
 		zoneID:    zoneID,
 		tunnelID:  tunnelID,
 		accountID: accountID,
@@ -48,12 +47,15 @@ func (c *Client) CreateRecord(ctx context.Context, name, ip string) (string, err
 		return "", nil
 	}
 	proxied := false
-	rec, err := c.api.CreateDNSRecord(ctx, cloudflare.ZoneIdentifier(c.zoneID), cloudflare.CreateDNSRecordParams{
-		Type:    "A",
-		Name:    name,
-		Content: ip,
-		TTL:     60,
-		Proxied: &proxied,
+	rec, err := c.api.DNS.Records.New(ctx, dns.RecordNewParams{
+		ZoneID: cloudflare.F(c.zoneID),
+		Body: dns.ARecordParam{
+			Type:    cloudflare.F(dns.ARecordTypeA),
+			Name:    cloudflare.F(name),
+			Content: cloudflare.F(ip),
+			TTL:     cloudflare.F(dns.TTL(60)),
+			Proxied: cloudflare.F(proxied),
+		},
 	})
 	if err != nil {
 		return "", fmt.Errorf("create DNS record %s: %w", name, err)
@@ -61,14 +63,14 @@ func (c *Client) CreateRecord(ctx context.Context, name, ip string) (string, err
 	return rec.ID, nil
 }
 
-// UpdateRecord updates an existing A record's content.
+// UpdateRecord updates an existing A record's IP via a partial PATCH.
 func (c *Client) UpdateRecord(ctx context.Context, recordID, ip string) error {
 	if c.noop {
 		return nil
 	}
-	_, err := c.api.UpdateDNSRecord(ctx, cloudflare.ZoneIdentifier(c.zoneID), cloudflare.UpdateDNSRecordParams{
-		ID:      recordID,
-		Content: ip,
+	_, err := c.api.DNS.Records.Edit(ctx, recordID, dns.RecordEditParams{
+		ZoneID: cloudflare.F(c.zoneID),
+		Body:   dns.RecordEditParamsBody{Content: cloudflare.F(ip)},
 	})
 	if err != nil {
 		return fmt.Errorf("update DNS record %s: %w", recordID, err)
@@ -81,7 +83,10 @@ func (c *Client) DeleteRecord(ctx context.Context, recordID string) error {
 	if c.noop {
 		return nil
 	}
-	return c.api.DeleteDNSRecord(ctx, cloudflare.ZoneIdentifier(c.zoneID), recordID)
+	_, err := c.api.DNS.Records.Delete(ctx, recordID, dns.RecordDeleteParams{
+		ZoneID: cloudflare.F(c.zoneID),
+	})
+	return err
 }
 
 // FindRecord looks up a record ID and current IP by exact name.
@@ -89,16 +94,17 @@ func (c *Client) FindRecord(ctx context.Context, name string) (string, string, e
 	if c.noop {
 		return "", "", nil
 	}
-	records, _, err := c.api.ListDNSRecords(ctx, cloudflare.ZoneIdentifier(c.zoneID), cloudflare.ListDNSRecordsParams{
-		Name: name,
+	page, err := c.api.DNS.Records.List(ctx, dns.RecordListParams{
+		ZoneID: cloudflare.F(c.zoneID),
+		Name:   cloudflare.F(dns.RecordListParamsName{Exact: cloudflare.F(name)}),
 	})
 	if err != nil {
 		return "", "", err
 	}
-	if len(records) == 0 {
+	if len(page.Result) == 0 {
 		return "", "", nil
 	}
-	return records[0].ID, records[0].Content, nil
+	return page.Result[0].ID, page.Result[0].Content, nil
 }
 
 // ---- Tunnel management ------------------------------------------------------
@@ -113,22 +119,25 @@ func (c *Client) CreateTunnel(ctx context.Context, name string) (tunnelID, token
 	if _, err := rand.Read(secret); err != nil {
 		return "", "", fmt.Errorf("generate tunnel secret: %w", err)
 	}
-	tunnel, err := c.api.CreateTunnel(ctx, cloudflare.AccountIdentifier(c.accountID), cloudflare.TunnelCreateParams{
-		Name:      name,
-		Secret:    base64.StdEncoding.EncodeToString(secret),
-		ConfigSrc: "cloudflare",
+	tunnel, err := c.api.ZeroTrust.Tunnels.Cloudflared.New(ctx, zero_trust.TunnelCloudflaredNewParams{
+		AccountID:    cloudflare.F(c.accountID),
+		Name:         cloudflare.F(name),
+		TunnelSecret: cloudflare.F(base64.StdEncoding.EncodeToString(secret)),
+		ConfigSrc:    cloudflare.F(zero_trust.TunnelCloudflaredNewParamsConfigSrcCloudflare),
 	})
 	if err != nil {
 		return "", "", fmt.Errorf("create tunnel: %w", err)
 	}
 
-	tokenStr, err := c.api.GetTunnelToken(ctx, cloudflare.AccountIdentifier(c.accountID), tunnel.ID)
+	tokenStr, err := c.api.ZeroTrust.Tunnels.Cloudflared.Token.Get(ctx, tunnel.ID, zero_trust.TunnelCloudflaredTokenGetParams{
+		AccountID: cloudflare.F(c.accountID),
+	})
 	if err != nil {
 		return "", "", fmt.Errorf("get tunnel token: %w", err)
 	}
 
 	c.SetTunnelID(tunnel.ID)
-	return tunnel.ID, tokenStr, nil
+	return tunnel.ID, *tokenStr, nil
 }
 
 // DeleteTunnel deletes a Cloudflare Tunnel by ID.
@@ -136,7 +145,10 @@ func (c *Client) DeleteTunnel(ctx context.Context, tunnelID string) error {
 	if c.noop || c.accountID == "" {
 		return nil
 	}
-	return c.api.DeleteTunnel(ctx, cloudflare.AccountIdentifier(c.accountID), tunnelID)
+	_, err := c.api.ZeroTrust.Tunnels.Cloudflared.Delete(ctx, tunnelID, zero_trust.TunnelCloudflaredDeleteParams{
+		AccountID: cloudflare.F(c.accountID),
+	})
+	return err
 }
 
 // SetTunnelID updates the active tunnel ID used for ingress management.

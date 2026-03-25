@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log"
 	"regexp"
+	"strconv"
 	"strings"
 	"time"
 
@@ -13,6 +14,7 @@ import (
 	dockerevents "github.com/docker/docker/api/types/events"
 	"github.com/docker/docker/api/types/filters"
 	"github.com/docker/docker/client"
+	"github.com/docker/go-connections/nat"
 
 	"lantern/internal/store"
 	"lantern/internal/util"
@@ -88,7 +90,10 @@ func (d *Discoverer) syncContainers(ctx context.Context, dc *client.Client) {
 		return
 	}
 	for _, c := range containers {
-		name := containerName(c.Names)
+		if len(c.Names) == 0 {
+			continue
+		}
+		name := strings.TrimPrefix(c.Names[0], "/")
 		if name != "" {
 			d.upsertContainerWithLabels(ctx, c.ID, name, c.Ports, c.Labels)
 		}
@@ -100,18 +105,13 @@ func (d *Discoverer) handleDockerEvent(ctx context.Context, dc *client.Client, m
 	switch string(msg.Action) {
 	case "start":
 		time.Sleep(2 * time.Second) // brief delay for container to fully start
-		containers, err := dc.ContainerList(ctx, container.ListOptions{})
+		c, err := dc.ContainerInspect(ctx, msg.Actor.ID)
 		if err != nil {
 			return
 		}
-		for _, c := range containers {
-			if c.ID == msg.Actor.ID || strings.HasPrefix(c.ID, msg.Actor.ID) {
-				name := containerName(c.Names)
-				if name != "" {
-					d.upsertContainerWithLabels(ctx, c.ID, name, c.Ports, c.Labels)
-				}
-				return
-			}
+		name := strings.TrimPrefix(c.Name, "/")
+		if name != "" {
+			d.upsertContainerWithLabels(ctx, c.ID, name, portsFromNat(c.NetworkSettings.Ports), c.Config.Labels)
 		}
 
 	case "die", "stop", "destroy", "kill":
@@ -159,8 +159,10 @@ func (d *Discoverer) upsertContainerWithLabels(ctx context.Context, id, name str
 
 	// Reattach: same container name as an existing docker service (e.g. restart/recreate).
 	if existing := d.store.GetServiceByContainerName(name); existing != nil {
-		existing.ContainerID = id
-		existing.Target = info.target
+		updated := *existing
+		updated.ContainerID = id
+		updated.Target = info.target
+		d.store.UpdateService(existing.ID, &updated)
 		if err := d.store.Save(); err != nil {
 			log.Printf("discovery: save: %v", err)
 		}
@@ -173,9 +175,11 @@ func (d *Discoverer) upsertContainerWithLabels(ctx context.Context, id, name str
 	// Only send to discovered if it's a manual/network service with the same subdomain.
 	if existing := d.store.GetServiceBySubdomain(info.subdomain); existing != nil {
 		if existing.Source == "docker" {
-			existing.ContainerID = id
-			existing.ContainerName = name // backfill for pre-fix records
-			existing.Target = info.target
+			updated := *existing
+			updated.ContainerID = id
+			updated.ContainerName = name // backfill for pre-fix records
+			updated.Target = info.target
+			d.store.UpdateService(existing.ID, &updated)
 			if err := d.store.Save(); err != nil {
 				log.Printf("discovery: save: %v", err)
 			}
@@ -367,13 +371,26 @@ func splitTarget(target string) (string, int) {
 	return s[:idx], port
 }
 
-// ── String helpers ────────────────────────────────────────────────────────────
+// ── Port / nat helpers ────────────────────────────────────────────────────────
 
-func containerName(names []string) string {
-	if len(names) == 0 {
-		return ""
+// portsFromNat converts a nat.PortMap (from ContainerInspect) to the []types.Port
+// slice expected by upsertContainerWithLabels / bestPort.
+func portsFromNat(pm nat.PortMap) []dockertypes.Port {
+	ports := make([]dockertypes.Port, 0, len(pm))
+	for p, bindings := range pm {
+		priv, _ := strconv.Atoi(p.Port())
+		for _, b := range bindings {
+			pub, _ := strconv.Atoi(b.HostPort)
+			ports = append(ports, dockertypes.Port{
+				Type:        p.Proto(),
+				PrivatePort: uint16(priv),
+				PublicPort:  uint16(pub),
+			})
+		}
 	}
-	return strings.TrimPrefix(names[0], "/")
+	return ports
 }
+
+// ── String helpers ────────────────────────────────────────────────────────────
 
 var sanitiseSubdomain = util.SanitiseSubdomain

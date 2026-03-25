@@ -7,8 +7,6 @@ import (
 	"fmt"
 	"log"
 	"net"
-	"net/url"
-	"strconv"
 	"strings"
 	"time"
 )
@@ -87,30 +85,14 @@ func discoverWSDiscovery(ctx context.Context, timeout time.Duration) []openPort 
 		}
 		for _, match := range env.Body.ProbeMatches.ProbeMatch {
 			for _, addr := range strings.Fields(match.XAddrs) {
-				u, err := url.Parse(addr)
-				if err != nil || u.Hostname() == "" {
+				p, ok := resolveURLToPort(addr)
+				if !ok {
 					continue
 				}
-				host := u.Hostname()
-				if net.ParseIP(host) == nil {
-					addrs, err := net.LookupHost(host)
-					if err != nil || len(addrs) == 0 {
-						continue
-					}
-					host = addrs[0]
-				}
-				port := 80
-				if p := u.Port(); p != "" {
-					if n, err := strconv.Atoi(p); err == nil {
-						port = n
-					}
-				} else if strings.EqualFold(u.Scheme, "https") {
-					port = 443
-				}
-				key := fmt.Sprintf("%s:%d", host, port)
+				key := fmt.Sprintf("%s:%d", p.ip, p.port)
 				if !seen[key] {
 					seen[key] = true
-					ports = append(ports, openPort{ip: host, port: port})
+					ports = append(ports, p)
 				}
 			}
 		}

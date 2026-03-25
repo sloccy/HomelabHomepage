@@ -36,11 +36,11 @@ var (
 		},
 	}
 
-	reTitleTag         = regexp.MustCompile(`(?is)<title[^>]*>(.*?)</title>`)
-	reFaviconHref      = regexp.MustCompile(`(?i)<link[^>]+rel=["'][^"']*icon[^"']*["'][^>]+href=["']([^"']+)["']`)
-	reFaviconHref2     = regexp.MustCompile(`(?i)<link[^>]+href=["']([^"']+)["'][^>]+rel=["'][^"']*icon[^"']*["']`)
-	reAppleTouchIcon   = regexp.MustCompile(`(?i)<link[^>]+rel=["']apple-touch-icon["'][^>]+href=["']([^"']+)["']`)
-	reAppleTouchIcon2  = regexp.MustCompile(`(?i)<link[^>]+href=["']([^"']+)["'][^>]+rel=["']apple-touch-icon["']`)
+	reTitleTag        = regexp.MustCompile(`(?is)<title[^>]*>(.*?)</title>`)
+	reFaviconHref     = regexp.MustCompile(`(?i)<link[^>]+rel=["'][^"']*icon[^"']*["'][^>]+href=["']([^"']+)["']`)
+	reFaviconHref2    = regexp.MustCompile(`(?i)<link[^>]+href=["']([^"']+)["'][^>]+rel=["'][^"']*icon[^"']*["']`)
+	reAppleTouchIcon  = regexp.MustCompile(`(?i)<link[^>]+rel=["']apple-touch-icon["'][^>]+href=["']([^"']+)["']`)
+	reAppleTouchIcon2 = regexp.MustCompile(`(?i)<link[^>]+href=["']([^"']+)["'][^>]+rel=["']apple-touch-icon["']`)
 )
 
 // allPorts is the full 1-65535 range used during TCP sweeps.
@@ -52,6 +52,32 @@ var allPorts = func() []int {
 	}
 	return p
 }()
+
+// resolveURLToPort parses a URL and resolves the host to an IP, returning the
+// resulting openPort. Used by SSDP and WS-Discovery to normalise device addresses.
+func resolveURLToPort(rawURL string) (openPort, bool) {
+	u, err := url.Parse(rawURL)
+	if err != nil || u.Hostname() == "" {
+		return openPort{}, false
+	}
+	host := u.Hostname()
+	if net.ParseIP(host) == nil {
+		addrs, err := net.LookupHost(host)
+		if err != nil || len(addrs) == 0 {
+			return openPort{}, false
+		}
+		host = addrs[0]
+	}
+	port := 80
+	if p := u.Port(); p != "" {
+		if n, err := strconv.Atoi(p); err == nil {
+			port = n
+		}
+	} else if strings.EqualFold(u.Scheme, "https") {
+		port = 443
+	}
+	return openPort{ip: host, port: port}, true
+}
 
 // ── Stage 3: Fingerprint engine ───────────────────────────────────────────────
 

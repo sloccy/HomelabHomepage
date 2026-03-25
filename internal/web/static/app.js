@@ -109,6 +109,27 @@ document.addEventListener('DOMContentLoaded', () => {
   }, true);
 });
 
+// ── Scan log scroll-position helpers (called by hx-on in status.html) ────────
+function scanLogBeforeRequest(details) {
+  var el = document.querySelector('.scan-log');
+  if (el) {
+    window._scanLogScroll = el.scrollTop;
+    window._scanLogAtBottom = (el.scrollHeight - el.scrollTop - el.clientHeight) < 30;
+  }
+  window._scanLogOpen = details.open;
+}
+function scanLogAfterSettle() {
+  var d = document.querySelector('.scan-log-details');
+  if (d && window._scanLogOpen !== undefined) {
+    if (window._scanLogOpen) d.setAttribute('open', ''); else d.removeAttribute('open');
+  }
+  var el = document.querySelector('.scan-log');
+  if (el) {
+    if (window._scanLogAtBottom) el.scrollTop = el.scrollHeight;
+    else if (window._scanLogScroll !== undefined) el.scrollTop = window._scanLogScroll;
+  }
+}
+
 // ── Keyboard shortcuts ────────────────────────────────────────────────────────
 document.addEventListener('keydown', e => {
   const tag = document.activeElement.tagName;

@@ -21,13 +21,13 @@
   </table>
 </div>
 {{else}}
-<p class="empty-msg" style="text-align:center;padding:1rem 2rem">No subnets configured — local /24 is auto-detected.</p>
+<p class="empty-msg">No subnets configured — local /24 is auto-detected.</p>
 {{end}}
 <div class="card-form-row">
   <form hx-post="/api/scan/subnets"
         hx-target="#subnets-list"
         hx-swap="innerHTML"
-        hx-on::after-request="this.reset()">
+        hx-on::after-request="if(event.detail.successful) this.reset()">
     <input class="form-control" name="cidr" placeholder="10.0.1.0/24" required>
     <button class="btn btn-warning btn-sm" type="submit">+ Add</button>
   </form>
