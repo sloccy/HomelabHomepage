@@ -887,14 +887,14 @@ func extractTitle(html string) string {
 
 func extractFaviconURL(html, baseURL string) string {
 	// Prefer apple-touch-icon: always a high-quality PNG, no ICO format artifacts.
-	for _, re := range []*regexp.Regexp{reAppleTouchIcon, reAppleTouchIcon2} {
-		if m := re.FindStringSubmatch(html); len(m) >= 2 {
-			return resolveRef(m[1], baseURL)
-		}
-	}
-	for _, re := range []*regexp.Regexp{reFaviconHref, reFaviconHref2} {
-		if m := re.FindStringSubmatch(html); len(m) >= 2 {
-			return resolveRef(m[1], baseURL)
+	for _, pair := range [][2]*regexp.Regexp{
+		{reAppleTouchIcon, reAppleTouchIcon2},
+		{reFaviconHref, reFaviconHref2},
+	} {
+		for _, re := range pair {
+			if m := re.FindStringSubmatch(html); len(m) >= 2 {
+				return resolveRef(m[1], baseURL)
+			}
 		}
 	}
 	return resolveRef("/favicon.ico", baseURL)

@@ -53,9 +53,30 @@
   {{end}}
 </div>
 {{if .Scanning}}
+<script>
+function scanLogBeforeRequest(details) {
+  var el = document.querySelector('.scan-log');
+  if (el) {
+    window._scanLogScroll = el.scrollTop;
+    window._scanLogAtBottom = (el.scrollHeight - el.scrollTop - el.clientHeight) < 30;
+  }
+  window._scanLogOpen = details.open;
+}
+function scanLogAfterSettle() {
+  var d = document.querySelector('.scan-log-details');
+  if (d && window._scanLogOpen !== undefined) {
+    if (window._scanLogOpen) d.setAttribute('open', ''); else d.removeAttribute('open');
+  }
+  var el = document.querySelector('.scan-log');
+  if (el) {
+    if (window._scanLogAtBottom) el.scrollTop = el.scrollHeight;
+    else if (window._scanLogScroll !== undefined) el.scrollTop = window._scanLogScroll;
+  }
+}
+</script>
 <details class="scan-log-details" open
-         hx-on::before-request="let el=document.querySelector('.scan-log'); if(el){window._scanLogScroll=el.scrollTop; window._scanLogAtBottom=(el.scrollHeight-el.scrollTop-el.clientHeight)<30;} window._scanLogOpen=this.open"
-         hx-on::after-settle="let d=document.querySelector('.scan-log-details'); if(d&&window._scanLogOpen!==undefined){if(window._scanLogOpen)d.setAttribute('open','');else d.removeAttribute('open');} let el=document.querySelector('.scan-log'); if(el){if(window._scanLogAtBottom)el.scrollTop=el.scrollHeight;else if(window._scanLogScroll!==undefined)el.scrollTop=window._scanLogScroll;}">
+         hx-on::before-request="scanLogBeforeRequest(this)"
+         hx-on::after-settle="scanLogAfterSettle()">
   <summary class="scan-log-summary">Scan Log</summary>
   <div class="scan-log bg-poll"
        hx-get="/fragments/status"
