@@ -5,26 +5,8 @@ import (
 	"net/http"
 	"strings"
 
-	"lantern/internal/store"
 	"lantern/internal/sysinfo"
 )
-
-func (s *Server) getSettings(w http.ResponseWriter, r *http.Request) {
-	writeJSON(w, http.StatusOK, s.store.GetSettings())
-}
-
-func (s *Server) updateSettings(w http.ResponseWriter, r *http.Request) {
-	var req store.Settings
-	if err := readJSON(r, &req); err != nil {
-		apiError(w, http.StatusBadRequest, "invalid JSON")
-		return
-	}
-	s.store.UpdateSettings(req)
-	if err := s.store.Save(); err != nil {
-		log.Printf("web: save: %v", err)
-	}
-	writeJSON(w, http.StatusOK, s.store.GetSettings())
-}
 
 func (s *Server) getSysinfo(w http.ResponseWriter, r *http.Request) {
 	stats, err := sysinfo.Get()

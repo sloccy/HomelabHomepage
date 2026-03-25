@@ -65,7 +65,7 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 func (h *Handler) proxySubdomain(w http.ResponseWriter, r *http.Request, sub string) {
 	svc := h.store.GetServiceBySubdomain(sub)
 	if svc == nil {
-		h.errorPage(w, r, 404, fmt.Sprintf("No service assigned to <strong>%s.%s</strong>", sub, h.cfg.Domain))
+		h.errorPage(w, r, 404, fmt.Sprintf("No service assigned to <strong>%s.%s</strong>", html.EscapeString(sub), html.EscapeString(h.cfg.Domain)))
 		return
 	}
 	target, err := url.Parse(svc.Target)

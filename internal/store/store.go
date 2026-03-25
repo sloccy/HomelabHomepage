@@ -66,7 +66,6 @@ type DiscoveredService struct {
 	DiscoveredAt       time.Time `json:"discovered_at"`
 }
 
-type Settings struct{}
 
 // TunnelInfo holds the persisted Cloudflare Tunnel credentials managed by Lantern.
 type TunnelInfo struct {
@@ -80,7 +79,6 @@ type data struct {
 	Discovered   []*DiscoveredService  `json:"discovered"`
 	Ignored      []*IgnoredService     `json:"ignored"`
 	Bookmarks    []*Bookmark           `json:"bookmarks"`
-	Settings     Settings              `json:"settings"`
 	DDNSDomains  []string              `json:"ddns_domains"`
 	ScanSubnets  []string              `json:"scan_subnets"`
 	LastScan     time.Time             `json:"last_scan"`
@@ -407,11 +405,15 @@ func (s *Store) AddDiscovered(d *DiscoveredService) {
 func (s *Store) RemoveDiscovered(id string) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	filtered := s.d.Discovered[:0]
-	for _, d := range s.d.Discovered {
+	orig := s.d.Discovered
+	filtered := orig[:0]
+	for _, d := range orig {
 		if d.ID != id {
 			filtered = append(filtered, d)
 		}
+	}
+	for i := len(filtered); i < len(orig); i++ {
+		orig[i] = nil
 	}
 	s.d.Discovered = filtered
 }
@@ -419,11 +421,15 @@ func (s *Store) RemoveDiscovered(id string) {
 func (s *Store) RemoveDiscoveredByContainerID(cid string) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	filtered := s.d.Discovered[:0]
-	for _, d := range s.d.Discovered {
+	orig := s.d.Discovered
+	filtered := orig[:0]
+	for _, d := range orig {
 		if d.ContainerID != cid {
 			filtered = append(filtered, d)
 		}
+	}
+	for i := len(filtered); i < len(orig); i++ {
+		orig[i] = nil
 	}
 	s.d.Discovered = filtered
 }
@@ -496,8 +502,9 @@ func (s *Store) IgnoreDiscovered(id string) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	var found *DiscoveredService
-	filtered := s.d.Discovered[:0]
-	for _, d := range s.d.Discovered {
+	orig := s.d.Discovered
+	filtered := orig[:0]
+	for _, d := range orig {
 		if d.ID == id {
 			found = d
 		} else {
@@ -506,6 +513,9 @@ func (s *Store) IgnoreDiscovered(id string) error {
 	}
 	if found == nil {
 		return fmt.Errorf("discovered service %q not found", id)
+	}
+	for i := len(filtered); i < len(orig); i++ {
+		orig[i] = nil
 	}
 	s.d.Discovered = filtered
 	s.d.Ignored = append(s.d.Ignored, &IgnoredService{
@@ -530,9 +540,10 @@ func (s *Store) GetIgnored() []*IgnoredService {
 func (s *Store) UnignoreService(id string) (*IgnoredService, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	filtered := s.d.Ignored[:0]
+	orig := s.d.Ignored
+	filtered := orig[:0]
 	var removed *IgnoredService
-	for _, ig := range s.d.Ignored {
+	for _, ig := range orig {
 		if ig.ID == id {
 			removed = ig
 		} else {
@@ -541,6 +552,9 @@ func (s *Store) UnignoreService(id string) (*IgnoredService, error) {
 	}
 	if removed == nil {
 		return nil, fmt.Errorf("ignored service %q not found", id)
+	}
+	for i := len(filtered); i < len(orig); i++ {
+		orig[i] = nil
 	}
 	s.d.Ignored = filtered
 	return removed, nil
@@ -689,20 +703,6 @@ func (s *Store) DeleteBookmark(id string) bool {
 		}
 	}
 	return false
-}
-
-// ---- Settings ---------------------------------------------------------------
-
-func (s *Store) GetSettings() Settings {
-	s.mu.RLock()
-	defer s.mu.RUnlock()
-	return s.d.Settings
-}
-
-func (s *Store) UpdateSettings(settings Settings) {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	s.d.Settings = settings
 }
 
 // ---- Scan status / public IP ------------------------------------------------

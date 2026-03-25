@@ -108,7 +108,8 @@ func serveStaticFiles(mux *http.ServeMux) {
 
 // detectIconContentType returns the MIME type of icon data.
 // Go's http.DetectContentType does not recognise SVG, so we check for that
-// explicitly before falling back to the standard sniffer.
+// explicitly before falling back to the standard sniffer. Non-image types are
+// mapped to application/octet-stream to prevent stored XSS via uploaded icons.
 func detectIconContentType(data []byte) string {
 	trimmed := bytes.TrimSpace(data)
 	if bytes.HasPrefix(trimmed, []byte("<svg")) {
@@ -117,7 +118,11 @@ func detectIconContentType(data []byte) string {
 	if bytes.HasPrefix(trimmed, []byte("<?xml")) && bytes.Contains(trimmed[:min(512, len(trimmed))], []byte("<svg")) {
 		return "image/svg+xml"
 	}
-	return http.DetectContentType(data)
+	ct := http.DetectContentType(data)
+	if strings.HasPrefix(ct, "image/") {
+		return ct
+	}
+	return "application/octet-stream"
 }
 
 // getFavicon proxies a favicon from an internal service target, avoiding
@@ -209,8 +214,26 @@ func (s *Server) evictFaviconCache() {
 	}
 }
 
+// isValidIconID reports whether id is a safe icon filename (hex chars only).
+// NewID generates 16-char hex strings; anything else is rejected.
+func isValidIconID(id string) bool {
+	if len(id) == 0 || len(id) > 64 {
+		return false
+	}
+	for _, c := range id {
+		if !((c >= '0' && c <= '9') || (c >= 'a' && c <= 'f') || (c >= 'A' && c <= 'F')) {
+			return false
+		}
+	}
+	return true
+}
+
 func (s *Server) getIcon(w http.ResponseWriter, r *http.Request) {
 	id := r.PathValue("id")
+	if !isValidIconID(id) {
+		http.NotFound(w, r)
+		return
+	}
 	data, err := s.store.ReadIcon(id)
 	if err != nil {
 		http.NotFound(w, r)

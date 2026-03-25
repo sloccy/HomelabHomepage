@@ -225,9 +225,6 @@ func (s *Server) routes() {
 	s.mux.HandleFunc("DELETE /api/bookmarks/{id}", s.deleteBookmark)
 	s.mux.HandleFunc("POST /api/bookmarks/{id}/move", s.moveBookmark)
 
-	s.mux.HandleFunc("GET /api/settings", s.getSettings)
-	s.mux.HandleFunc("PUT /api/settings", s.updateSettings)
-
 	s.mux.HandleFunc("GET /api/tunnel", s.getTunnel)
 	s.mux.HandleFunc("POST /api/tunnel", s.createTunnel)
 	s.mux.HandleFunc("DELETE /api/tunnel", s.deleteTunnel)
@@ -242,7 +239,7 @@ func writeJSON(w http.ResponseWriter, code int, v any) {
 }
 
 func readJSON(r *http.Request, v any) error {
-	return json.NewDecoder(r.Body).Decode(v)
+	return json.NewDecoder(io.LimitReader(r.Body, 1<<20)).Decode(v)
 }
 
 func apiError(w http.ResponseWriter, code int, msg string) {

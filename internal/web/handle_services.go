@@ -90,7 +90,7 @@ func (s *Server) createService(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		scheme := "http"
-		if disc.Port == 443 || disc.Port == 8443 || disc.Port == 9443 {
+		if util.IsHTTPSPort(disc.Port) {
 			scheme = "https"
 		}
 		target = fmt.Sprintf("%s://%s:%d", scheme, disc.IP, disc.Port)

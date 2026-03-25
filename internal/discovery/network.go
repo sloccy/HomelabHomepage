@@ -14,12 +14,11 @@ import (
 	"sync"
 	"sync/atomic"
 	"time"
+
+	"lantern/internal/util"
 )
 
 var (
-	// httpsPorts are probed with HTTPS instead of HTTP.
-	httpsPorts = map[int]bool{443: true, 5001: true, 8006: true, 8443: true, 8448: true, 8920: true, 9443: true}
-
 	httpClient = &http.Client{
 		Timeout: 5 * time.Second,
 		Transport: &http.Transport{
@@ -451,7 +450,7 @@ type openPort struct {
 }
 
 // tcpSweep checks which (ip, port) pairs accept a TCP connection.
-// Uses 256 workers with a 750ms dial timeout — no data exchange.
+// Uses 4096 workers with a configurable dial timeout — no data exchange.
 // logf is called at 5% progress intervals with per-type error counts.
 func tcpSweep(ctx context.Context, ips []string, ports []int, logf func(string, ...any), timeout time.Duration) []openPort {
 	type job struct {
@@ -782,7 +781,7 @@ func (d *Discoverer) scanNetwork(ctx context.Context, cidrs []string, withTCP bo
 								return
 							}
 							scheme := "http"
-							if httpsPorts[op.port] {
+							if util.IsHTTPSPort(op.port) {
 								scheme = "https"
 							}
 							d.logf("[HTTP] Probing %s://%s:%d/", scheme, op.ip, op.port)
@@ -838,7 +837,7 @@ func (d *Discoverer) scanNetwork(ctx context.Context, cidrs []string, withTCP bo
 
 func probeHTTP(ctx context.Context, ip string, port int) *probeResult {
 	scheme := "http"
-	if httpsPorts[port] {
+	if util.IsHTTPSPort(port) {
 		scheme = "https"
 	}
 	rawURL := fmt.Sprintf("%s://%s:%d/", scheme, ip, port)
