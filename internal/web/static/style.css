@@ -462,12 +462,31 @@ body.edit-mode #edit-layout-btn {
   word-break: break-all;
 }
 
-/* Card entrance: single fast fade-in for all cards simultaneously. */
+/* Card entrance: exponential fade-in (y = 1.0116^x - 1, ~400ms). */
 @keyframes cardFadeIn {
-  from { opacity: 0; }
-  to   { opacity: 1; }
+  0%   { opacity: 0; }
+  5%   { opacity: 0.003; }
+  10%  { opacity: 0.006; }
+  15%  { opacity: 0.01; }
+  20%  { opacity: 0.015; }
+  25%  { opacity: 0.022; }
+  30%  { opacity: 0.03; }
+  35%  { opacity: 0.04; }
+  40%  { opacity: 0.053; }
+  45%  { opacity: 0.07; }
+  50%  { opacity: 0.09; }
+  55%  { opacity: 0.116; }
+  60%  { opacity: 0.149; }
+  65%  { opacity: 0.19; }
+  70%  { opacity: 0.242; }
+  75%  { opacity: 0.308; }
+  80%  { opacity: 0.39; }
+  85%  { opacity: 0.493; }
+  90%  { opacity: 0.623; }
+  95%  { opacity: 0.787; }
+  100% { opacity: 1; }
 }
-.card-wrapper .service-card { animation: cardFadeIn 300ms ease 100ms both; }
+.card-wrapper .service-card { animation: cardFadeIn 400ms linear both; }
 .htmx-settling .card-wrapper .service-card,
 .htmx-swapping .card-wrapper .service-card { animation: none; }
 
