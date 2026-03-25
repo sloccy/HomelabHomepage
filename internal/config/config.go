@@ -3,6 +3,7 @@ package config
 import (
 	"fmt"
 	"os"
+	"strconv"
 	"time"
 )
 
@@ -31,7 +32,11 @@ func Load() (*Config, error) {
 
 	scanTimeoutMs := 200
 	if s := os.Getenv("SCAN_TIMEOUT_MS"); s != "" {
-		fmt.Sscanf(s, "%d", &scanTimeoutMs)
+		if v, err := strconv.Atoi(s); err == nil {
+			scanTimeoutMs = v
+		} else {
+			return nil, fmt.Errorf("invalid SCAN_TIMEOUT_MS %q: %w", s, err)
+		}
 	}
 
 	cfg := &Config{

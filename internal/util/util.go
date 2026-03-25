@@ -45,6 +45,16 @@ func ParseFormBool(val string) bool {
 	return val == "on" || val == "true" || val == "1"
 }
 
+// IsHTTPSPort reports whether the given port is conventionally served over HTTPS.
+// This is the canonical set used across discovery and service assignment.
+func IsHTTPSPort(port int) bool {
+	switch port {
+	case 443, 5001, 8006, 8443, 8448, 8920, 9443:
+		return true
+	}
+	return false
+}
+
 // SortDiscoveredByIP sorts a slice of discovered services by IP address then
 // port, in ascending order.
 func SortDiscoveredByIP(svcs []*store.DiscoveredService) {

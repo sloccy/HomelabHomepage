@@ -65,7 +65,11 @@ func (d *Discoverer) DockerWatch(ctx context.Context) {
 				return
 			}
 			log.Printf("discovery: Docker events error: %v — reconnecting in 10s", err)
-			time.Sleep(10 * time.Second)
+			select {
+			case <-time.After(10 * time.Second):
+			case <-ctx.Done():
+				return
+			}
 			msgCh, errCh = dockerEvents(ctx, dc)
 		case msg, ok := <-msgCh:
 			if !ok {
@@ -104,7 +108,11 @@ func (d *Discoverer) syncContainers(ctx context.Context, dc *client.Client) {
 func (d *Discoverer) handleDockerEvent(ctx context.Context, dc *client.Client, msg dockerevents.Message) {
 	switch string(msg.Action) {
 	case "start":
-		time.Sleep(2 * time.Second) // brief delay for container to fully start
+		select { // brief delay for container to fully start
+		case <-time.After(2 * time.Second):
+		case <-ctx.Done():
+			return
+		}
 		c, err := dc.ContainerInspect(ctx, msg.Actor.ID)
 		if err != nil {
 			return
@@ -229,7 +237,7 @@ func (d *Discoverer) resolveContainer(name string, ports []dockertypes.Port, lab
 	// Port: lantern.port > traefik service port > bestPort(published).
 	port := 0
 	if p := labels["lantern.port"]; p != "" {
-		fmt.Sscanf(p, "%d", &port)
+		port, _ = strconv.Atoi(p)
 	}
 	if port == 0 {
 		port = traefikPort(labels)
@@ -245,7 +253,7 @@ func (d *Discoverer) resolveContainer(name string, ports []dockertypes.Port, lab
 	scheme := "http"
 	if s := labels["lantern.scheme"]; s == "https" || s == "http" {
 		scheme = s
-	} else if port == 443 || port == 8443 || port == 9443 {
+	} else if util.IsHTTPSPort(port) {
 		scheme = "https"
 	}
 
@@ -325,8 +333,7 @@ func traefikPort(labels map[string]string) int {
 		if !strings.HasSuffix(k, ".loadbalancer.server.port") {
 			continue
 		}
-		var port int
-		fmt.Sscanf(v, "%d", &port)
+		port, _ := strconv.Atoi(v)
 		return port
 	}
 	return 0
@@ -366,8 +373,7 @@ func splitTarget(target string) (string, int) {
 	if idx < 0 {
 		return s, 0
 	}
-	var port int
-	fmt.Sscanf(s[idx+1:], "%d", &port)
+	port, _ := strconv.Atoi(s[idx+1:])
 	return s[:idx], port
 }
 

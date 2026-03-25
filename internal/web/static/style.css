@@ -482,8 +482,6 @@ body.edit-mode #edit-layout-btn {
   gap: 0.75rem;
   padding: 1rem;
 }
-.empty-icon  { font-size: 4rem; }
-
 /* Logo glow for empty state */
 .empty-state .logo-img-lg {
   filter: drop-shadow(0 0 30px rgba(var(--accent-rgb), .4)) drop-shadow(0 0 60px rgba(var(--accent-rgb), .15));
