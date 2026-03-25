@@ -4,7 +4,9 @@ import (
 	"bytes"
 	"compress/gzip"
 	"context"
+	"crypto/sha256"
 	"embed"
+	"encoding/hex"
 	"io/fs"
 	"log"
 	"net/http"
@@ -104,6 +106,20 @@ func serveStaticFiles(mux *http.ServeMux) {
 	}))
 }
 
+// detectIconContentType returns the MIME type of icon data.
+// Go's http.DetectContentType does not recognise SVG, so we check for that
+// explicitly before falling back to the standard sniffer.
+func detectIconContentType(data []byte) string {
+	trimmed := bytes.TrimSpace(data)
+	if bytes.HasPrefix(trimmed, []byte("<svg")) {
+		return "image/svg+xml"
+	}
+	if bytes.HasPrefix(trimmed, []byte("<?xml")) && bytes.Contains(trimmed[:min(512, len(trimmed))], []byte("<svg")) {
+		return "image/svg+xml"
+	}
+	return http.DetectContentType(data)
+}
+
 // getFavicon proxies a favicon from an internal service target, avoiding
 // mixed-content and CORS issues in the browser. Results are cached server-side
 // for 1 hour (positive) or 15 minutes (negative) to avoid repeated fetches.
@@ -154,7 +170,7 @@ func (s *Server) getFavicon(w http.ResponseWriter, r *http.Request) {
 		http.NotFound(w, r)
 		return
 	}
-	ct := http.DetectContentType(data)
+	ct := detectIconContentType(data)
 	s.faviconCache[cacheKey] = &faviconEntry{data: data, contentType: ct, fetchedAt: time.Now()}
 	s.faviconCacheMu.Unlock()
 
@@ -200,8 +216,15 @@ func (s *Server) getIcon(w http.ResponseWriter, r *http.Request) {
 		http.NotFound(w, r)
 		return
 	}
-	ct := http.DetectContentType(data)
+	hash := sha256.Sum256(data)
+	etag := `"` + hex.EncodeToString(hash[:16]) + `"`
+	if r.Header.Get("If-None-Match") == etag {
+		w.WriteHeader(http.StatusNotModified)
+		return
+	}
+	ct := detectIconContentType(data)
 	w.Header().Set("Content-Type", ct)
-	w.Header().Set("Cache-Control", "public, max-age=86400")
+	w.Header().Set("Cache-Control", "public, max-age=3600, must-revalidate")
+	w.Header().Set("ETag", etag)
 	_, _ = w.Write(data)
 }

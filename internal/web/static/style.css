@@ -370,6 +370,7 @@ details[open] .when-collapsed { display: none; }
   box-shadow: 0 2px 12px rgba(0,0,0,.5), 0 0 0 0 rgba(var(--accent-rgb), 0);
   overflow: hidden;
   contain: content;
+  min-height: 130px;
 }
 
 
@@ -438,6 +439,8 @@ body.edit-mode #edit-layout-btn {
 .card-icon-placeholder {
   width: 48px;
   height: 48px;
+  min-width: 48px;
+  min-height: 48px;
   border-radius: 10px;
   background: rgba(var(--accent-rgb), .06);
   border: 1px solid rgba(var(--accent-rgb), .1);
@@ -464,7 +467,7 @@ body.edit-mode #edit-layout-btn {
   from { opacity: 0; }
   to   { opacity: 1; }
 }
-.card-wrapper .service-card { animation: cardFadeIn 300ms ease both; }
+.card-wrapper .service-card { animation: cardFadeIn 300ms ease 100ms both; }
 .htmx-settling .card-wrapper .service-card,
 .htmx-swapping .card-wrapper .service-card { animation: none; }
 
@@ -501,9 +504,12 @@ body.edit-mode #edit-layout-btn {
 .status-cell {
   background: linear-gradient(135deg, var(--surface) 0%, var(--surface2) 100%);
   padding: 1.1rem 1.5rem;
-  transition: background .15s;
+  box-shadow: inset 0 0 0 0 rgba(var(--accent-rgb), 0);
+  transition: box-shadow .25s var(--ease);
 }
-.status-cell:hover { background: var(--surface3); }
+.status-cell:hover {
+  box-shadow: inset 0 0 20px rgba(var(--accent-rgb), .08), 0 0 12px rgba(var(--accent-rgb), .1);
+}
 .status-label { font-size: .7rem; color: var(--muted); text-transform: uppercase; letter-spacing: .07em; font-weight: 500; }
 .status-value { font-size: 1.05rem; font-weight: 600; margin-top: .25rem; letter-spacing: -.01em; }
 .status-value.scanning { color: var(--warn); }

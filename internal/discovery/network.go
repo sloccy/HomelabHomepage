@@ -29,16 +29,18 @@ var (
 			TLSHandshakeTimeout: 3 * time.Second,
 		},
 		CheckRedirect: func(req *http.Request, via []*http.Request) error {
-			if len(via) >= 3 {
+			if len(via) >= 5 {
 				return http.ErrUseLastResponse
 			}
 			return nil
 		},
 	}
 
-	reTitleTag    = regexp.MustCompile(`(?is)<title[^>]*>(.*?)</title>`)
-	reFaviconHref  = regexp.MustCompile(`(?i)<link[^>]+rel=["'][^"']*icon[^"']*["'][^>]+href=["']([^"']+)["']`)
-	reFaviconHref2 = regexp.MustCompile(`(?i)<link[^>]+href=["']([^"']+)["'][^>]+rel=["'][^"']*icon[^"']*["']`)
+	reTitleTag         = regexp.MustCompile(`(?is)<title[^>]*>(.*?)</title>`)
+	reFaviconHref      = regexp.MustCompile(`(?i)<link[^>]+rel=["'][^"']*icon[^"']*["'][^>]+href=["']([^"']+)["']`)
+	reFaviconHref2     = regexp.MustCompile(`(?i)<link[^>]+href=["']([^"']+)["'][^>]+rel=["'][^"']*icon[^"']*["']`)
+	reAppleTouchIcon   = regexp.MustCompile(`(?i)<link[^>]+rel=["']apple-touch-icon["'][^>]+href=["']([^"']+)["']`)
+	reAppleTouchIcon2  = regexp.MustCompile(`(?i)<link[^>]+href=["']([^"']+)["'][^>]+rel=["']apple-touch-icon["']`)
 )
 
 // allPorts is the full 1-65535 range used during TCP sweeps.
@@ -884,6 +886,12 @@ func extractTitle(html string) string {
 }
 
 func extractFaviconURL(html, baseURL string) string {
+	// Prefer apple-touch-icon: always a high-quality PNG, no ICO format artifacts.
+	for _, re := range []*regexp.Regexp{reAppleTouchIcon, reAppleTouchIcon2} {
+		if m := re.FindStringSubmatch(html); len(m) >= 2 {
+			return resolveRef(m[1], baseURL)
+		}
+	}
 	for _, re := range []*regexp.Regexp{reFaviconHref, reFaviconHref2} {
 		if m := re.FindStringSubmatch(html); len(m) >= 2 {
 			return resolveRef(m[1], baseURL)
