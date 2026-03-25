@@ -80,6 +80,7 @@ func (s *Server) deleteBookmark(w http.ResponseWriter, r *http.Request) {
 		apiError(w, http.StatusNotFound, "bookmark not found")
 		return
 	}
+	s.store.DeleteIcon(id)
 	if err := s.store.Save(); err != nil {
 		log.Printf("web: save: %v", err)
 	}

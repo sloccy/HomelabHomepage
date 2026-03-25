@@ -174,27 +174,22 @@ func (s *Store) Save() error {
 
 // ---- Icon file storage ------------------------------------------------------
 
-// iconPath returns the filesystem path for an entity's icon file.
 func (s *Store) iconPath(id string) string {
 	return filepath.Join(s.iconDir, id)
 }
 
-// WriteIcon writes raw icon bytes to disk for the given entity ID.
 func (s *Store) WriteIcon(id string, data []byte) error {
 	return os.WriteFile(s.iconPath(id), data, 0o644)
 }
 
-// ReadIcon reads the raw icon bytes for the given entity ID.
 func (s *Store) ReadIcon(id string) ([]byte, error) {
 	return os.ReadFile(s.iconPath(id))
 }
 
-// DeleteIcon removes the icon file for the given entity ID (best-effort).
 func (s *Store) DeleteIcon(id string) {
 	_ = os.Remove(s.iconPath(id))
 }
 
-// HasIcon reports whether an icon file exists for the given entity ID.
 func (s *Store) HasIcon(id string) bool {
 	_, err := os.Stat(s.iconPath(id))
 	return err == nil
@@ -310,12 +305,7 @@ func (s *Store) UpdateService(id string, updated *Service) (oldSub, oldDNSID str
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	if svc := s.idIdx[id]; svc != nil {
-		for sub, sv := range s.d.Services {
-			if sv == svc {
-				oldSub = sub
-				break
-			}
-		}
+		oldSub = svc.Subdomain
 		oldDNSID = svc.DNSRecordID
 		delete(s.d.Services, oldSub)
 		s.d.Services[updated.Subdomain] = updated
@@ -328,12 +318,7 @@ func (s *Store) DeleteService(id string) (sub, dnsID, tunnelRoute string) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	if svc := s.idIdx[id]; svc != nil {
-		for k, sv := range s.d.Services {
-			if sv == svc {
-				sub = k
-				break
-			}
-		}
+		sub = svc.Subdomain
 		dnsID = svc.DNSRecordID
 		tunnelRoute = svc.TunnelRouteID
 		delete(s.d.Services, sub)
