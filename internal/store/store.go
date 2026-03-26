@@ -145,14 +145,26 @@ func (s *Store) rebuildIndexes() {
 	s.containerIDIdx = make(map[string]*Service, len(s.d.Services))
 	s.containerNameIdx = make(map[string]*Service, len(s.d.Services))
 	for _, svc := range s.d.Services {
-		s.idIdx[svc.ID] = svc
-		if svc.ContainerID != "" {
-			s.containerIDIdx[svc.ContainerID] = svc
-		}
-		if svc.Source == "docker" && svc.ContainerName != "" {
-			s.containerNameIdx[svc.ContainerName] = svc
-		}
+		s.indexService(svc)
 	}
+}
+
+// indexService adds a service to all secondary indexes. Must be called with the write lock held.
+func (s *Store) indexService(svc *Service) {
+	s.idIdx[svc.ID] = svc
+	if svc.ContainerID != "" {
+		s.containerIDIdx[svc.ContainerID] = svc
+	}
+	if svc.Source == "docker" && svc.ContainerName != "" {
+		s.containerNameIdx[svc.ContainerName] = svc
+	}
+}
+
+// unindexService removes a service from all secondary indexes. Must be called with the write lock held.
+func (s *Store) unindexService(svc *Service) {
+	delete(s.idIdx, svc.ID)
+	delete(s.containerIDIdx, svc.ContainerID)
+	delete(s.containerNameIdx, svc.ContainerName)
 }
 
 // Save flushes the store to disk. Safe to call concurrently.
@@ -283,8 +295,8 @@ func (s *Store) ClearContainerID(cid string) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	if svc, ok := s.containerIDIdx[cid]; ok {
+		delete(s.containerIDIdx, cid)
 		svc.ContainerID = ""
-		s.rebuildIndexes()
 	}
 }
 
@@ -292,7 +304,7 @@ func (s *Store) AddService(svc *Service) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	s.d.Services[svc.Subdomain] = svc
-	s.rebuildIndexes()
+	s.indexService(svc)
 }
 
 // UpdateService replaces a service and returns the old DNS record ID (if subdomain changed).
@@ -302,9 +314,10 @@ func (s *Store) UpdateService(id string, updated *Service) (oldSub, oldDNSID str
 	if svc := s.idIdx[id]; svc != nil {
 		oldSub = svc.Subdomain
 		oldDNSID = svc.DNSRecordID
+		s.unindexService(svc)
 		delete(s.d.Services, oldSub)
 		s.d.Services[updated.Subdomain] = updated
-		s.rebuildIndexes()
+		s.indexService(updated)
 	}
 	return
 }
@@ -316,8 +329,8 @@ func (s *Store) DeleteService(id string) (sub, dnsID, tunnelRoute string) {
 		sub = svc.Subdomain
 		dnsID = svc.DNSRecordID
 		tunnelRoute = svc.TunnelRouteID
+		s.unindexService(svc)
 		delete(s.d.Services, sub)
-		s.rebuildIndexes()
 	}
 	return
 }

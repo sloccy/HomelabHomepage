@@ -1,12 +1,16 @@
 {{if .Service}}
 <h3>Edit Service</h3>
-<form hx-put="/api/services/{{.Service.ID}}"
+{{else}}
+<h3>Add Service</h3>
+{{end}}
+<form {{if .Service}}hx-put="/api/services/{{.Service.ID}}"{{else}}hx-post="/api/services" hx-encoding="multipart/form-data"{{end}}
       hx-swap="none">
 
   <input type="hidden" name="discovered_id" value="">
 
   <div class="mb-3">
     <label>Icon</label>
+    {{if .Service}}
     {{template "icon-preview.html" .Service}}
     <div class="icon-edit-row">
       <label class="btn btn-link btn-sm" style="cursor:pointer">
@@ -27,67 +31,7 @@
               hx-target="#icon-preview"
               hx-swap="outerHTML">Clear</button>
     </div>
-  </div>
-
-  <div class="mb-3">
-    <label>Name</label>
-    <input class="form-control" name="name" value="{{.Service.Name}}" required>
-  </div>
-
-  <div>
-    <input type="hidden" name="direct_only_present" value="1">
-    <div class="mb-3 subdomain-group"{{if .Service.DirectOnly}} style="display:none"{{end}}>
-      <label>Subdomain</label>
-      <div class="subdomain-wrap" data-domain="{{.Domain}}">
-        <input class="form-control" name="subdomain" value="{{.Service.Subdomain}}">
-        <div class="subdomain-hint">{{if .Service.Subdomain}}{{.Service.Subdomain}}.{{.Domain}}{{end}}</div>
-      </div>
-    </div>
-    <div class="mb-3">
-      <label>Target URL</label>
-      <input class="form-control" name="target" value="{{.Service.Target}}" placeholder="http://10.0.0.5:8080" required>
-    </div>
-    <div class="mb-3">
-      <label>Category</label>
-      <input class="form-control" name="category" value="{{.Service.Category}}" list="categories-list" placeholder="Optional">
-      <datalist id="categories-list">
-        {{range .Categories}}<option value="{{.}}">{{end}}
-      </datalist>
-    </div>
-    <input type="hidden" name="tunnel_present" value="1">
-    <input type="hidden" name="skip_health_present" value="1">
-    <div class="d-flex flex-wrap gap-3 mb-3 align-items-center">
-      <label class="d-flex gap-2 align-items-center">
-        <input type="checkbox" id="cb-direct-only" name="direct_only" {{if .Service.DirectOnly}}checked{{end}}>
-        Direct link
-      </label>
-      {{if .TunnelEnabled}}
-      <label class="d-flex gap-2 align-items-center">
-        <input type="checkbox" id="cb-tunnel" name="tunnel" {{if isTunneled .Service}}checked{{end}}>
-        Cloudflare Tunnel
-      </label>
-      {{end}}
-      <label class="d-flex gap-2 align-items-center">
-        <input type="checkbox" id="cb-skip-health" name="skip_health" {{if .Service.SkipHealth}}checked{{end}}>
-        Skip health check
-      </label>
-    </div>
-  </div>
-  <div class="d-flex gap-2 justify-content-end mt-3">
-    <button type="button" class="btn btn-link" data-bs-dismiss="modal">Cancel</button>
-    <button type="submit" class="btn btn-warning">Save</button>
-  </div>
-</form>
-{{else}}
-<h3>Add Service</h3>
-<form hx-post="/api/services"
-      hx-swap="none"
-      hx-encoding="multipart/form-data">
-
-  <input type="hidden" name="discovered_id" value="">
-
-  <div class="mb-3">
-    <label>Icon</label>
+    {{else}}
     <div id="icon-preview">
       <div style="width:64px;height:64px;background:var(--surface);border-radius:10px;
                   display:flex;align-items:center;justify-content:center;font-size:2rem">📦</div>
@@ -99,52 +43,57 @@
                onchange="const f=this.files[0];if(f){const r=new FileReader();r.onload=e=>{const p=document.getElementById('icon-preview');p.innerHTML='<img src=\''+e.target.result+'\' width=64 height=64 style=\'border-radius:10px;object-fit:contain;background:var(--surface)\'>'};r.readAsDataURL(f)}">
       </label>
     </div>
+    {{end}}
   </div>
 
   <div class="mb-3">
     <label>Name</label>
-    <input class="form-control" name="name" placeholder="My Service">
+    <input class="form-control" name="name" value="{{with .Service}}{{.Name}}{{end}}" {{if not .Service}}placeholder="My Service"{{end}}{{if .Service}} required{{end}}>
   </div>
 
   <div>
-    <div class="mb-3 subdomain-group">
+    {{if .Service}}<input type="hidden" name="direct_only_present" value="1">{{end}}
+    <div class="mb-3 subdomain-group"{{if and .Service .Service.DirectOnly}} style="display:none"{{end}}>
       <label>Subdomain</label>
       <div class="subdomain-wrap" data-domain="{{.Domain}}">
-        <input class="form-control" name="subdomain" placeholder="myservice">
-        <div class="subdomain-hint"></div>
+        <input class="form-control" name="subdomain" value="{{with .Service}}{{.Subdomain}}{{end}}" placeholder="{{if not .Service}}myservice{{end}}">
+        <div class="subdomain-hint">{{with .Service}}{{if .Subdomain}}{{.Subdomain}}.{{$.Domain}}{{end}}{{end}}</div>
       </div>
     </div>
     <div class="mb-3">
       <label>Target URL</label>
-      <input class="form-control" name="target" placeholder="http://10.0.0.5:8080" required>
+      <input class="form-control" name="target" value="{{with .Service}}{{.Target}}{{end}}" placeholder="http://10.0.0.5:8080" required>
     </div>
     <div class="mb-3">
       <label>Category</label>
-      <input class="form-control" name="category" list="categories-list" placeholder="Optional">
+      <input class="form-control" name="category" value="{{with .Service}}{{.Category}}{{end}}" list="categories-list" placeholder="Optional">
       <datalist id="categories-list">
         {{range .Categories}}<option value="{{.}}">{{end}}
       </datalist>
     </div>
+    {{if .Service}}
+    <input type="hidden" name="tunnel_present" value="1">
+    <input type="hidden" name="skip_health_present" value="1">
+    {{end}}
     <div class="d-flex flex-wrap gap-3 mb-3 align-items-center">
       <label class="d-flex gap-2 align-items-center">
-        <input type="checkbox" id="cb-direct" name="direct_only">
+        <input type="checkbox" id="cb-direct-only" name="direct_only" {{if and .Service .Service.DirectOnly}}checked{{end}}>
         Direct link
       </label>
       {{if .TunnelEnabled}}
       <label class="d-flex gap-2 align-items-center">
-        <input type="checkbox" id="cb-tunnel" name="tunnel">
+        <input type="checkbox" id="cb-tunnel" name="tunnel" {{if and .Service (isTunneled .Service)}}checked{{end}}>
         Cloudflare Tunnel
       </label>
       {{end}}
       <label class="d-flex gap-2 align-items-center">
-        <input type="checkbox" id="cb-skip-health" name="skip_health">
+        <input type="checkbox" id="cb-skip-health" name="skip_health" {{if and .Service .Service.SkipHealth}}checked{{end}}>
         Skip health check
       </label>
     </div>
   </div>
   <div class="d-flex gap-2 justify-content-end mt-3">
     <button type="button" class="btn btn-link" data-bs-dismiss="modal">Cancel</button>
-    <button type="submit" class="btn btn-warning">Add Service</button>
+    <button type="submit" class="btn btn-warning">{{if .Service}}Save{{else}}Add Service{{end}}</button>
   </div>
 </form>
-{{end}}
