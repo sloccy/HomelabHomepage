@@ -7,6 +7,7 @@ import (
 	"io"
 	"net"
 	"net/http"
+	"net/netip"
 	"net/url"
 	"regexp"
 	"strconv"
@@ -15,6 +16,8 @@ import (
 	"sync/atomic"
 	"time"
 
+	"go4.org/netipx"
+	"golang.org/x/sync/errgroup"
 	"lantern/internal/util"
 )
 
@@ -87,348 +90,185 @@ type signature struct {
 	match      func(h http.Header, body, title string) bool
 }
 
+// simpleSig builds a signature that matches when title contains titleMatch OR body contains bodyMatch.
+func simpleSig(name string, conf float32, icon, titleMatch, bodyMatch string) signature {
+	return signature{name, conf, icon, func(_ http.Header, b, t string) bool {
+		return strings.Contains(t, titleMatch) || strings.Contains(b, bodyMatch)
+	}}
+}
+
 var signatures = []signature{
 	// ── Infrastructure ───────────────────────────────────────────────────────
 	{"Proxmox VE", 0.99, "🖥️", func(h http.Header, b, _ string) bool {
-		return strings.Contains(h.Get("Server"), "pve-api-daemon") ||
-			strings.Contains(b, "Proxmox Virtual Environment")
+		return strings.Contains(h.Get("Server"), "pve-api-daemon") || strings.Contains(b, "Proxmox Virtual Environment")
 	}},
-	{"Cockpit", 0.92, "🖥️", func(_ http.Header, b, t string) bool {
-		return strings.Contains(t, "Cockpit") || strings.Contains(b, "cockpit")
-	}},
-	{"Webmin", 0.90, "🖥️", func(_ http.Header, b, t string) bool {
-		return strings.Contains(t, "Webmin") || strings.Contains(b, "webmin")
-	}},
+	simpleSig("Cockpit", 0.92, "🖥️", "Cockpit", "cockpit"),
+	simpleSig("Webmin", 0.90, "🖥️", "Webmin", "webmin"),
 	{"Synology DSM", 0.95, "💾", func(_ http.Header, b, t string) bool {
-		return strings.Contains(t, "Synology") ||
-			strings.Contains(b, "Synology DiskStation") || strings.Contains(b, "SYNO.")
+		return strings.Contains(t, "Synology") || strings.Contains(b, "Synology DiskStation") || strings.Contains(b, "SYNO.")
 	}},
-	{"TrueNAS", 0.95, "💾", func(_ http.Header, b, t string) bool {
-		return strings.Contains(t, "TrueNAS") || strings.Contains(b, "TrueNAS")
-	}},
-	{"UniFi", 0.92, "📡", func(_ http.Header, b, t string) bool {
-		return strings.Contains(b, "UniFi") || strings.Contains(t, "UniFi")
-	}},
-	{"OpenWrt", 0.92, "📡", func(_ http.Header, b, t string) bool {
-		return strings.Contains(t, "OpenWrt") || strings.Contains(b, "OpenWrt")
-	}},
+	simpleSig("TrueNAS", 0.95, "💾", "TrueNAS", "TrueNAS"),
+	simpleSig("UniFi", 0.92, "📡", "UniFi", "UniFi"),
+	simpleSig("OpenWrt", 0.92, "📡", "OpenWrt", "OpenWrt"),
 
 	// ── Monitoring / Observability ───────────────────────────────────────────
 	{"Grafana", 0.99, "📊", func(h http.Header, b, t string) bool {
-		return h.Get("X-Grafana-Version") != "" ||
-			strings.Contains(t, "Grafana") || strings.Contains(b, "grafana")
+		return h.Get("X-Grafana-Version") != "" || strings.Contains(t, "Grafana") || strings.Contains(b, "grafana")
 	}},
-	{"Prometheus", 0.95, "📈", func(_ http.Header, b, t string) bool {
-		return strings.Contains(t, "Prometheus") || strings.Contains(b, "prometheus_")
-	}},
+	simpleSig("Prometheus", 0.95, "📈", "Prometheus", "prometheus_"),
 	{"Netdata", 0.99, "📉", func(h http.Header, b, t string) bool {
-		return h.Get("X-Netdata-Version") != "" ||
-			strings.Contains(b, "netdataRoot") || strings.Contains(t, "Netdata")
+		return h.Get("X-Netdata-Version") != "" || strings.Contains(b, "netdataRoot") || strings.Contains(t, "Netdata")
 	}},
-	{"Uptime Kuma", 0.95, "🟢", func(_ http.Header, b, t string) bool {
-		return strings.Contains(t, "Uptime Kuma") || strings.Contains(b, "uptimekuma")
-	}},
-	{"Scrutiny", 0.95, "💾", func(_ http.Header, b, t string) bool {
-		return strings.Contains(t, "Scrutiny") || strings.Contains(b, "scrutiny")
-	}},
-	{"Healthchecks", 0.90, "✅", func(_ http.Header, b, t string) bool {
-		return strings.Contains(t, "Healthchecks") || strings.Contains(b, "healthchecks")
-	}},
-	{"Dozzle", 0.95, "📋", func(_ http.Header, b, t string) bool {
-		return strings.Contains(t, "Dozzle") || strings.Contains(b, "dozzle")
-	}},
+	simpleSig("Uptime Kuma", 0.95, "🟢", "Uptime Kuma", "uptimekuma"),
+	simpleSig("Scrutiny", 0.95, "💾", "Scrutiny", "scrutiny"),
+	simpleSig("Healthchecks", 0.90, "✅", "Healthchecks", "healthchecks"),
+	simpleSig("Dozzle", 0.95, "📋", "Dozzle", "dozzle"),
 
 	// ── Container management ─────────────────────────────────────────────────
-	{"Portainer", 0.95, "🐳", func(_ http.Header, b, t string) bool {
-		return strings.Contains(t, "Portainer") || strings.Contains(b, "Portainer")
-	}},
-	{"Yacht", 0.90, "⛵", func(_ http.Header, b, t string) bool {
-		return strings.Contains(t, "Yacht") || strings.Contains(b, "yacht-app")
-	}},
+	simpleSig("Portainer", 0.95, "🐳", "Portainer", "Portainer"),
+	simpleSig("Yacht", 0.90, "⛵", "Yacht", "yacht-app"),
 
 	// ── Reverse proxies ──────────────────────────────────────────────────────
-	{"Nginx Proxy Manager", 0.95, "🔀", func(_ http.Header, b, t string) bool {
-		return strings.Contains(t, "Nginx Proxy Manager") || strings.Contains(b, "Nginx Proxy Manager")
-	}},
-	{"Traefik", 0.92, "🔀", func(_ http.Header, b, t string) bool {
-		return strings.Contains(t, "Traefik") || strings.Contains(b, "traefik")
-	}},
+	simpleSig("Nginx Proxy Manager", 0.95, "🔀", "Nginx Proxy Manager", "Nginx Proxy Manager"),
+	simpleSig("Traefik", 0.92, "🔀", "Traefik", "traefik"),
 
 	// ── Home automation ──────────────────────────────────────────────────────
-	{"Home Assistant", 0.95, "🏠", func(_ http.Header, b, t string) bool {
-		return strings.Contains(t, "Home Assistant") || strings.Contains(b, "Home Assistant")
-	}},
+	simpleSig("Home Assistant", 0.95, "🏠", "Home Assistant", "Home Assistant"),
 	{"Node-RED", 0.97, "🔴", func(h http.Header, b, t string) bool {
-		return strings.Contains(h.Get("X-Powered-By"), "node-red") ||
-			strings.Contains(t, "Node-RED") || strings.Contains(b, "node-red")
+		return strings.Contains(h.Get("X-Powered-By"), "node-red") || strings.Contains(t, "Node-RED") || strings.Contains(b, "node-red")
 	}},
-	{"Frigate", 0.95, "📹", func(_ http.Header, b, t string) bool {
-		return strings.Contains(t, "Frigate") || strings.Contains(b, "Frigate NVR")
-	}},
-	{"Zigbee2MQTT", 0.90, "📡", func(_ http.Header, b, t string) bool {
-		return strings.Contains(t, "Zigbee2MQTT") || strings.Contains(b, "zigbee2mqtt")
-	}},
+	simpleSig("Frigate", 0.95, "📹", "Frigate", "Frigate NVR"),
+	simpleSig("Zigbee2MQTT", 0.90, "📡", "Zigbee2MQTT", "zigbee2mqtt"),
 
 	// ── Media servers ────────────────────────────────────────────────────────
 	{"Jellyfin", 0.99, "🎬", func(h http.Header, b, t string) bool {
-		return h.Get("X-Jellyfin-Version") != "" ||
-			strings.Contains(b, "Jellyfin") || strings.Contains(t, "Jellyfin")
+		return h.Get("X-Jellyfin-Version") != "" || strings.Contains(b, "Jellyfin") || strings.Contains(t, "Jellyfin")
 	}},
 	{"Plex", 0.99, "🎬", func(h http.Header, b, t string) bool {
-		return h.Get("X-Plex-Protocol") != "" ||
-			strings.Contains(b, "Plex Media Server") || strings.Contains(t, "Plex")
+		return h.Get("X-Plex-Protocol") != "" || strings.Contains(b, "Plex Media Server") || strings.Contains(t, "Plex")
 	}},
 	{"Emby", 0.95, "🎬", func(h http.Header, b, t string) bool {
-		return h.Get("X-Emby-Server-Id") != "" ||
-			strings.Contains(t, "Emby") || strings.Contains(b, "Emby Server")
+		return h.Get("X-Emby-Server-Id") != "" || strings.Contains(t, "Emby") || strings.Contains(b, "Emby Server")
 	}},
-	{"Navidrome", 0.95, "🎵", func(_ http.Header, b, t string) bool {
-		return strings.Contains(t, "Navidrome") || strings.Contains(b, "Navidrome")
-	}},
-	{"Audiobookshelf", 0.95, "🎧", func(_ http.Header, b, t string) bool {
-		return strings.Contains(t, "Audiobookshelf") || strings.Contains(b, "audiobookshelf")
-	}},
+	simpleSig("Navidrome", 0.95, "🎵", "Navidrome", "Navidrome"),
+	simpleSig("Audiobookshelf", 0.95, "🎧", "Audiobookshelf", "audiobookshelf"),
 
 	// ── Media request / management ───────────────────────────────────────────
-	{"Overseerr", 0.95, "🎭", func(_ http.Header, b, t string) bool {
-		return strings.Contains(t, "Overseerr") || strings.Contains(b, "Overseerr")
-	}},
-	{"Jellyseerr", 0.95, "🎭", func(_ http.Header, b, t string) bool {
-		return strings.Contains(t, "Jellyseerr") || strings.Contains(b, "Jellyseerr")
-	}},
-	{"Ombi", 0.90, "🎭", func(_ http.Header, b, t string) bool {
-		return strings.Contains(t, "Ombi") || strings.Contains(b, "Ombi")
-	}},
-	{"Tautulli", 0.95, "📊", func(_ http.Header, b, t string) bool {
-		return strings.Contains(t, "Tautulli") || strings.Contains(b, "tautulli")
-	}},
+	simpleSig("Overseerr", 0.95, "🎭", "Overseerr", "Overseerr"),
+	simpleSig("Jellyseerr", 0.95, "🎭", "Jellyseerr", "Jellyseerr"),
+	simpleSig("Ombi", 0.90, "🎭", "Ombi", "Ombi"),
+	simpleSig("Tautulli", 0.95, "📊", "Tautulli", "tautulli"),
 
 	// ── *arr suite ───────────────────────────────────────────────────────────
-	{"Sonarr", 0.95, "📺", func(_ http.Header, b, t string) bool {
-		return strings.Contains(t, "Sonarr") || strings.Contains(b, "Sonarr")
-	}},
-	{"Radarr", 0.95, "🎥", func(_ http.Header, b, t string) bool {
-		return strings.Contains(t, "Radarr") || strings.Contains(b, "Radarr")
-	}},
-	{"Lidarr", 0.92, "🎵", func(_ http.Header, b, t string) bool {
-		return strings.Contains(t, "Lidarr") || strings.Contains(b, "Lidarr")
-	}},
-	{"Readarr", 0.92, "📚", func(_ http.Header, b, t string) bool {
-		return strings.Contains(t, "Readarr") || strings.Contains(b, "Readarr")
-	}},
-	{"Prowlarr", 0.95, "🔍", func(_ http.Header, b, t string) bool {
-		return strings.Contains(t, "Prowlarr") || strings.Contains(b, "Prowlarr")
-	}},
-	{"Bazarr", 0.95, "💬", func(_ http.Header, b, t string) bool {
-		return strings.Contains(t, "Bazarr") || strings.Contains(b, "Bazarr")
-	}},
-	{"Jackett", 0.95, "🔍", func(_ http.Header, b, t string) bool {
-		return strings.Contains(t, "Jackett") || strings.Contains(b, "Jackett")
-	}},
+	simpleSig("Sonarr", 0.95, "📺", "Sonarr", "Sonarr"),
+	simpleSig("Radarr", 0.95, "🎥", "Radarr", "Radarr"),
+	simpleSig("Lidarr", 0.92, "🎵", "Lidarr", "Lidarr"),
+	simpleSig("Readarr", 0.92, "📚", "Readarr", "Readarr"),
+	simpleSig("Prowlarr", 0.95, "🔍", "Prowlarr", "Prowlarr"),
+	simpleSig("Bazarr", 0.95, "💬", "Bazarr", "Bazarr"),
+	simpleSig("Jackett", 0.95, "🔍", "Jackett", "Jackett"),
 
 	// ── Download clients ─────────────────────────────────────────────────────
-	{"Transmission", 0.92, "⬇️", func(_ http.Header, b, t string) bool {
-		return strings.Contains(t, "Transmission") || strings.Contains(b, "Transmission Web")
-	}},
-	{"qBittorrent", 0.92, "⬇️", func(_ http.Header, b, t string) bool {
-		return strings.Contains(t, "qBittorrent") || strings.Contains(b, "qBittorrent")
-	}},
-	{"Deluge", 0.90, "⬇️", func(_ http.Header, b, t string) bool {
-		return strings.Contains(t, "Deluge") || strings.Contains(b, "Deluge Web")
-	}},
-	{"ruTorrent", 0.90, "⬇️", func(_ http.Header, b, t string) bool {
-		return strings.Contains(t, "ruTorrent") || strings.Contains(b, "ruTorrent")
-	}},
-	{"Flood", 0.90, "⬇️", func(_ http.Header, b, t string) bool {
-		return strings.Contains(t, "Flood") || strings.Contains(b, "flood-app")
-	}},
-	{"SABnzbd", 0.95, "📥", func(_ http.Header, b, t string) bool {
-		return strings.Contains(t, "SABnzbd") || strings.Contains(b, "sabnzbd")
-	}},
-	{"NZBGet", 0.95, "📥", func(_ http.Header, b, t string) bool {
-		return strings.Contains(t, "NZBGet") || strings.Contains(b, "nzbget")
-	}},
+	simpleSig("Transmission", 0.92, "⬇️", "Transmission", "Transmission Web"),
+	simpleSig("qBittorrent", 0.92, "⬇️", "qBittorrent", "qBittorrent"),
+	simpleSig("Deluge", 0.90, "⬇️", "Deluge", "Deluge Web"),
+	simpleSig("ruTorrent", 0.90, "⬇️", "ruTorrent", "ruTorrent"),
+	simpleSig("Flood", 0.90, "⬇️", "Flood", "flood-app"),
+	simpleSig("SABnzbd", 0.95, "📥", "SABnzbd", "sabnzbd"),
+	simpleSig("NZBGet", 0.95, "📥", "NZBGet", "nzbget"),
 
 	// ── Git / CI ─────────────────────────────────────────────────────────────
 	{"Gitea", 0.99, "🦊", func(h http.Header, b, t string) bool {
-		return h.Get("X-Gitea-Version") != "" ||
-			strings.Contains(t, "Gitea") || strings.Contains(b, "Gitea")
+		return h.Get("X-Gitea-Version") != "" || strings.Contains(t, "Gitea") || strings.Contains(b, "Gitea")
 	}},
 	{"Forgejo", 0.99, "🦊", func(h http.Header, b, t string) bool {
-		return h.Get("X-Forgejo-Version") != "" ||
-			strings.Contains(t, "Forgejo") || strings.Contains(b, "Forgejo")
+		return h.Get("X-Forgejo-Version") != "" || strings.Contains(t, "Forgejo") || strings.Contains(b, "Forgejo")
 	}},
-	{"Woodpecker CI", 0.90, "🚀", func(_ http.Header, b, t string) bool {
-		return strings.Contains(t, "Woodpecker") || strings.Contains(b, "woodpecker-ci")
-	}},
-	{"Drone CI", 0.90, "🚀", func(_ http.Header, b, t string) bool {
-		return strings.Contains(t, "Drone") || strings.Contains(b, "drone.io")
-	}},
-	{"Harbor", 0.92, "🗃️", func(_ http.Header, b, t string) bool {
-		return strings.Contains(t, "Harbor") || strings.Contains(b, "harbor-app")
-	}},
+	simpleSig("Woodpecker CI", 0.90, "🚀", "Woodpecker", "woodpecker-ci"),
+	simpleSig("Drone CI", 0.90, "🚀", "Drone", "drone.io"),
+	simpleSig("Harbor", 0.92, "🗃️", "Harbor", "harbor-app"),
 
 	// ── Auth / Identity ──────────────────────────────────────────────────────
 	{"Vaultwarden", 0.95, "🔐", func(_ http.Header, b, t string) bool {
-		return strings.Contains(b, "Vaultwarden") ||
-			strings.Contains(t, "Vaultwarden") || strings.Contains(b, "bitwarden")
+		return strings.Contains(b, "Vaultwarden") || strings.Contains(t, "Vaultwarden") || strings.Contains(b, "bitwarden")
 	}},
-	{"Authelia", 0.95, "🔐", func(_ http.Header, b, t string) bool {
-		return strings.Contains(t, "Authelia") || strings.Contains(b, "Authelia")
-	}},
+	simpleSig("Authelia", 0.95, "🔐", "Authelia", "Authelia"),
 	{"Authentik", 0.97, "🔐", func(h http.Header, b, t string) bool {
-		return strings.Contains(h.Get("X-Powered-By"), "authentik") ||
-			strings.Contains(b, "ak-flow") || strings.Contains(t, "authentik")
+		return strings.Contains(h.Get("X-Powered-By"), "authentik") || strings.Contains(b, "ak-flow") || strings.Contains(t, "authentik")
 	}},
-	{"Keycloak", 0.95, "🔑", func(_ http.Header, b, t string) bool {
-		return strings.Contains(t, "Keycloak") || strings.Contains(b, "Keycloak")
-	}},
+	simpleSig("Keycloak", 0.95, "🔑", "Keycloak", "Keycloak"),
 	{"HashiCorp Vault", 0.97, "🔒", func(h http.Header, b, t string) bool {
-		return h.Get("X-Vault-Request") != "" ||
-			strings.Contains(b, "hashicorp-vault") || strings.Contains(t, "Vault")
+		return h.Get("X-Vault-Request") != "" || strings.Contains(b, "hashicorp-vault") || strings.Contains(t, "Vault")
 	}},
 
 	// ── Networking / VPN ─────────────────────────────────────────────────────
-	{"Pi-hole", 0.95, "🕳️", func(_ http.Header, b, t string) bool {
-		return strings.Contains(t, "Pi-hole") || strings.Contains(b, "Pi-hole")
-	}},
-	{"AdGuard Home", 0.95, "🛡️", func(_ http.Header, b, t string) bool {
-		return strings.Contains(t, "AdGuard") || strings.Contains(b, "AdGuard Home")
-	}},
-	{"Technitium DNS", 0.95, "🌐", func(_ http.Header, b, t string) bool {
-		return strings.Contains(t, "Technitium") || strings.Contains(b, "TechnitiumDNS")
-	}},
-	{"WireGuard Easy", 0.95, "🔒", func(_ http.Header, b, t string) bool {
-		return strings.Contains(t, "WG Easy") || strings.Contains(b, "wg-easy")
-	}},
-	{"Headscale", 0.90, "🔒", func(_ http.Header, b, t string) bool {
-		return strings.Contains(t, "Headscale") || strings.Contains(b, "headscale")
-	}},
+	simpleSig("Pi-hole", 0.95, "🕳️", "Pi-hole", "Pi-hole"),
+	simpleSig("AdGuard Home", 0.95, "🛡️", "AdGuard", "AdGuard Home"),
+	simpleSig("Technitium DNS", 0.95, "🌐", "Technitium", "TechnitiumDNS"),
+	simpleSig("WireGuard Easy", 0.95, "🔒", "WG Easy", "wg-easy"),
+	simpleSig("Headscale", 0.90, "🔒", "Headscale", "headscale"),
 
 	// ── Notifications ────────────────────────────────────────────────────────
-	{"Gotify", 0.95, "🔔", func(_ http.Header, b, t string) bool {
-		return strings.Contains(t, "Gotify") || strings.Contains(b, "gotify")
-	}},
-	{"ntfy", 0.95, "🔔", func(_ http.Header, b, t string) bool {
-		return strings.Contains(t, "ntfy") || strings.Contains(b, "ntfy.sh")
-	}},
+	simpleSig("Gotify", 0.95, "🔔", "Gotify", "gotify"),
+	simpleSig("ntfy", 0.95, "🔔", "ntfy", "ntfy.sh"),
 
 	// ── Photos / Files ───────────────────────────────────────────────────────
-	{"Immich", 0.95, "📷", func(_ http.Header, b, t string) bool {
-		return strings.Contains(t, "Immich") || strings.Contains(b, "Immich")
-	}},
-	{"PhotoPrism", 0.95, "📸", func(_ http.Header, b, t string) bool {
-		return strings.Contains(t, "PhotoPrism") || strings.Contains(b, "PhotoPrism")
-	}},
+	simpleSig("Immich", 0.95, "📷", "Immich", "Immich"),
+	simpleSig("PhotoPrism", 0.95, "📸", "PhotoPrism", "PhotoPrism"),
 	{"Nextcloud", 0.97, "☁️", func(h http.Header, b, t string) bool {
-		return h.Get("X-Nextcloud-Request-ID") != "" ||
-			strings.Contains(b, "Nextcloud") || strings.Contains(t, "Nextcloud")
+		return h.Get("X-Nextcloud-Request-ID") != "" || strings.Contains(b, "Nextcloud") || strings.Contains(t, "Nextcloud")
 	}},
 	{"Syncthing", 0.97, "🔄", func(h http.Header, b, t string) bool {
-		return h.Get("X-Syncthing-Id") != "" ||
-			strings.Contains(t, "Syncthing") || strings.Contains(b, "syncthing")
+		return h.Get("X-Syncthing-Id") != "" || strings.Contains(t, "Syncthing") || strings.Contains(b, "syncthing")
 	}},
-	{"MinIO", 0.95, "🗄️", func(_ http.Header, b, t string) bool {
-		return strings.Contains(t, "MinIO") || strings.Contains(b, "minio")
-	}},
-	{"Seafile", 0.90, "🗄️", func(_ http.Header, b, t string) bool {
-		return strings.Contains(t, "Seafile") || strings.Contains(b, "seafile")
-	}},
+	simpleSig("MinIO", 0.95, "🗄️", "MinIO", "minio"),
+	simpleSig("Seafile", 0.90, "🗄️", "Seafile", "seafile"),
 
 	// ── Reading / Documents ──────────────────────────────────────────────────
-	{"Calibre-Web", 0.95, "📚", func(_ http.Header, b, t string) bool {
-		return strings.Contains(t, "Calibre-Web") || strings.Contains(b, "calibre-web")
-	}},
-	{"Komga", 0.95, "📚", func(_ http.Header, b, t string) bool {
-		return strings.Contains(t, "Komga") || strings.Contains(b, "Komga")
-	}},
-	{"Kavita", 0.95, "📚", func(_ http.Header, b, t string) bool {
-		return strings.Contains(t, "Kavita") || strings.Contains(b, "kavita")
-	}},
-	{"Paperless-ngx", 0.95, "📄", func(_ http.Header, b, t string) bool {
-		return strings.Contains(t, "Paperless") || strings.Contains(b, "paperless")
-	}},
-	{"Stirling-PDF", 0.95, "📄", func(_ http.Header, b, t string) bool {
-		return strings.Contains(t, "Stirling") || strings.Contains(b, "stirling-pdf")
-	}},
-	{"BookStack", 0.90, "📖", func(_ http.Header, b, t string) bool {
-		return strings.Contains(t, "BookStack") || strings.Contains(b, "BookStack")
-	}},
-	{"Wallabag", 0.90, "📰", func(_ http.Header, b, t string) bool {
-		return strings.Contains(t, "Wallabag") || strings.Contains(b, "wallabag")
-	}},
-	{"FreshRSS", 0.90, "📰", func(_ http.Header, b, t string) bool {
-		return strings.Contains(t, "FreshRSS") || strings.Contains(b, "FreshRSS")
-	}},
-	{"Miniflux", 0.90, "📰", func(_ http.Header, b, t string) bool {
-		return strings.Contains(t, "Miniflux") || strings.Contains(b, "miniflux")
-	}},
+	simpleSig("Calibre-Web", 0.95, "📚", "Calibre-Web", "calibre-web"),
+	simpleSig("Komga", 0.95, "📚", "Komga", "Komga"),
+	simpleSig("Kavita", 0.95, "📚", "Kavita", "kavita"),
+	simpleSig("Paperless-ngx", 0.95, "📄", "Paperless", "paperless"),
+	simpleSig("Stirling-PDF", 0.95, "📄", "Stirling", "stirling-pdf"),
+	simpleSig("BookStack", 0.90, "📖", "BookStack", "BookStack"),
+	simpleSig("Wallabag", 0.90, "📰", "Wallabag", "wallabag"),
+	simpleSig("FreshRSS", 0.90, "📰", "FreshRSS", "FreshRSS"),
+	simpleSig("Miniflux", 0.90, "📰", "Miniflux", "miniflux"),
 
 	// ── Homelab dashboards ───────────────────────────────────────────────────
-	{"Homarr", 0.95, "🏠", func(_ http.Header, b, t string) bool {
-		return strings.Contains(t, "Homarr") || strings.Contains(b, "Homarr")
-	}},
-	{"Homer", 0.90, "🏠", func(_ http.Header, b, t string) bool {
-		return strings.Contains(t, "Homer") || strings.Contains(b, "homer-app")
-	}},
-	{"Flame", 0.90, "🔥", func(_ http.Header, b, t string) bool {
-		return strings.Contains(t, "Flame") || strings.Contains(b, "flame-app")
-	}},
-	{"Dashy", 0.90, "📊", func(_ http.Header, b, t string) bool {
-		return strings.Contains(t, "Dashy") || strings.Contains(b, "dashy")
-	}},
-	{"Heimdall", 0.90, "🛡️", func(_ http.Header, b, t string) bool {
-		return strings.Contains(t, "Heimdall") || strings.Contains(b, "heimdall")
-	}},
-	{"Organizr", 0.90, "📁", func(_ http.Header, b, t string) bool {
-		return strings.Contains(t, "Organizr") || strings.Contains(b, "organizr")
-	}},
+	simpleSig("Homarr", 0.95, "🏠", "Homarr", "Homarr"),
+	simpleSig("Homer", 0.90, "🏠", "Homer", "homer-app"),
+	simpleSig("Flame", 0.90, "🔥", "Flame", "flame-app"),
+	simpleSig("Dashy", 0.90, "📊", "Dashy", "dashy"),
+	simpleSig("Heimdall", 0.90, "🛡️", "Heimdall", "heimdall"),
+	simpleSig("Organizr", 0.90, "📁", "Organizr", "organizr"),
 
 	// ── Food / Life ──────────────────────────────────────────────────────────
-	{"Mealie", 0.95, "🍽️", func(_ http.Header, b, t string) bool {
-		return strings.Contains(t, "Mealie") || strings.Contains(b, "mealie")
-	}},
-	{"Grocy", 0.95, "🛒", func(_ http.Header, b, t string) bool {
-		return strings.Contains(t, "grocy") || strings.Contains(b, "grocy")
-	}},
-	{"Tandoor", 0.90, "🍽️", func(_ http.Header, b, t string) bool {
-		return strings.Contains(t, "Tandoor") || strings.Contains(b, "tandoor")
-	}},
+	simpleSig("Mealie", 0.95, "🍽️", "Mealie", "mealie"),
+	simpleSig("Grocy", 0.95, "🛒", "grocy", "grocy"),
+	simpleSig("Tandoor", 0.90, "🍽️", "Tandoor", "tandoor"),
 
 	// ── Bookmarks / Links ────────────────────────────────────────────────────
-	{"Linkding", 0.95, "🔗", func(_ http.Header, b, t string) bool {
-		return strings.Contains(t, "linkding") || strings.Contains(b, "linkding")
-	}},
-	{"Shlink", 0.90, "🔗", func(_ http.Header, b, t string) bool {
-		return strings.Contains(t, "Shlink") || strings.Contains(b, "shlink")
-	}},
+	simpleSig("Linkding", 0.95, "🔗", "linkding", "linkding"),
+	simpleSig("Shlink", 0.90, "🔗", "Shlink", "shlink"),
 
 	// ── Automation / Workflow ────────────────────────────────────────────────
 	{"n8n", 0.95, "⚙️", func(_ http.Header, b, t string) bool {
 		return strings.EqualFold(t, "n8n") || strings.Contains(b, "\"n8n\"")
 	}},
-	{"Changedetection.io", 0.95, "👁️", func(_ http.Header, b, t string) bool {
-		return strings.Contains(t, "changedetection") || strings.Contains(b, "changedetection")
-	}},
+	simpleSig("Changedetection.io", 0.95, "👁️", "changedetection", "changedetection"),
 
 	// ── Remote access ────────────────────────────────────────────────────────
-	{"Guacamole", 0.95, "🖥️", func(_ http.Header, b, t string) bool {
-		return strings.Contains(t, "Guacamole") || strings.Contains(b, "guacamole")
-	}},
+	simpleSig("Guacamole", 0.95, "🖥️", "Guacamole", "guacamole"),
 
 	// ── Communication / Social ───────────────────────────────────────────────
 	{"Matrix Synapse", 0.95, "💬", func(h http.Header, b, t string) bool {
-		return strings.Contains(h.Get("Server"), "Synapse") ||
-			strings.Contains(b, "matrix-synapse") || strings.Contains(t, "Matrix")
+		return strings.Contains(h.Get("Server"), "Synapse") || strings.Contains(b, "matrix-synapse") || strings.Contains(t, "Matrix")
 	}},
 
 	// ── Misc ─────────────────────────────────────────────────────────────────
-	{"Verdaccio", 0.90, "📦", func(_ http.Header, b, t string) bool {
-		return strings.Contains(t, "Verdaccio") || strings.Contains(b, "verdaccio")
-	}},
-	{"IT Tools", 0.90, "🔧", func(_ http.Header, b, t string) bool {
-		return strings.Contains(t, "IT Tools") || strings.Contains(b, "it-tools")
-	}},
+	simpleSig("Verdaccio", 0.90, "📦", "Verdaccio", "verdaccio"),
+	simpleSig("IT Tools", 0.90, "🔧", "IT Tools", "it-tools"),
 }
 
 // fingerprint matches HTTP response data against known service signatures.
@@ -450,14 +290,9 @@ type openPort struct {
 }
 
 // tcpSweep checks which (ip, port) pairs accept a TCP connection.
-// Uses 4096 workers with a configurable dial timeout — no data exchange.
-// logf is called at 5% progress intervals with per-type error counts.
+// Uses up to 4096 concurrent goroutines with a configurable dial timeout — no data exchange.
+// logf is called at 25% progress intervals with per-type error counts.
 func tcpSweep(ctx context.Context, ips []string, ports []int, logf func(string, ...any), timeout time.Duration) []openPort {
-	type job struct {
-		ip   string
-		port int
-	}
-
 	// ── Pre-sweep debug summary ───────────────────────────────────────────────
 	start := time.Now()
 	logf("[TCP] Starting sweep: %d hosts × %d ports = %d combinations", len(ips), len(ports), len(ips)*len(ports))
@@ -471,30 +306,30 @@ func tcpSweep(ctx context.Context, ips []string, ports []int, logf func(string, 
 		logf("[TCP] Hosts: %s … %s (%d total)", ips[0], ips[len(ips)-1], len(ips))
 	}
 
-	jobs := make(chan job, 1024)
-	results := make(chan openPort, 256)
-
 	total := int64(len(ips) * len(ports))
 	var done atomic.Int64
 	var countOpen, countTimeouts, countRefused, countOther atomic.Int64
+	var mu sync.Mutex
+	var open []openPort
 
-	const workers = 4096
-	var wg sync.WaitGroup
-	for i := 0; i < workers; i++ {
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
-			for j := range jobs {
-				if ctx.Err() != nil {
-					logf("[TCP] Context cancelled — stopping workers")
-					return
+	g, gctx := errgroup.WithContext(ctx)
+	g.SetLimit(4096)
+
+	for _, ip := range ips {
+		for _, port := range ports {
+			ip, port := ip, port
+			g.Go(func() error {
+				if gctx.Err() != nil {
+					return nil
 				}
-				addr := net.JoinHostPort(j.ip, strconv.Itoa(j.port))
+				addr := net.JoinHostPort(ip, strconv.Itoa(port))
 				conn, err := net.DialTimeout("tcp", addr, timeout)
 				if err == nil {
 					conn.Close()
 					countOpen.Add(1)
-					results <- openPort{j.ip, j.port}
+					mu.Lock()
+					open = append(open, openPort{ip, port})
+					mu.Unlock()
 				} else {
 					errStr := err.Error()
 					switch {
@@ -504,7 +339,7 @@ func tcpSweep(ctx context.Context, ips []string, ports []int, logf func(string, 
 						countRefused.Add(1)
 					default:
 						countOther.Add(1)
-						logf("[ERR] %s:%d → %v", j.ip, j.port, err)
+						logf("[ERR] %s:%d → %v", ip, port, err)
 					}
 				}
 				if total > 0 {
@@ -517,25 +352,11 @@ func tcpSweep(ctx context.Context, ips []string, ports []int, logf func(string, 
 							countOpen.Load(), countRefused.Load(), countTimeouts.Load(), countOther.Load())
 					}
 				}
-			}
-		}()
-	}
-
-	go func() {
-		for _, ip := range ips {
-			for _, port := range ports {
-				jobs <- job{ip, port}
-			}
+				return nil
+			})
 		}
-		close(jobs)
-		wg.Wait()
-		close(results)
-	}()
-
-	var open []openPort
-	for op := range results {
-		open = append(open, op)
 	}
+	_ = g.Wait()
 
 	elapsed := time.Since(start).Round(time.Millisecond)
 	logf("[TCP] Done in %s: %d open, %d refused, %d timeout, %d other",
@@ -608,41 +429,17 @@ func getLocalSubnet(logf func(string, ...any)) (*net.IPNet, error) {
 
 // generateIPs returns all host IPs (excluding network and broadcast) in subnet.
 func generateIPs(subnet *net.IPNet) []string {
-	var ips []string
-	ip4 := subnet.IP.To4()
-	if ip4 == nil {
+	prefix, err := netip.ParsePrefix(subnet.String())
+	if err != nil || !prefix.Addr().Is4() {
 		return nil
 	}
-	cur := make(net.IP, 4)
-	copy(cur, ip4.Mask(subnet.Mask))
-	incrementIP(cur)
-
-	bcast := broadcastIP(subnet)
-	for subnet.Contains(cur) && !cur.Equal(bcast) {
-		dst := make(net.IP, 4)
-		copy(dst, cur)
-		ips = append(ips, dst.String())
-		incrementIP(cur)
+	r := netipx.RangeOfPrefix(prefix.Masked())
+	var ips []string
+	// r.From() is the network address; r.To() is the broadcast — skip both.
+	for ip := r.From().Next(); ip.Compare(r.To()) < 0; ip = ip.Next() {
+		ips = append(ips, ip.String())
 	}
 	return ips
-}
-
-func incrementIP(ip net.IP) {
-	for i := len(ip) - 1; i >= 0; i-- {
-		ip[i]++
-		if ip[i] != 0 {
-			break
-		}
-	}
-}
-
-func broadcastIP(subnet *net.IPNet) net.IP {
-	ip4 := subnet.IP.To4()
-	bcast := make(net.IP, 4)
-	for i := range bcast {
-		bcast[i] = ip4[i] | ^subnet.Mask[i]
-	}
-	return bcast
 }
 
 // ── Stage 2 + 3: HTTP probe + fingerprint ─────────────────────────────────────

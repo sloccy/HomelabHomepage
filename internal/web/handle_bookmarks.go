@@ -2,7 +2,6 @@ package web
 
 import (
 	"context"
-	"log"
 	"net/http"
 	"time"
 
@@ -19,14 +18,12 @@ func (s *Server) listBookmarks(w http.ResponseWriter, r *http.Request) {
 
 func (s *Server) createBookmark(w http.ResponseWriter, r *http.Request) {
 	if err := r.ParseForm(); err != nil {
-		errorTrigger(w, "invalid form data")
-		w.WriteHeader(http.StatusBadRequest)
+		errorResponse(w, http.StatusBadRequest, "invalid form data")
 		return
 	}
 	bmURL := r.FormValue("url")
 	if bmURL == "" {
-		errorTrigger(w, "url is required")
-		w.WriteHeader(http.StatusBadRequest)
+		errorResponse(w, http.StatusBadRequest, "url is required")
 		return
 	}
 	name := r.FormValue("name")
@@ -40,9 +37,7 @@ func (s *Server) createBookmark(w http.ResponseWriter, r *http.Request) {
 		Category: r.FormValue("category"),
 	}
 	s.store.AddBookmark(bm)
-	if err := s.store.Save(); err != nil {
-		log.Printf("web: save: %v", err)
-	}
+	s.save()
 	go s.fetchBookmarkFavicon(bm.ID, bmURL)
 	toastTrigger(w, "Bookmark added", "success", "refreshBookmarksTable")
 	w.WriteHeader(http.StatusNoContent)
@@ -51,8 +46,7 @@ func (s *Server) createBookmark(w http.ResponseWriter, r *http.Request) {
 func (s *Server) updateBookmark(w http.ResponseWriter, r *http.Request) {
 	id := r.PathValue("id")
 	if err := r.ParseForm(); err != nil {
-		errorTrigger(w, "invalid form data")
-		w.WriteHeader(http.StatusBadRequest)
+		errorResponse(w, http.StatusBadRequest, "invalid form data")
 		return
 	}
 	updated := &store.Bookmark{
@@ -62,13 +56,10 @@ func (s *Server) updateBookmark(w http.ResponseWriter, r *http.Request) {
 		Category: r.FormValue("category"),
 	}
 	if !s.store.UpdateBookmark(id, updated) {
-		errorTrigger(w, "bookmark not found")
-		w.WriteHeader(http.StatusNotFound)
+		errorResponse(w, http.StatusNotFound, "bookmark not found")
 		return
 	}
-	if err := s.store.Save(); err != nil {
-		log.Printf("web: save: %v", err)
-	}
+	s.save()
 	go s.fetchBookmarkFavicon(id, updated.URL)
 	toastTrigger(w, "Bookmark updated", "success", "refreshBookmarksTable")
 	w.WriteHeader(http.StatusNoContent)
@@ -81,9 +72,7 @@ func (s *Server) deleteBookmark(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	s.store.DeleteIcon(id)
-	if err := s.store.Save(); err != nil {
-		log.Printf("web: save: %v", err)
-	}
+	s.save()
 	w.WriteHeader(http.StatusOK)
 }
 
@@ -99,8 +88,6 @@ func (s *Server) fetchBookmarkFavicon(id, bmURL string) {
 		updated := *bm
 		updated.Icon = "file"
 		s.store.UpdateBookmark(id, &updated)
-		if err := s.store.Save(); err != nil {
-			log.Printf("web: bookmark favicon save: %v", err)
-		}
+		s.save()
 	}
 }

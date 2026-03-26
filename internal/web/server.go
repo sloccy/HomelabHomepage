@@ -1,15 +1,16 @@
 package web
 
 import (
-	"compress/gzip"
 	"context"
 	"encoding/json"
 	"io"
+	"log"
 	"net/http"
-	"strings"
 	"sync"
 	"time"
 
+	"github.com/jellydator/ttlcache/v3"
+	"github.com/klauspost/compress/gzhttp"
 	"lantern/internal/cf"
 	"lantern/internal/config"
 	"lantern/internal/store"
@@ -26,30 +27,41 @@ type Scanner interface {
 
 // Server serves the web GUI and REST API.
 type Server struct {
-	cfg            *config.Config
-	store          *store.Store
-	cf             *cf.Client
-	scanner        Scanner
-	tunnel         *tunnel.Manager
-	mux            *http.ServeMux
-	handler        http.Handler // composed middleware chain, built once in New
-	version        string
-	healthMu       sync.RWMutex
-	health         map[string]string // service ID → "up" | "down"
-	faviconCache   map[string]*faviconEntry
-	faviconCacheMu sync.RWMutex
+	cfg          *config.Config
+	store        *store.Store
+	cf           *cf.Client
+	scanner      Scanner
+	tunnel       *tunnel.Manager
+	mux          *http.ServeMux
+	handler      http.Handler // composed middleware chain, built once in New
+	version      string
+	healthMu     sync.RWMutex
+	health       map[string]string // service ID → "up" | "down"
+	faviconCache *ttlcache.Cache[string, *faviconEntry]
 }
 
 func New(cfg *config.Config, st *store.Store, cfClient *cf.Client, version string) *Server {
-	s := &Server{cfg: cfg, store: st, cf: cfClient, version: version, faviconCache: make(map[string]*faviconEntry)}
+	fc := ttlcache.New(
+		ttlcache.WithCapacity[string, *faviconEntry](500),
+		ttlcache.WithDisableTouchOnHit[string, *faviconEntry](),
+	)
+	go fc.Start() // background janitor
+	s := &Server{cfg: cfg, store: st, cf: cfClient, version: version, faviconCache: fc}
 	s.mux = http.NewServeMux()
 	s.routes()
-	s.handler = gzipHandler(securityHeaders(s.mux))
+	s.handler = gzhttp.GzipHandler(securityHeaders(s.mux))
 	return s
 }
 
 func (s *Server) SetScanner(sc Scanner)              { s.scanner = sc }
 func (s *Server) SetTunnelManager(t *tunnel.Manager) { s.tunnel = t }
+
+// save persists the store to disk, logging any error.
+func (s *Server) save() {
+	if err := s.store.Save(); err != nil {
+		log.Printf("web: save: %v", err)
+	}
+}
 
 func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	s.handler.ServeHTTP(w, r)
@@ -61,94 +73,6 @@ func securityHeaders(next http.Handler) http.Handler {
 		w.Header().Set("X-Frame-Options", "SAMEORIGIN")
 		w.Header().Set("Referrer-Policy", "strict-origin-when-cross-origin")
 		next.ServeHTTP(w, r)
-	})
-}
-
-var gzPool = sync.Pool{
-	New: func() any {
-		gz, _ := gzip.NewWriterLevel(io.Discard, gzip.BestSpeed)
-		return gz
-	},
-}
-
-type gzipResponseWriter struct {
-	http.ResponseWriter
-	gz          *gzip.Writer
-	code        int
-	wroteHeader bool
-}
-
-// WriteHeader buffers the status code; headers are committed in Write so that
-// no-body responses (204, 304) never get a spurious Content-Encoding: gzip.
-func (w *gzipResponseWriter) WriteHeader(code int) {
-	w.code = code
-}
-
-func (w *gzipResponseWriter) writeHeader() {
-	if w.wroteHeader {
-		return
-	}
-	w.wroteHeader = true
-	// Skip compression if the handler already set Content-Encoding (e.g., pre-compressed static assets).
-	if w.Header().Get("Content-Encoding") == "" {
-		ct := strings.TrimSpace(strings.ToLower(strings.SplitN(w.Header().Get("Content-Type"), ";", 2)[0]))
-		if strings.HasPrefix(ct, "text/") || ct == "application/javascript" || ct == "application/json" || ct == "application/xml" || ct == "image/svg+xml" {
-			w.Header().Del("Content-Length")
-			w.Header().Set("Content-Encoding", "gzip")
-			w.Header().Add("Vary", "Accept-Encoding")
-			gz := gzPool.Get().(*gzip.Writer)
-			gz.Reset(w.ResponseWriter)
-			w.gz = gz
-		}
-	}
-	if w.code != 0 {
-		w.ResponseWriter.WriteHeader(w.code)
-	}
-}
-
-func (w *gzipResponseWriter) Write(b []byte) (int, error) {
-	w.writeHeader()
-	if w.gz != nil {
-		return w.gz.Write(b)
-	}
-	return w.ResponseWriter.Write(b)
-}
-
-func (w *gzipResponseWriter) Flush() {
-	if w.gz != nil {
-		_ = w.gz.Flush()
-	}
-	if f, ok := w.ResponseWriter.(http.Flusher); ok {
-		f.Flush()
-	}
-}
-
-func acceptsGzip(header string) bool {
-	for _, part := range strings.Split(header, ",") {
-		if strings.EqualFold(strings.TrimSpace(strings.SplitN(part, ";", 2)[0]), "gzip") {
-			return true
-		}
-	}
-	return false
-}
-
-func gzipHandler(next http.Handler) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if !acceptsGzip(r.Header.Get("Accept-Encoding")) {
-			next.ServeHTTP(w, r)
-			return
-		}
-		gw := &gzipResponseWriter{ResponseWriter: w}
-		defer func() {
-			if !gw.wroteHeader && gw.code != 0 {
-				gw.ResponseWriter.WriteHeader(gw.code)
-			}
-			if gw.gz != nil {
-				_ = gw.gz.Close()
-				gzPool.Put(gw.gz)
-			}
-		}()
-		next.ServeHTTP(gw, r)
 	})
 }
 

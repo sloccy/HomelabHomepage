@@ -32,8 +32,7 @@ func (s *Server) createService(w http.ResponseWriter, r *http.Request) {
 	const maxUpload = 5 << 20 // 5 MB
 	if err := r.ParseMultipartForm(maxUpload); err != nil {
 		if err := r.ParseForm(); err != nil {
-			errorTrigger(w, "invalid form data")
-			w.WriteHeader(http.StatusBadRequest)
+			errorResponse(w, http.StatusBadRequest, "invalid form data")
 			return
 		}
 	}
@@ -64,13 +63,11 @@ func (s *Server) createService(w http.ResponseWriter, r *http.Request) {
 	req.Subdomain = sanitiseSubdomain(req.Subdomain)
 	if !req.DirectOnly {
 		if req.Subdomain == "" {
-			errorTrigger(w, "subdomain is required")
-			w.WriteHeader(http.StatusBadRequest)
+			errorResponse(w, http.StatusBadRequest, "subdomain is required")
 			return
 		}
 		if s.store.GetServiceBySubdomain(req.Subdomain) != nil {
-			errorTrigger(w, "subdomain already assigned")
-			w.WriteHeader(http.StatusConflict)
+			errorResponse(w, http.StatusConflict, "subdomain already assigned")
 			return
 		}
 	}
@@ -85,8 +82,7 @@ func (s *Server) createService(w http.ResponseWriter, r *http.Request) {
 	if req.DiscoveredID != "" {
 		disc := s.store.GetDiscoveredByID(req.DiscoveredID)
 		if disc == nil {
-			errorTrigger(w, "discovered service not found")
-			w.WriteHeader(http.StatusNotFound)
+			errorResponse(w, http.StatusNotFound, "discovered service not found")
 			return
 		}
 		scheme := "http"
@@ -104,8 +100,7 @@ func (s *Server) createService(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if target == "" {
-		errorTrigger(w, "target is required")
-		w.WriteHeader(http.StatusBadRequest)
+		errorResponse(w, http.StatusBadRequest, "target is required")
 		return
 	}
 	if name == "" {
@@ -189,9 +184,7 @@ func (s *Server) createService(w http.ResponseWriter, r *http.Request) {
 		}
 		s.store.RemoveDiscovered(req.DiscoveredID)
 	}
-	if err := s.store.Save(); err != nil {
-		log.Printf("web: save: %v", err)
-	}
+	s.save()
 
 	// Asynchronously fetch favicon if no icon is set yet.
 	if svc.Icon == "" {
@@ -205,9 +198,7 @@ func (s *Server) createService(w http.ResponseWriter, r *http.Request) {
 				updated := *existing
 				updated.Icon = "file"
 				s.store.UpdateService(id, &updated)
-				if err := s.store.Save(); err != nil {
-					log.Printf("web: favicon save: %v", err)
-				}
+				s.save()
 			}
 		}(svc.ID, svc.Target)
 	}
@@ -231,14 +222,12 @@ func (s *Server) updateService(w http.ResponseWriter, r *http.Request) {
 	id := r.PathValue("id")
 	svc := s.store.GetServiceByID(id)
 	if svc == nil {
-		errorTrigger(w, "service not found")
-		w.WriteHeader(http.StatusNotFound)
+		errorResponse(w, http.StatusNotFound, "service not found")
 		return
 	}
 
 	if err := r.ParseForm(); err != nil {
-		errorTrigger(w, "invalid form data")
-		w.WriteHeader(http.StatusBadRequest)
+		errorResponse(w, http.StatusBadRequest, "invalid form data")
 		return
 	}
 	var req updateServiceRequest
@@ -432,9 +421,7 @@ func (s *Server) updateService(w http.ResponseWriter, r *http.Request) {
 	}
 
 	s.store.UpdateService(id, updated)
-	if err := s.store.Save(); err != nil {
-		log.Printf("web: save: %v", err)
-	}
+	s.save()
 	toastTrigger(w, "Service updated", "success", "refreshServicesTable")
 	w.WriteHeader(http.StatusNoContent)
 }
@@ -466,9 +453,7 @@ func (s *Server) deleteService(w http.ResponseWriter, r *http.Request) {
 		hxTrigger(w, "refreshDiscovered", nil)
 	}
 	s.store.DeleteIcon(id)
-	if err := s.store.Save(); err != nil {
-		log.Printf("web: save: %v", err)
-	}
+	s.save()
 	w.WriteHeader(http.StatusOK)
 }
 
@@ -481,9 +466,7 @@ func (s *Server) reorderServices(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	s.store.ReorderServices(req.IDs)
-	if err := s.store.Save(); err != nil {
-		log.Printf("web: save: %v", err)
-	}
+	s.save()
 	w.WriteHeader(http.StatusOK)
 }
 
@@ -514,13 +497,7 @@ func (s *Server) uploadServiceIcon(w http.ResponseWriter, r *http.Request) {
 		apiError(w, http.StatusInternalServerError, "could not save icon")
 		return
 	}
-	updated := *svc
-	updated.Icon = "file"
-	s.store.UpdateService(id, &updated)
-	if err := s.store.Save(); err != nil {
-		log.Printf("web: save: %v", err)
-	}
-	renderTemplate(w, "icon-preview.html", &updated)
+	s.applyServiceIcon(w, svc, "file")
 }
 
 func (s *Server) clearServiceIcon(w http.ResponseWriter, r *http.Request) {
@@ -531,13 +508,7 @@ func (s *Server) clearServiceIcon(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	s.store.DeleteIcon(id)
-	updated := *svc
-	updated.Icon = ""
-	s.store.UpdateService(id, &updated)
-	if err := s.store.Save(); err != nil {
-		log.Printf("web: save: %v", err)
-	}
-	renderTemplate(w, "icon-preview.html", &updated)
+	s.applyServiceIcon(w, svc, "")
 }
 
 func (s *Server) pullServiceFavicon(w http.ResponseWriter, r *http.Request) {
@@ -551,21 +522,22 @@ func (s *Server) pullServiceFavicon(w http.ResponseWriter, r *http.Request) {
 	defer cancel()
 	data := discovery.FetchFaviconForTarget(ctx, svc.Target)
 	if len(data) == 0 {
-		errorTrigger(w, "no favicon found")
-		w.WriteHeader(http.StatusUnprocessableEntity)
+		errorResponse(w, http.StatusUnprocessableEntity, "no favicon found")
 		return
 	}
 	if err := s.store.WriteIcon(id, data); err != nil {
-		errorTrigger(w, "could not save favicon")
-		w.WriteHeader(http.StatusInternalServerError)
+		errorResponse(w, http.StatusInternalServerError, "could not save favicon")
 		return
 	}
+	s.applyServiceIcon(w, svc, "file")
+}
+
+// applyServiceIcon sets a service's Icon field, saves, and renders the icon preview.
+func (s *Server) applyServiceIcon(w http.ResponseWriter, svc *store.Service, icon string) {
 	updated := *svc
-	updated.Icon = "file"
-	s.store.UpdateService(id, &updated)
-	if err := s.store.Save(); err != nil {
-		log.Printf("web: save: %v", err)
-	}
+	updated.Icon = icon
+	s.store.UpdateService(svc.ID, &updated)
+	s.save()
 	renderTemplate(w, "icon-preview.html", &updated)
 }
 

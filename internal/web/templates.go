@@ -118,6 +118,12 @@ func errorTrigger(w http.ResponseWriter, msg string) {
 	w.Header().Set("HX-Trigger", string(b))
 }
 
+// errorResponse sends an HTMX error toast and the given HTTP status code.
+func errorResponse(w http.ResponseWriter, code int, msg string) {
+	errorTrigger(w, msg)
+	w.WriteHeader(code)
+}
+
 // ---- Template function map --------------------------------------------------
 
 var funcMap = template.FuncMap{

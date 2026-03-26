@@ -19,6 +19,16 @@ import (
 	"lantern/internal/discovery"
 )
 
+// acceptsGzip reports whether the Accept-Encoding header value includes gzip.
+func acceptsGzip(header string) bool {
+	for _, part := range strings.Split(header, ",") {
+		if strings.EqualFold(strings.TrimSpace(strings.SplitN(part, ";", 2)[0]), "gzip") {
+			return true
+		}
+	}
+	return false
+}
+
 //go:embed static
 var staticFiles embed.FS
 
@@ -30,10 +40,8 @@ type staticAsset struct {
 }
 
 type faviconEntry struct {
-	data        []byte
+	data        []byte // nil means negative cache (fetch failed)
 	contentType string
-	fetchedAt   time.Time
-	negative    bool // true if the fetch failed; cached to avoid repeated retries
 }
 
 var (
@@ -143,75 +151,33 @@ func (s *Server) getFavicon(w http.ResponseWriter, r *http.Request) {
 	}
 	cacheKey := u.Host
 
-	s.faviconCacheMu.RLock()
-	entry, ok := s.faviconCache[cacheKey]
-	s.faviconCacheMu.RUnlock()
-	if ok {
-		ttl := time.Hour
-		if entry.negative {
-			ttl = 15 * time.Minute
-		}
-		if time.Since(entry.fetchedAt) < ttl {
-			if entry.negative {
-				http.NotFound(w, r)
-				return
-			}
-			w.Header().Set("Content-Type", entry.contentType)
-			w.Header().Set("Cache-Control", "public, max-age=3600")
-			_, _ = w.Write(entry.data)
+	if item := s.faviconCache.Get(cacheKey); item != nil {
+		e := item.Value()
+		if e.data == nil {
+			http.NotFound(w, r)
 			return
 		}
+		w.Header().Set("Content-Type", e.contentType)
+		w.Header().Set("Cache-Control", "public, max-age=3600")
+		_, _ = w.Write(e.data)
+		return
 	}
 
 	ctx, cancel := context.WithTimeout(r.Context(), 5*time.Second)
 	defer cancel()
 	data := discovery.FetchFaviconForTarget(ctx, rawURL)
 
-	s.faviconCacheMu.Lock()
-	s.evictFaviconCache()
 	if len(data) == 0 {
-		s.faviconCache[cacheKey] = &faviconEntry{negative: true, fetchedAt: time.Now()}
-		s.faviconCacheMu.Unlock()
+		s.faviconCache.Set(cacheKey, &faviconEntry{}, 15*time.Minute)
 		http.NotFound(w, r)
 		return
 	}
 	ct := detectIconContentType(data)
-	s.faviconCache[cacheKey] = &faviconEntry{data: data, contentType: ct, fetchedAt: time.Now()}
-	s.faviconCacheMu.Unlock()
+	s.faviconCache.Set(cacheKey, &faviconEntry{data: data, contentType: ct}, time.Hour)
 
 	w.Header().Set("Content-Type", ct)
 	w.Header().Set("Cache-Control", "public, max-age=3600")
 	_, _ = w.Write(data)
-}
-
-// evictFaviconCache removes stale entries and, if still at capacity, evicts
-// the oldest entry. Must be called with faviconCacheMu held for writing.
-func (s *Server) evictFaviconCache() {
-	now := time.Now()
-	for k, e := range s.faviconCache {
-		ttl := time.Hour
-		if e.negative {
-			ttl = 15 * time.Minute
-		}
-		if now.Sub(e.fetchedAt) >= ttl {
-			delete(s.faviconCache, k)
-		}
-	}
-	if len(s.faviconCache) < 500 {
-		return
-	}
-	// Still full — evict the single oldest entry.
-	var oldest string
-	var oldestTime time.Time
-	for k, e := range s.faviconCache {
-		if oldest == "" || e.fetchedAt.Before(oldestTime) {
-			oldest = k
-			oldestTime = e.fetchedAt
-		}
-	}
-	if oldest != "" {
-		delete(s.faviconCache, oldest)
-	}
 }
 
 // isValidIconID reports whether id is a safe icon filename (hex chars only).

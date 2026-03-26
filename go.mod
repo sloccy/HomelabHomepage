@@ -7,8 +7,12 @@ require (
 	github.com/docker/docker v28.5.2+incompatible
 	github.com/docker/go-connections v0.6.0
 	github.com/go-acme/lego/v4 v4.33.0
+	github.com/jellydator/ttlcache/v3 v3.4.0
+	github.com/klauspost/compress v1.18.5
 	github.com/miekg/dns v1.1.72
 	github.com/shirou/gopsutil/v4 v4.26.2
+	go4.org/netipx v0.0.0-20231129151722-fdeea329fbba
+	golang.org/x/sync v0.19.0
 )
 
 require (
@@ -53,7 +57,6 @@ require (
 	golang.org/x/crypto v0.48.0 // indirect
 	golang.org/x/mod v0.33.0 // indirect
 	golang.org/x/net v0.51.0 // indirect
-	golang.org/x/sync v0.19.0 // indirect
 	golang.org/x/sys v0.41.0 // indirect
 	golang.org/x/text v0.34.0 // indirect
 	golang.org/x/tools v0.42.0 // indirect

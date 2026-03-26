@@ -2,7 +2,6 @@ package web
 
 import (
 	"context"
-	"log"
 	"net"
 	"net/http"
 	"time"
@@ -20,9 +19,7 @@ func (s *Server) listDiscovered(w http.ResponseWriter, r *http.Request) {
 func (s *Server) deleteDiscovered(w http.ResponseWriter, r *http.Request) {
 	id := r.PathValue("id")
 	s.store.RemoveDiscovered(id)
-	if err := s.store.Save(); err != nil {
-		log.Printf("web: save: %v", err)
-	}
+	s.save()
 	w.WriteHeader(http.StatusOK)
 }
 
@@ -58,25 +55,20 @@ func (s *Server) listScanSubnets(w http.ResponseWriter, r *http.Request) {
 
 func (s *Server) addScanSubnet(w http.ResponseWriter, r *http.Request) {
 	if err := r.ParseForm(); err != nil {
-		errorTrigger(w, "invalid form data")
-		w.WriteHeader(http.StatusBadRequest)
+		errorResponse(w, http.StatusBadRequest, "invalid form data")
 		return
 	}
 	cidr := r.FormValue("cidr")
 	if cidr == "" {
-		errorTrigger(w, "cidr is required")
-		w.WriteHeader(http.StatusBadRequest)
+		errorResponse(w, http.StatusBadRequest, "cidr is required")
 		return
 	}
 	if _, _, err := net.ParseCIDR(cidr); err != nil {
-		errorTrigger(w, "invalid CIDR notation")
-		w.WriteHeader(http.StatusBadRequest)
+		errorResponse(w, http.StatusBadRequest, "invalid CIDR notation")
 		return
 	}
 	s.store.AddScanSubnet(cidr)
-	if err := s.store.Save(); err != nil {
-		log.Printf("web: save: %v", err)
-	}
+	s.save()
 	renderTemplate(w, "subnets.html", subnetsFragData{Subnets: s.store.GetScanSubnets()})
 }
 
@@ -87,9 +79,7 @@ func (s *Server) removeScanSubnet(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	s.store.RemoveScanSubnet(cidr)
-	if err := s.store.Save(); err != nil {
-		log.Printf("web: save: %v", err)
-	}
+	s.save()
 	w.WriteHeader(http.StatusOK)
 }
 
@@ -99,9 +89,7 @@ func (s *Server) ignoreDiscovered(w http.ResponseWriter, r *http.Request) {
 		apiError(w, http.StatusNotFound, err.Error())
 		return
 	}
-	if err := s.store.Save(); err != nil {
-		log.Printf("web: save: %v", err)
-	}
+	s.save()
 	hxTrigger(w, "refreshIgnored", nil)
 	w.WriteHeader(http.StatusOK)
 }
@@ -130,9 +118,7 @@ func (s *Server) unignoreService(w http.ResponseWriter, r *http.Request) {
 		Source:       "network",
 		DiscoveredAt: time.Now(),
 	})
-	if err := s.store.Save(); err != nil {
-		log.Printf("web: save: %v", err)
-	}
+	s.save()
 	hxTrigger(w, "refreshDiscovered", nil)
 	w.WriteHeader(http.StatusOK)
 }

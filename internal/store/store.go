@@ -190,11 +190,6 @@ func (s *Store) DeleteIcon(id string) {
 	_ = os.Remove(s.iconPath(id))
 }
 
-func (s *Store) HasIcon(id string) bool {
-	_, err := os.Stat(s.iconPath(id))
-	return err == nil
-}
-
 // migrateIcons converts any base64 data URIs stored in the Icon field to on-disk
 // files and clears the field. Called once at startup after loading the JSON store.
 func (s *Store) migrateIcons() {
@@ -340,6 +335,45 @@ func (s *Store) ReorderServices(ids []string) {
 	}
 }
 
+// ---- Slice helpers ----------------------------------------------------------
+
+// filterSlice removes elements in place, zeroing the tail to aid GC.
+func filterSlice[T any](s *[]*T, keep func(*T) bool) {
+	orig := *s
+	n := orig[:0]
+	for _, v := range orig {
+		if keep(v) {
+			n = append(n, v)
+		}
+	}
+	for i := len(n); i < len(orig); i++ {
+		orig[i] = nil
+	}
+	*s = n
+}
+
+// removeString removes the first occurrence of val from s in place.
+func removeString(s *[]string, val string) {
+	orig := *s
+	n := orig[:0]
+	for _, v := range orig {
+		if v != val {
+			n = append(n, v)
+		}
+	}
+	*s = n
+}
+
+// addUnique appends val to s only if it is not already present.
+func addUnique(s *[]string, val string) {
+	for _, v := range *s {
+		if v == val {
+			return
+		}
+	}
+	*s = append(*s, val)
+}
+
 // ---- Discovered -------------------------------------------------------------
 
 func (s *Store) GetAllDiscovered() []*DiscoveredService {
@@ -390,48 +424,13 @@ func (s *Store) AddDiscovered(d *DiscoveredService) {
 func (s *Store) RemoveDiscovered(id string) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	orig := s.d.Discovered
-	filtered := orig[:0]
-	for _, d := range orig {
-		if d.ID != id {
-			filtered = append(filtered, d)
-		}
-	}
-	for i := len(filtered); i < len(orig); i++ {
-		orig[i] = nil
-	}
-	s.d.Discovered = filtered
+	filterSlice(&s.d.Discovered, func(d *DiscoveredService) bool { return d.ID != id })
 }
 
 func (s *Store) RemoveDiscoveredByContainerID(cid string) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	orig := s.d.Discovered
-	filtered := orig[:0]
-	for _, d := range orig {
-		if d.ContainerID != cid {
-			filtered = append(filtered, d)
-		}
-	}
-	for i := len(filtered); i < len(orig); i++ {
-		orig[i] = nil
-	}
-	s.d.Discovered = filtered
-}
-
-// ReplaceNetworkDiscovered replaces all network-discovered entries with a new list,
-// preserving any Docker-discovered entries.
-func (s *Store) ReplaceNetworkDiscovered(services []*DiscoveredService) {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	// Collect Docker entries into a new slice (avoid aliasing the original).
-	var dockerOnly []*DiscoveredService
-	for _, d := range s.d.Discovered {
-		if d.Source == "docker" {
-			dockerOnly = append(dockerOnly, d)
-		}
-	}
-	s.d.Discovered = append(dockerOnly, services...)
+	filterSlice(&s.d.Discovered, func(d *DiscoveredService) bool { return d.ContainerID != cid })
 }
 
 // ClearNetworkDiscovered removes all network-source discovered entries,
@@ -487,22 +486,16 @@ func (s *Store) IgnoreDiscovered(id string) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	var found *DiscoveredService
-	orig := s.d.Discovered
-	filtered := orig[:0]
-	for _, d := range orig {
+	for _, d := range s.d.Discovered {
 		if d.ID == id {
 			found = d
-		} else {
-			filtered = append(filtered, d)
+			break
 		}
 	}
 	if found == nil {
 		return fmt.Errorf("discovered service %q not found", id)
 	}
-	for i := len(filtered); i < len(orig); i++ {
-		orig[i] = nil
-	}
-	s.d.Discovered = filtered
+	filterSlice(&s.d.Discovered, func(d *DiscoveredService) bool { return d.ID != id })
 	s.d.Ignored = append(s.d.Ignored, &IgnoredService{
 		ID:        found.ID,
 		IP:        found.IP,
@@ -525,23 +518,17 @@ func (s *Store) GetIgnored() []*IgnoredService {
 func (s *Store) UnignoreService(id string) (*IgnoredService, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	orig := s.d.Ignored
-	filtered := orig[:0]
 	var removed *IgnoredService
-	for _, ig := range orig {
+	for _, ig := range s.d.Ignored {
 		if ig.ID == id {
 			removed = ig
-		} else {
-			filtered = append(filtered, ig)
+			break
 		}
 	}
 	if removed == nil {
 		return nil, fmt.Errorf("ignored service %q not found", id)
 	}
-	for i := len(filtered); i < len(orig); i++ {
-		orig[i] = nil
-	}
-	s.d.Ignored = filtered
+	filterSlice(&s.d.Ignored, func(ig *IgnoredService) bool { return ig.ID != id })
 	return removed, nil
 }
 
@@ -570,24 +557,13 @@ func (s *Store) GetDDNSDomains() []string {
 func (s *Store) AddDDNSDomain(domain string) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	for _, d := range s.d.DDNSDomains {
-		if d == domain {
-			return
-		}
-	}
-	s.d.DDNSDomains = append(s.d.DDNSDomains, domain)
+	addUnique(&s.d.DDNSDomains, domain)
 }
 
 func (s *Store) RemoveDDNSDomain(domain string) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	filtered := s.d.DDNSDomains[:0]
-	for _, d := range s.d.DDNSDomains {
-		if d != domain {
-			filtered = append(filtered, d)
-		}
-	}
-	s.d.DDNSDomains = filtered
+	removeString(&s.d.DDNSDomains, domain)
 }
 
 // ---- Scan subnets -----------------------------------------------------------
@@ -603,24 +579,13 @@ func (s *Store) GetScanSubnets() []string {
 func (s *Store) AddScanSubnet(cidr string) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	for _, c := range s.d.ScanSubnets {
-		if c == cidr {
-			return
-		}
-	}
-	s.d.ScanSubnets = append(s.d.ScanSubnets, cidr)
+	addUnique(&s.d.ScanSubnets, cidr)
 }
 
 func (s *Store) RemoveScanSubnet(cidr string) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	filtered := s.d.ScanSubnets[:0]
-	for _, c := range s.d.ScanSubnets {
-		if c != cidr {
-			filtered = append(filtered, c)
-		}
-	}
-	s.d.ScanSubnets = filtered
+	removeString(&s.d.ScanSubnets, cidr)
 }
 
 // ---- Bookmarks --------------------------------------------------------------
@@ -696,12 +661,6 @@ func (s *Store) SetLastScan(t time.Time) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	s.d.LastScan = t
-}
-
-func (s *Store) GetLastScan() time.Time {
-	s.mu.RLock()
-	defer s.mu.RUnlock()
-	return s.d.LastScan
 }
 
 func (s *Store) SetPublicIP(ip string) {

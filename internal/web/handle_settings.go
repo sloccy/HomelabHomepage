@@ -26,14 +26,12 @@ func (s *Server) listDDNS(w http.ResponseWriter, r *http.Request) {
 
 func (s *Server) addDDNS(w http.ResponseWriter, r *http.Request) {
 	if err := r.ParseForm(); err != nil {
-		errorTrigger(w, "invalid form data")
-		w.WriteHeader(http.StatusBadRequest)
+		errorResponse(w, http.StatusBadRequest, "invalid form data")
 		return
 	}
 	domain := strings.ToLower(strings.TrimSpace(r.FormValue("domain")))
 	if domain == "" {
-		errorTrigger(w, "domain is required")
-		w.WriteHeader(http.StatusBadRequest)
+		errorResponse(w, http.StatusBadRequest, "domain is required")
 		return
 	}
 	s.store.AddDDNSDomain(domain)
@@ -44,9 +42,7 @@ func (s *Server) addDDNS(w http.ResponseWriter, r *http.Request) {
 			log.Printf("web: ddns create record %s: %v", domain, err)
 		}
 	}
-	if err := s.store.Save(); err != nil {
-		log.Printf("web: save: %v", err)
-	}
+	s.save()
 	renderTemplate(w, "ddns.html", ddnsFragData{
 		Domains:  s.store.GetDDNSDomains(),
 		PublicIP: s.store.GetPublicIP(),
@@ -63,8 +59,6 @@ func (s *Server) removeDDNS(w http.ResponseWriter, r *http.Request) {
 			log.Printf("web: delete ddns record %s: %v", domain, err)
 		}
 	}
-	if err := s.store.Save(); err != nil {
-		log.Printf("web: save: %v", err)
-	}
+	s.save()
 	w.WriteHeader(http.StatusOK)
 }
