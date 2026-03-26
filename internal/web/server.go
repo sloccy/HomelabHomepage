@@ -54,6 +54,7 @@ func New(cfg *config.Config, st *store.Store, cfClient *cf.Client, version strin
 
 func (s *Server) SetScanner(sc Scanner)              { s.scanner = sc }
 func (s *Server) SetTunnelManager(t *tunnel.Manager) { s.tunnel = t }
+func (s *Server) Stop()                              { s.faviconCache.Stop() }
 
 // save persists the store to disk, logging any error.
 func (s *Server) save() { s.store.SaveLog("web") }

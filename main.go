@@ -175,6 +175,7 @@ func main() {
 	_ = httpSrv.Shutdown(shutCtx)
 	_ = httpsSrv.Shutdown(shutCtx)
 	tunnelMgr.Stop()
+	webSrv.Stop()
 	_ = st.Save()
 	log.Println("bye")
 }
