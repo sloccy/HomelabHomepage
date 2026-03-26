@@ -95,11 +95,7 @@ func (s *Server) ignoreDiscovered(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) listIgnored(w http.ResponseWriter, r *http.Request) {
-	ignored := s.store.GetIgnored()
-	if ignored == nil {
-		ignored = []*store.IgnoredService{}
-	}
-	writeJSON(w, http.StatusOK, ignored)
+	writeJSON(w, http.StatusOK, s.store.GetIgnored())
 }
 
 func (s *Server) unignoreService(w http.ResponseWriter, r *http.Request) {
@@ -115,7 +111,7 @@ func (s *Server) unignoreService(w http.ResponseWriter, r *http.Request) {
 		IP:           ig.IP,
 		Port:         ig.Port,
 		Title:        ig.Title,
-		Source:       "network",
+		Source:       store.SourceNetwork,
 		DiscoveredAt: time.Now(),
 	})
 	s.save()

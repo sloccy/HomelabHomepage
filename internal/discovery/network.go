@@ -18,6 +18,7 @@ import (
 
 	"go4.org/netipx"
 	"golang.org/x/sync/errgroup"
+	"lantern/internal/store"
 	"lantern/internal/util"
 )
 
@@ -682,7 +683,7 @@ func tryProbe(ctx context.Context, ip string, port int, scheme string) *probeRes
 	iconData := util.FetchFaviconFromHTML(ctx, bodyStr, rawURL)
 	iconStr := svcIcon // emoji fallback
 	if len(iconData) > 0 {
-		iconStr = "file"
+		iconStr = store.IconFile
 	}
 
 	return &probeResult{

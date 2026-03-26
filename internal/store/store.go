@@ -13,6 +13,17 @@ import (
 	"time"
 )
 
+// Source values for Service.Source and DiscoveredService.Source.
+const (
+	SourceDocker  = "docker"
+	SourceNetwork = "network"
+	SourceManual  = "manual"
+)
+
+// IconFile is the sentinel value for Icon fields meaning the icon is stored
+// as a file on disk under the entity's ID.
+const IconFile = "file"
+
 // Service is a subdomain-assigned service (shown on homepage).
 type Service struct {
 	ID          string    `json:"id"`
@@ -183,7 +194,7 @@ func (s *Store) indexService(svc *Service) {
 	if svc.ContainerID != "" {
 		s.containerIDIdx[svc.ContainerID] = svc
 	}
-	if svc.Source == "docker" && svc.ContainerName != "" {
+	if svc.Source == SourceDocker && svc.ContainerName != "" {
 		s.containerNameIdx[svc.ContainerName] = svc
 	}
 }
@@ -270,7 +281,7 @@ func (s *Store) migrateIcons() {
 	for _, svc := range s.d.Services {
 		if strings.HasPrefix(svc.Icon, "data:") {
 			if writeDataURI(s.iconPath(svc.ID), svc.Icon) {
-				svc.Icon = "file"
+				svc.Icon = IconFile
 				migrated++
 			}
 		}
@@ -278,7 +289,7 @@ func (s *Store) migrateIcons() {
 	for _, bm := range s.d.Bookmarks {
 		if strings.HasPrefix(bm.Icon, "data:") {
 			if writeDataURI(s.iconPath(bm.ID), bm.Icon) {
-				bm.Icon = "file"
+				bm.Icon = IconFile
 				migrated++
 			}
 		}
@@ -286,7 +297,7 @@ func (s *Store) migrateIcons() {
 	for _, d := range s.d.Discovered {
 		if strings.HasPrefix(d.Icon, "data:") {
 			if writeDataURI(s.iconPath(d.ID), d.Icon) {
-				d.Icon = "file"
+				d.Icon = IconFile
 				migrated++
 			}
 		}
@@ -496,7 +507,7 @@ func (s *Store) ClearNetworkDiscovered() {
 	defer s.mu.Unlock()
 	var keep []*DiscoveredService
 	for _, d := range s.d.Discovered {
-		if d.Source == "network" {
+		if d.Source == SourceNetwork {
 			s.unindexDiscovered(d)
 		} else {
 			keep = append(keep, d)
@@ -512,7 +523,7 @@ func (s *Store) UpsertNetworkDiscovered(svc *DiscoveredService) string {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	for _, existing := range s.d.Discovered {
-		if existing.Source == "network" && existing.IP == svc.IP && existing.Port == svc.Port {
+		if existing.Source == SourceNetwork && existing.IP == svc.IP && existing.Port == svc.Port {
 			existing.Title = svc.Title
 			existing.Icon = svc.Icon
 			existing.ServiceName = svc.ServiceName

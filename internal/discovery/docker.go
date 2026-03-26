@@ -178,7 +178,7 @@ func (d *Discoverer) upsertContainerWithLabels(ctx context.Context, id, name str
 	// (handles pre-fix records with no ContainerName set, and renamed containers).
 	// Only send to discovered if it's a manual/network service with the same subdomain.
 	if existing := d.store.GetServiceBySubdomain(info.subdomain); existing != nil {
-		if existing.Source == "docker" {
+		if existing.Source == store.SourceDocker {
 			updated := *existing
 			updated.ContainerID = id
 			updated.ContainerName = name // backfill for pre-fix records
@@ -265,7 +265,7 @@ func (d *Discoverer) addDockerDiscovered(id, name, target, suggestedSub string) 
 		IP:                 ip,
 		Port:               port,
 		Title:              name,
-		Source:             "docker",
+		Source:             store.SourceDocker,
 		ContainerName:      name,
 		ContainerID:        id,
 		SuggestedSubdomain: suggestedSub,
@@ -285,7 +285,7 @@ func fetchAndStoreDiscoveredFavicon(st *store.Store, id, target string) {
 	if !util.FetchAndWriteFavicon(ctx, st, id, target) {
 		return
 	}
-	st.UpdateDiscoveredIcon(id, "file")
+	st.UpdateDiscoveredIcon(id, store.IconFile)
 	st.SaveLog("discovery")
 }
 

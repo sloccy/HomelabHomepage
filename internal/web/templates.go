@@ -130,7 +130,7 @@ var funcMap = template.FuncMap{
 	// iconEl renders the icon HTML for a service/bookmark.
 	// id: entity ID; icon: "file", emoji, or empty; src: URL for favicon proxy; cls: CSS class.
 	"iconEl": func(id, icon, src, cls string) template.HTML {
-		if icon == "file" {
+		if icon == store.IconFile {
 			return template.HTML(fmt.Sprintf(
 				`<img class="%s" src="/api/icons/%s" alt="">`,
 				template.HTMLEscapeString(cls),
@@ -187,9 +187,9 @@ var funcMap = template.FuncMap{
 	// tagClass returns CSS classes for a source badge.
 	"tagClass": func(source string) string {
 		switch source {
-		case "docker":
+		case store.SourceDocker:
 			return "badge text-bg-info"
-		case "network":
+		case store.SourceNetwork:
 			return "badge text-bg-success"
 		default:
 			return "badge text-bg-secondary"
@@ -258,7 +258,7 @@ var funcMap = template.FuncMap{
 
 	// isFileIcon reports whether the icon is stored as a file on disk.
 	"isFileIcon": func(icon string) bool {
-		return icon == "file"
+		return icon == store.IconFile
 	},
 
 	// safeURL returns a template.URL to bypass Go's URL sanitisation for

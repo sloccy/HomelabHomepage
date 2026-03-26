@@ -10,11 +10,7 @@ import (
 )
 
 func (s *Server) listBookmarks(w http.ResponseWriter, r *http.Request) {
-	bms := s.store.GetAllBookmarks()
-	if bms == nil {
-		bms = []*store.Bookmark{}
-	}
-	writeJSON(w, http.StatusOK, bms)
+	writeJSON(w, http.StatusOK, s.store.GetAllBookmarks())
 }
 
 func (s *Server) createBookmark(w http.ResponseWriter, r *http.Request) {
@@ -85,9 +81,9 @@ func (s *Server) fetchBookmarkFavicon(id, bmURL string) {
 	if !util.FetchAndWriteFavicon(ctx, s.store, id, bmURL) {
 		return
 	}
-	if bm := s.store.GetBookmarkByID(id); bm != nil && bm.Icon != "file" {
+	if bm := s.store.GetBookmarkByID(id); bm != nil && bm.Icon != store.IconFile {
 		updated := *bm
-		updated.Icon = "file"
+		updated.Icon = store.IconFile
 		s.store.UpdateBookmark(id, &updated)
 		s.save()
 	}

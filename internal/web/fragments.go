@@ -74,11 +74,7 @@ func (s *Server) fragTunnel(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) fragSubnets(w http.ResponseWriter, r *http.Request) {
-	subnets := s.store.GetScanSubnets()
-	if subnets == nil {
-		subnets = []string{}
-	}
-	renderTemplate(w, "subnets.html", subnetsFragData{Subnets: subnets})
+	renderTemplate(w, "subnets.html", subnetsFragData{Subnets: s.store.GetScanSubnets()})
 }
 
 func (s *Server) fragServicesTable(w http.ResponseWriter, r *http.Request) {

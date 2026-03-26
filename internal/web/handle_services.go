@@ -74,7 +74,7 @@ func (s *Server) createService(w http.ResponseWriter, r *http.Request) {
 
 	target := req.Target
 	name := req.Name
-	source := "manual"
+	source := store.SourceManual
 	var containerID string
 	var containerName string
 	var discoveredIcon string
@@ -123,7 +123,7 @@ func (s *Server) createService(w http.ResponseWriter, r *http.Request) {
 	// Determine icon source: uploaded file > discovered icon > empty.
 	icon := ""
 	if len(uploadedIconData) > 0 {
-		icon = "file" // written to disk below after svcID is set
+		icon = store.IconFile // written to disk below after svcID is set
 	} else if discoveredIcon != "" {
 		icon = discoveredIcon
 	}
@@ -165,7 +165,7 @@ func (s *Server) createService(w http.ResponseWriter, r *http.Request) {
 	s.store.AddService(svc)
 	if req.DiscoveredID != "" {
 		// Copy icon file from discovered service to new service.
-		if discoveredIcon == "file" {
+		if discoveredIcon == store.IconFile {
 			if data, err := s.store.ReadIcon(req.DiscoveredID); err == nil {
 				_ = s.store.WriteIcon(svcID, data)
 			}
@@ -184,7 +184,7 @@ func (s *Server) createService(w http.ResponseWriter, r *http.Request) {
 			}
 			if existing := s.store.GetServiceByID(id); existing != nil {
 				updated := *existing
-				updated.Icon = "file"
+				updated.Icon = store.IconFile
 				s.store.UpdateService(id, &updated)
 				s.save()
 			}
@@ -516,13 +516,13 @@ func (s *Server) deleteService(w http.ResponseWriter, r *http.Request) {
 			log.Printf("web: delete DNS record: %v", err)
 		}
 	}
-	if svc != nil && svc.Source == "docker" && svc.ContainerID != "" {
+	if svc != nil && svc.Source == store.SourceDocker && svc.ContainerID != "" {
 		s.store.AddDiscovered(&store.DiscoveredService{
 			ID:            newID(),
 			IP:            "",
 			Port:          0,
 			Title:         svc.Name,
-			Source:        "docker",
+			Source:        store.SourceDocker,
 			ContainerID:   svc.ContainerID,
 			ContainerName: svc.ContainerName,
 			DiscoveredAt:  time.Now(),
@@ -574,7 +574,7 @@ func (s *Server) uploadServiceIcon(w http.ResponseWriter, r *http.Request) {
 		apiError(w, http.StatusInternalServerError, "could not save icon")
 		return
 	}
-	s.applyServiceIcon(w, svc, "file")
+	s.applyServiceIcon(w, svc, store.IconFile)
 }
 
 func (s *Server) clearServiceIcon(w http.ResponseWriter, r *http.Request) {
@@ -606,7 +606,7 @@ func (s *Server) pullServiceFavicon(w http.ResponseWriter, r *http.Request) {
 		errorResponse(w, http.StatusInternalServerError, "could not save favicon")
 		return
 	}
-	s.applyServiceIcon(w, svc, "file")
+	s.applyServiceIcon(w, svc, store.IconFile)
 }
 
 // applyServiceIcon sets a service's Icon field, saves, and renders the icon preview.

@@ -30,7 +30,9 @@ type Discoverer struct {
 
 // save persists the store to disk, appending any error to the scan log.
 func (d *Discoverer) save() {
-	d.save()
+	if err := d.store.Save(); err != nil {
+		d.logf("save: %v", err)
+	}
 }
 
 // logf writes to the standard logger and appends to the internal scan log buffer.
@@ -151,7 +153,7 @@ func (d *Discoverer) upsertProbeResult(r *probeResult) string {
 		Icon:         r.icon,
 		ServiceName:  r.serviceName,
 		Confidence:   r.confidence,
-		Source:       "network",
+		Source:       store.SourceNetwork,
 		DiscoveredAt: time.Now(),
 	})
 	if len(r.iconBytes) > 0 {
