@@ -51,16 +51,7 @@ func discoverWSDiscovery(ctx context.Context, timeout time.Duration) []openPort 
 	}
 	defer conn.Close()
 
-	// Cancel the blocking read when ctx is done.
-	done := make(chan struct{})
-	defer close(done)
-	go func() {
-		select {
-		case <-ctx.Done():
-			conn.Close()
-		case <-done:
-		}
-	}()
+	defer closeOnCancel(ctx, conn)()
 
 	probe := fmt.Sprintf(wsdProbeTemplate, wsdMessageID())
 	dst, _ := net.ResolveUDPAddr("udp4", wsdAddr)

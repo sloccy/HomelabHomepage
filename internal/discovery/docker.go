@@ -282,21 +282,25 @@ func (d *Discoverer) addDockerDiscovered(id, name, target, suggestedSub string) 
 		log.Printf("discovery: save: %v", err)
 	}
 
-	go func(id, target string) {
-		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-		defer cancel()
-		data := FetchFaviconForTarget(ctx, target)
-		if len(data) == 0 {
-			return
-		}
-		if err := d.store.WriteIcon(id, data); err != nil {
-			return
-		}
-		d.store.UpdateDiscoveredIcon(id, "file")
-		if err := d.store.Save(); err != nil {
-			log.Printf("discovery: save favicon: %v", err)
-		}
-	}(disc.ID, target)
+	go fetchAndStoreDiscoveredFavicon(d.store, disc.ID, target)
+}
+
+// fetchAndStoreDiscoveredFavicon fetches the favicon for target, writes it to
+// the store under id, and updates the discovered service's Icon field.
+func fetchAndStoreDiscoveredFavicon(st *store.Store, id, target string) {
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+	data := FetchFaviconForTarget(ctx, target)
+	if len(data) == 0 {
+		return
+	}
+	if err := st.WriteIcon(id, data); err != nil {
+		return
+	}
+	st.UpdateDiscoveredIcon(id, "file")
+	if err := st.Save(); err != nil {
+		log.Printf("discovery: save favicon: %v", err)
+	}
 }
 
 // ── Traefik label helpers ─────────────────────────────────────────────────────

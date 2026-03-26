@@ -3,6 +3,7 @@ package discovery
 import (
 	"context"
 	"fmt"
+	"io"
 	"log"
 	"strings"
 	"sync"
@@ -239,3 +240,17 @@ func (d *Discoverer) runScan(ctx context.Context) {
 }
 
 var newID = util.NewID
+
+// closeOnCancel closes c when ctx is done. Returns a cancel func that must be
+// deferred to release the goroutine when the calling function returns normally.
+func closeOnCancel(ctx context.Context, c io.Closer) func() {
+	done := make(chan struct{})
+	go func() {
+		select {
+		case <-ctx.Done():
+			c.Close()
+		case <-done:
+		}
+	}()
+	return func() { close(done) }
+}

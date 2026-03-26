@@ -93,9 +93,14 @@ type Store struct {
 	d                data
 	path             string
 	iconDir          string
-	idIdx            map[string]*Service // service ID -> *Service
-	containerIDIdx   map[string]*Service // container ID -> *Service
-	containerNameIdx map[string]*Service // docker container name -> *Service
+	idIdx            map[string]*Service            // service ID -> *Service
+	containerIDIdx   map[string]*Service            // container ID -> *Service
+	containerNameIdx map[string]*Service            // docker container name -> *Service
+	bookmarkIdx      map[string]*Bookmark           // bookmark ID -> *Bookmark
+	discoveredIdx          map[string]*DiscoveredService // discovered ID -> *DiscoveredService
+	discoveredContainerIdx map[string]*DiscoveredService // container ID -> *DiscoveredService
+	ignoredIdx       map[string]*IgnoredService     // ignored ID -> *IgnoredService
+	ignoredIPPortIdx map[string]struct{}            // "ip:port" -> present
 }
 
 func New(dataDir string) (*Store, error) {
@@ -117,6 +122,14 @@ func New(dataDir string) (*Store, error) {
 			DDNSDomains: []string{},
 			ScanSubnets: []string{},
 		},
+		idIdx:                  make(map[string]*Service),
+		containerIDIdx:         make(map[string]*Service),
+		containerNameIdx:       make(map[string]*Service),
+		bookmarkIdx:            make(map[string]*Bookmark),
+		discoveredIdx:          make(map[string]*DiscoveredService),
+		discoveredContainerIdx: make(map[string]*DiscoveredService),
+		ignoredIdx:             make(map[string]*IgnoredService),
+		ignoredIPPortIdx:       make(map[string]struct{}),
 	}
 	if err := s.load(); err != nil && !os.IsNotExist(err) {
 		return nil, fmt.Errorf("load store: %w", err)
@@ -137,7 +150,7 @@ func (s *Store) load() error {
 	return nil
 }
 
-// rebuildIndexes reconstructs the secondary lookup maps from s.d.Services.
+// rebuildIndexes reconstructs all secondary lookup maps from s.d.
 // Must be called with the write lock held (or during initialization before the
 // store is shared).
 func (s *Store) rebuildIndexes() {
@@ -146,6 +159,20 @@ func (s *Store) rebuildIndexes() {
 	s.containerNameIdx = make(map[string]*Service, len(s.d.Services))
 	for _, svc := range s.d.Services {
 		s.indexService(svc)
+	}
+	s.bookmarkIdx = make(map[string]*Bookmark, len(s.d.Bookmarks))
+	for _, b := range s.d.Bookmarks {
+		s.indexBookmark(b)
+	}
+	s.discoveredIdx = make(map[string]*DiscoveredService, len(s.d.Discovered))
+	s.discoveredContainerIdx = make(map[string]*DiscoveredService)
+	for _, d := range s.d.Discovered {
+		s.indexDiscovered(d)
+	}
+	s.ignoredIdx = make(map[string]*IgnoredService, len(s.d.Ignored))
+	s.ignoredIPPortIdx = make(map[string]struct{}, len(s.d.Ignored))
+	for _, ig := range s.d.Ignored {
+		s.indexIgnored(ig)
 	}
 }
 
@@ -165,6 +192,32 @@ func (s *Store) unindexService(svc *Service) {
 	delete(s.idIdx, svc.ID)
 	delete(s.containerIDIdx, svc.ContainerID)
 	delete(s.containerNameIdx, svc.ContainerName)
+}
+
+func (s *Store) indexBookmark(b *Bookmark) { s.bookmarkIdx[b.ID] = b }
+func (s *Store) unindexBookmark(b *Bookmark) { delete(s.bookmarkIdx, b.ID) }
+
+func (s *Store) indexDiscovered(d *DiscoveredService) {
+	s.discoveredIdx[d.ID] = d
+	if d.ContainerID != "" {
+		s.discoveredContainerIdx[d.ContainerID] = d
+	}
+}
+func (s *Store) unindexDiscovered(d *DiscoveredService) {
+	delete(s.discoveredIdx, d.ID)
+	if d.ContainerID != "" {
+		delete(s.discoveredContainerIdx, d.ContainerID)
+	}
+}
+
+func ignoredKey(ip string, port int) string { return fmt.Sprintf("%s:%d", ip, port) }
+func (s *Store) indexIgnored(ig *IgnoredService) {
+	s.ignoredIdx[ig.ID] = ig
+	s.ignoredIPPortIdx[ignoredKey(ig.IP, ig.Port)] = struct{}{}
+}
+func (s *Store) unindexIgnored(ig *IgnoredService) {
+	delete(s.ignoredIdx, ig.ID)
+	delete(s.ignoredIPPortIdx, ignoredKey(ig.IP, ig.Port))
 }
 
 // Save flushes the store to disk. Safe to call concurrently.
@@ -400,49 +453,48 @@ func (s *Store) GetAllDiscovered() []*DiscoveredService {
 func (s *Store) GetDiscoveredByID(id string) *DiscoveredService {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
-	for _, d := range s.d.Discovered {
-		if d.ID == id {
-			return d
-		}
-	}
-	return nil
+	return s.discoveredIdx[id]
 }
 
 func (s *Store) GetDiscoveredByContainerID(cid string) *DiscoveredService {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
-	for _, d := range s.d.Discovered {
-		if d.ContainerID == cid {
-			return d
-		}
-	}
-	return nil
+	return s.discoveredContainerIdx[cid]
 }
 
 func (s *Store) AddDiscovered(d *DiscoveredService) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	// Deduplicate by IP+port or ContainerID
-	for _, existing := range s.d.Discovered {
-		if existing.ContainerID != "" && existing.ContainerID == d.ContainerID {
+	// Deduplicate by ContainerID (O(1)) or IP+port (O(n) fallback)
+	if d.ContainerID != "" {
+		if _, exists := s.discoveredContainerIdx[d.ContainerID]; exists {
 			return
 		}
+	}
+	for _, existing := range s.d.Discovered {
 		if existing.IP == d.IP && existing.Port == d.Port {
 			return
 		}
 	}
 	s.d.Discovered = append(s.d.Discovered, d)
+	s.indexDiscovered(d)
 }
 
 func (s *Store) RemoveDiscovered(id string) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
+	if d := s.discoveredIdx[id]; d != nil {
+		s.unindexDiscovered(d)
+	}
 	filterSlice(&s.d.Discovered, func(d *DiscoveredService) bool { return d.ID != id })
 }
 
 func (s *Store) RemoveDiscoveredByContainerID(cid string) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
+	if d := s.discoveredContainerIdx[cid]; d != nil {
+		s.unindexDiscovered(d)
+	}
 	filterSlice(&s.d.Discovered, func(d *DiscoveredService) bool { return d.ContainerID != cid })
 }
 
@@ -453,7 +505,9 @@ func (s *Store) ClearNetworkDiscovered() {
 	defer s.mu.Unlock()
 	var keep []*DiscoveredService
 	for _, d := range s.d.Discovered {
-		if d.Source != "network" {
+		if d.Source == "network" {
+			s.unindexDiscovered(d)
+		} else {
 			keep = append(keep, d)
 		}
 	}
@@ -473,10 +527,12 @@ func (s *Store) UpsertNetworkDiscovered(svc *DiscoveredService) string {
 			existing.ServiceName = svc.ServiceName
 			existing.Confidence = svc.Confidence
 			existing.DiscoveredAt = svc.DiscoveredAt
+			// Index already points to existing; no re-indexing needed.
 			return existing.ID
 		}
 	}
 	s.d.Discovered = append(s.d.Discovered, svc)
+	s.indexDiscovered(svc)
 	return svc.ID
 }
 
@@ -484,11 +540,8 @@ func (s *Store) UpsertNetworkDiscovered(svc *DiscoveredService) string {
 func (s *Store) UpdateDiscoveredIcon(id, icon string) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	for _, d := range s.d.Discovered {
-		if d.ID == id {
-			d.Icon = icon
-			return
-		}
+	if d := s.discoveredIdx[id]; d != nil {
+		d.Icon = icon
 	}
 }
 
@@ -498,24 +551,21 @@ func (s *Store) UpdateDiscoveredIcon(id, icon string) {
 func (s *Store) IgnoreDiscovered(id string) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	var found *DiscoveredService
-	for _, d := range s.d.Discovered {
-		if d.ID == id {
-			found = d
-			break
-		}
-	}
+	found := s.discoveredIdx[id]
 	if found == nil {
 		return fmt.Errorf("discovered service %q not found", id)
 	}
+	s.unindexDiscovered(found)
 	filterSlice(&s.d.Discovered, func(d *DiscoveredService) bool { return d.ID != id })
-	s.d.Ignored = append(s.d.Ignored, &IgnoredService{
+	ig := &IgnoredService{
 		ID:        found.ID,
 		IP:        found.IP,
 		Port:      found.Port,
 		Title:     found.Title,
 		IgnoredAt: time.Now(),
-	})
+	}
+	s.d.Ignored = append(s.d.Ignored, ig)
+	s.indexIgnored(ig)
 	return nil
 }
 
@@ -531,16 +581,11 @@ func (s *Store) GetIgnored() []*IgnoredService {
 func (s *Store) UnignoreService(id string) (*IgnoredService, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	var removed *IgnoredService
-	for _, ig := range s.d.Ignored {
-		if ig.ID == id {
-			removed = ig
-			break
-		}
-	}
+	removed := s.ignoredIdx[id]
 	if removed == nil {
 		return nil, fmt.Errorf("ignored service %q not found", id)
 	}
+	s.unindexIgnored(removed)
 	filterSlice(&s.d.Ignored, func(ig *IgnoredService) bool { return ig.ID != id })
 	return removed, nil
 }
@@ -549,12 +594,8 @@ func (s *Store) UnignoreService(id string) (*IgnoredService, error) {
 func (s *Store) IsIgnored(ip string, port int) bool {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
-	for _, ig := range s.d.Ignored {
-		if ig.IP == ip && ig.Port == port {
-			return true
-		}
-	}
-	return false
+	_, ok := s.ignoredIPPortIdx[ignoredKey(ip, port)]
+	return ok
 }
 
 // ---- DDNS -------------------------------------------------------------------
@@ -606,12 +647,7 @@ func (s *Store) RemoveScanSubnet(cidr string) {
 func (s *Store) GetBookmarkByID(id string) *Bookmark {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
-	for _, b := range s.d.Bookmarks {
-		if b.ID == id {
-			return b
-		}
-	}
-	return nil
+	return s.bookmarkIdx[id]
 }
 
 func (s *Store) GetAllBookmarks() []*Bookmark {
@@ -626,6 +662,7 @@ func (s *Store) AddBookmark(b *Bookmark) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	s.d.Bookmarks = append(s.d.Bookmarks, b)
+	s.indexBookmark(b)
 }
 
 func (s *Store) UpdateBookmark(id string, updated *Bookmark) bool {
@@ -633,7 +670,9 @@ func (s *Store) UpdateBookmark(id string, updated *Bookmark) bool {
 	defer s.mu.Unlock()
 	for i, b := range s.d.Bookmarks {
 		if b.ID == id {
+			s.unindexBookmark(b)
 			s.d.Bookmarks[i] = updated
+			s.indexBookmark(updated)
 			return true
 		}
 	}
@@ -647,11 +686,8 @@ func (s *Store) ReorderBookmarks(ids []string) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	for i, id := range ids {
-		for _, bm := range s.d.Bookmarks {
-			if bm.ID == id {
-				bm.Order = i
-				break
-			}
+		if bm := s.bookmarkIdx[id]; bm != nil {
+			bm.Order = i
 		}
 	}
 }
@@ -661,6 +697,7 @@ func (s *Store) DeleteBookmark(id string) bool {
 	defer s.mu.Unlock()
 	for i, b := range s.d.Bookmarks {
 		if b.ID == id {
+			s.unindexBookmark(b)
 			s.d.Bookmarks = append(s.d.Bookmarks[:i], s.d.Bookmarks[i+1:]...)
 			return true
 		}
