@@ -344,6 +344,9 @@ func (s *Store) GetServiceByContainerName(name string) *Service {
 
 // ClearContainerID detaches a running container from its service entry without
 // deleting the service. This preserves user customisations across restarts.
+// Note: containerNameIdx is intentionally NOT cleared here. The name association
+// survives container stop so that docker.go can reattach the service by name
+// when the container restarts with a new container ID.
 func (s *Store) ClearContainerID(cid string) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -525,6 +528,7 @@ func (s *Store) UpsertNetworkDiscovered(svc *DiscoveredService) string {
 			existing.Title = svc.Title
 			existing.Icon = svc.Icon
 			existing.ServiceName = svc.ServiceName
+			existing.SuggestedSubdomain = svc.SuggestedSubdomain
 			existing.Confidence = svc.Confidence
 			existing.DiscoveredAt = svc.DiscoveredAt
 			// Index already points to existing; no re-indexing needed.

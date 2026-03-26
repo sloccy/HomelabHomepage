@@ -400,3 +400,149 @@ func TestIgnoredKey(t *testing.T) {
 		t.Errorf("ignoredKey = %q, want 10.0.0.1:8080", k)
 	}
 }
+
+func TestUpdateServiceSubdomainChange(t *testing.T) {
+	st := newTestStore(t)
+	svc := &Service{ID: "s1", Name: "Old", Subdomain: "old", DNSRecordID: "dns1", Source: "manual", CreatedAt: time.Now()}
+	st.AddService(svc)
+
+	updated := *svc
+	updated.Subdomain = "new"
+	updated.DNSRecordID = "dns2"
+	oldSub, oldDNSID := st.UpdateService("s1", &updated)
+
+	if oldSub != "old" {
+		t.Errorf("UpdateService: oldSub = %q, want old", oldSub)
+	}
+	if oldDNSID != "dns1" {
+		t.Errorf("UpdateService: oldDNSID = %q, want dns1", oldDNSID)
+	}
+	if st.GetServiceBySubdomain("old") != nil {
+		t.Error("UpdateService: old subdomain still present in map")
+	}
+	if st.GetServiceBySubdomain("new") == nil {
+		t.Error("UpdateService: new subdomain not in map")
+	}
+	if st.GetServiceByID("s1").Subdomain != "new" {
+		t.Error("UpdateService: ID index not updated")
+	}
+}
+
+func TestDeleteServiceReturnValues(t *testing.T) {
+	st := newTestStore(t)
+	svc := &Service{
+		ID:            "s2",
+		Subdomain:     "svc2",
+		DNSRecordID:   "rec1",
+		TunnelRouteID: "tun1",
+		Source:        "manual",
+		CreatedAt:     time.Now(),
+	}
+	st.AddService(svc)
+
+	sub, dnsID, tunnelRoute := st.DeleteService("s2")
+	if sub != "svc2" {
+		t.Errorf("DeleteService: sub = %q, want svc2", sub)
+	}
+	if dnsID != "rec1" {
+		t.Errorf("DeleteService: dnsID = %q, want rec1", dnsID)
+	}
+	if tunnelRoute != "tun1" {
+		t.Errorf("DeleteService: tunnelRoute = %q, want tun1", tunnelRoute)
+	}
+}
+
+func TestReorderServices(t *testing.T) {
+	st := newTestStore(t)
+	st.AddService(&Service{ID: "a", Subdomain: "a", Source: "manual", CreatedAt: time.Now()})
+	st.AddService(&Service{ID: "b", Subdomain: "b", Source: "manual", CreatedAt: time.Now()})
+	st.AddService(&Service{ID: "c", Subdomain: "c", Source: "manual", CreatedAt: time.Now()})
+
+	st.ReorderServices([]string{"c", "a", "b"})
+
+	if st.GetServiceByID("c").Order != 0 {
+		t.Errorf("c.Order = %d, want 0", st.GetServiceByID("c").Order)
+	}
+	if st.GetServiceByID("a").Order != 1 {
+		t.Errorf("a.Order = %d, want 1", st.GetServiceByID("a").Order)
+	}
+	if st.GetServiceByID("b").Order != 2 {
+		t.Errorf("b.Order = %d, want 2", st.GetServiceByID("b").Order)
+	}
+}
+
+func TestClearContainerIDPreservesNameIndex(t *testing.T) {
+	// containerNameIdx is intentionally preserved after ClearContainerID to
+	// support docker container reconnect-by-name on restart.
+	st := newTestStore(t)
+	svc := &Service{
+		ID:            "s3",
+		Subdomain:     "svc3",
+		Source:        "docker",
+		ContainerID:   "cid3",
+		ContainerName: "my-container",
+		CreatedAt:     time.Now(),
+	}
+	st.AddService(svc)
+
+	st.ClearContainerID("cid3")
+
+	if st.GetServiceByContainerID("cid3") != nil {
+		t.Error("ClearContainerID: containerIDIdx not cleared")
+	}
+	if st.GetServiceByContainerName("my-container") == nil {
+		t.Error("ClearContainerID: containerNameIdx cleared unexpectedly (required for reconnect-by-name)")
+	}
+}
+
+func TestUpsertNetworkDiscoveredUpdatesSuggestedSubdomain(t *testing.T) {
+	st := newTestStore(t)
+	d := &DiscoveredService{
+		ID: "u1", IP: "10.0.0.10", Port: 9000, Source: "network",
+		SuggestedSubdomain: "old-name", DiscoveredAt: time.Now(),
+	}
+	st.UpsertNetworkDiscovered(d)
+
+	updated := &DiscoveredService{
+		ID: "u2", IP: "10.0.0.10", Port: 9000, Source: "network",
+		SuggestedSubdomain: "new-name", DiscoveredAt: time.Now(),
+	}
+	st.UpsertNetworkDiscovered(updated)
+
+	got := st.GetDiscoveredByID("u1")
+	if got == nil {
+		t.Fatal("UpsertNetworkDiscovered: original entry not found")
+	}
+	if got.SuggestedSubdomain != "new-name" {
+		t.Errorf("UpsertNetworkDiscovered: SuggestedSubdomain = %q, want new-name", got.SuggestedSubdomain)
+	}
+}
+
+func TestPersistenceRoundTripDiscoveredAndIgnored(t *testing.T) {
+	dir := t.TempDir()
+	st, _ := New(dir)
+
+	st.AddDiscovered(&DiscoveredService{ID: "d1", IP: "10.0.0.1", Port: 80, Source: "network", DiscoveredAt: time.Now()})
+	if err := st.IgnoreDiscovered("d1"); err != nil {
+		t.Fatalf("IgnoreDiscovered: %v", err)
+	}
+	st.AddDiscovered(&DiscoveredService{ID: "d2", IP: "10.0.0.2", Port: 443, Source: "network", DiscoveredAt: time.Now()})
+
+	if err := st.Save(); err != nil {
+		t.Fatalf("Save: %v", err)
+	}
+
+	st2, err := New(dir)
+	if err != nil {
+		t.Fatalf("New (reload): %v", err)
+	}
+	if !st2.IsIgnored("10.0.0.1", 80) {
+		t.Error("reload: ignored entry not restored")
+	}
+	if st2.GetDiscoveredByID("d2") == nil {
+		t.Error("reload: discovered entry not restored")
+	}
+	if st2.GetDiscoveredByID("d1") != nil {
+		t.Error("reload: ignored entry incorrectly in discovered index")
+	}
+}
