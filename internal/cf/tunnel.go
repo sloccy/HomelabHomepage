@@ -29,7 +29,13 @@ func (c *Client) AddTunnelRoute(ctx context.Context, hostname, backend string) (
 		return "", nil
 	}
 	if err := c.modifyIngress(ctx, func(rules []zero_trust.TunnelCloudflaredConfigurationUpdateParamsConfigIngress) []zero_trust.TunnelCloudflaredConfigurationUpdateParamsConfigIngress {
-		return append(rules, zero_trust.TunnelCloudflaredConfigurationUpdateParamsConfigIngress{
+		var filtered []zero_trust.TunnelCloudflaredConfigurationUpdateParamsConfigIngress
+		for _, r := range rules {
+			if r.Hostname.Value != hostname {
+				filtered = append(filtered, r)
+			}
+		}
+		return append(filtered, zero_trust.TunnelCloudflaredConfigurationUpdateParamsConfigIngress{
 			Hostname: cloudflare.F(hostname),
 			Service:  cloudflare.F(backend),
 		})
