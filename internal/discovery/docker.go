@@ -140,9 +140,7 @@ type containerInfo struct {
 func (d *Discoverer) detachContainer(ctx context.Context, id string) {
 	d.store.ClearContainerID(id)
 	d.store.RemoveDiscoveredByContainerID(id)
-	if err := d.store.Save(); err != nil {
-		log.Printf("discovery: save: %v", err)
-	}
+	d.store.SaveLog("discovery")
 }
 
 // upsertContainerWithLabels resolves a container's configuration from Docker labels,
@@ -171,9 +169,7 @@ func (d *Discoverer) upsertContainerWithLabels(ctx context.Context, id, name str
 		updated.ContainerID = id
 		updated.Target = preserveScheme(existing.Target, info.target)
 		d.store.UpdateService(existing.ID, &updated)
-		if err := d.store.Save(); err != nil {
-			log.Printf("discovery: save: %v", err)
-		}
+		d.store.SaveLog("discovery")
 		log.Printf("discovery: reattached %q → %s (%s)", name, existing.Subdomain, id)
 		return
 	}
@@ -188,9 +184,7 @@ func (d *Discoverer) upsertContainerWithLabels(ctx context.Context, id, name str
 			updated.ContainerName = name // backfill for pre-fix records
 			updated.Target = preserveScheme(existing.Target, info.target)
 			d.store.UpdateService(existing.ID, &updated)
-			if err := d.store.Save(); err != nil {
-				log.Printf("discovery: save: %v", err)
-			}
+			d.store.SaveLog("discovery")
 			log.Printf("discovery: reattached %q → %s (%s)", name, existing.Subdomain, id)
 			return
 		}
@@ -278,9 +272,7 @@ func (d *Discoverer) addDockerDiscovered(id, name, target, suggestedSub string) 
 		DiscoveredAt:       time.Now(),
 	}
 	d.store.AddDiscovered(disc)
-	if err := d.store.Save(); err != nil {
-		log.Printf("discovery: save: %v", err)
-	}
+	d.store.SaveLog("discovery")
 
 	go fetchAndStoreDiscoveredFavicon(d.store, disc.ID, target)
 }
@@ -290,17 +282,11 @@ func (d *Discoverer) addDockerDiscovered(id, name, target, suggestedSub string) 
 func fetchAndStoreDiscoveredFavicon(st *store.Store, id, target string) {
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
-	data := FetchFaviconForTarget(ctx, target)
-	if len(data) == 0 {
-		return
-	}
-	if err := st.WriteIcon(id, data); err != nil {
+	if !util.FetchAndWriteFavicon(ctx, st, id, target) {
 		return
 	}
 	st.UpdateDiscoveredIcon(id, "file")
-	if err := st.Save(); err != nil {
-		log.Printf("discovery: save favicon: %v", err)
-	}
+	st.SaveLog("discovery")
 }
 
 // ── Traefik label helpers ─────────────────────────────────────────────────────

@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"io"
-	"log"
 	"net/http"
 	"sync"
 	"time"
@@ -57,11 +56,7 @@ func (s *Server) SetScanner(sc Scanner)              { s.scanner = sc }
 func (s *Server) SetTunnelManager(t *tunnel.Manager) { s.tunnel = t }
 
 // save persists the store to disk, logging any error.
-func (s *Server) save() {
-	if err := s.store.Save(); err != nil {
-		log.Printf("web: save: %v", err)
-	}
-}
+func (s *Server) save() { s.store.SaveLog("web") }
 
 func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	s.handler.ServeHTTP(w, r)
@@ -172,12 +167,6 @@ func apiError(w http.ResponseWriter, code int, msg string) {
 	writeJSON(w, code, map[string]string{"error": msg})
 }
 
-func firstNonEmpty(a, b string) string {
-	if a != "" {
-		return a
-	}
-	return b
-}
 
 var sanitiseSubdomain = util.SanitiseSubdomain
 var newID = util.NewID

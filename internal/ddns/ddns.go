@@ -62,9 +62,7 @@ func (m *Manager) checkAndUpdate(ctx context.Context) {
 
 	domains := m.store.GetDDNSDomains()
 	if len(domains) == 0 {
-		if err := m.store.Save(); err != nil {
-			log.Printf("ddns: save: %v", err)
-		}
+		m.store.SaveLog("ddns")
 		return
 	}
 
@@ -93,9 +91,7 @@ func (m *Manager) checkAndUpdate(ctx context.Context) {
 			log.Printf("ddns: updated %s → %s", domain, ip)
 		}
 	}
-	if err := m.store.Save(); err != nil {
-		log.Printf("ddns: save: %v", err)
-	}
+	m.store.SaveLog("ddns")
 }
 
 func getPublicIP(ctx context.Context) (string, error) {

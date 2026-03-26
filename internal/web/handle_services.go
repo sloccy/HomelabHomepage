@@ -1,6 +1,7 @@
 package web
 
 import (
+	"cmp"
 	"context"
 	"fmt"
 	"io"
@@ -8,7 +9,6 @@ import (
 	"net/http"
 	"time"
 
-	"lantern/internal/discovery"
 	"lantern/internal/store"
 	"lantern/internal/util"
 )
@@ -18,14 +18,14 @@ func (s *Server) listServices(w http.ResponseWriter, r *http.Request) {
 }
 
 type createServiceRequest struct {
-	DiscoveredID string `json:"discovered_id"` // optional: assign from discovered
-	Name         string `json:"name"`
-	Subdomain    string `json:"subdomain"`
-	Target       string `json:"target"` // required if not from discovered
-	Category     string `json:"category"`
-	Tunnel       bool   `json:"tunnel"`      // route via CF tunnel instead of A record
-	DirectOnly   bool   `json:"direct_only"` // no subdomain/DNS; link directly to target
-	SkipHealth   bool   `json:"skip_health"` // skip health check polling
+	DiscoveredID string // optional: assign from discovered
+	Name         string
+	Subdomain    string
+	Target       string // required if not from discovered
+	Category     string
+	Tunnel       bool // route via CF tunnel instead of A record
+	DirectOnly   bool // no subdomain/DNS; link directly to target
+	SkipHealth   bool // skip health check polling
 }
 
 func (s *Server) createService(w http.ResponseWriter, r *http.Request) {
@@ -179,7 +179,7 @@ func (s *Server) createService(w http.ResponseWriter, r *http.Request) {
 		go func(id, target string) {
 			ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 			defer cancel()
-			if !fetchAndWriteFavicon(ctx, s.store, id, target) {
+			if !util.FetchAndWriteFavicon(ctx, s.store, id, target) {
 				return
 			}
 			if existing := s.store.GetServiceByID(id); existing != nil {
@@ -196,14 +196,14 @@ func (s *Server) createService(w http.ResponseWriter, r *http.Request) {
 }
 
 type updateServiceRequest struct {
-	Name       string  `json:"name"`
-	Subdomain  string  `json:"subdomain"`
-	Target     string  `json:"target"`
-	Category   string  `json:"category"`
-	Icon       *string `json:"icon"`        // nil = keep existing; "" = clear; non-empty = set
-	Tunnel     *bool   `json:"tunnel"`      // nil = keep existing; true/false = enable/disable
-	SkipHealth *bool   `json:"skip_health"` // nil = keep existing; true/false = skip health check
-	DirectOnly *bool   `json:"direct_only"` // nil = keep existing; true/false = direct link only
+	Name       string
+	Subdomain  string
+	Target     string
+	Category   string
+	Icon       *string // nil = keep existing; "" = clear; non-empty = set
+	Tunnel     *bool   // nil = keep existing; true/false = enable/disable
+	SkipHealth *bool   // nil = keep existing; true/false = skip health check
+	DirectOnly *bool   // nil = keep existing; true/false = direct link only
 }
 
 // dnsState captures the DNS/tunnel configuration of a service, used as input and output for reconcileDNS.
@@ -440,7 +440,7 @@ func (s *Server) updateService(w http.ResponseWriter, r *http.Request) {
 	if req.DirectOnly != nil {
 		directOnly = *req.DirectOnly
 	}
-	newTarget := firstNonEmpty(req.Target, svc.Target)
+	newTarget := cmp.Or(req.Target, svc.Target)
 
 	// Determine the new subdomain key.
 	// When direct-only, use a synthetic key so the store map stays unique.
@@ -462,7 +462,7 @@ func (s *Server) updateService(w http.ResponseWriter, r *http.Request) {
 
 	updated := &store.Service{
 		ID:            svc.ID,
-		Name:          firstNonEmpty(req.Name, svc.Name),
+		Name:          cmp.Or(req.Name, svc.Name),
 		Subdomain:     newSub,
 		Target:        newTarget,
 		Icon:          icon,
@@ -597,7 +597,7 @@ func (s *Server) pullServiceFavicon(w http.ResponseWriter, r *http.Request) {
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
-	data := discovery.FetchFaviconForTarget(ctx, svc.Target)
+	data := util.FetchFaviconForTarget(ctx, svc.Target)
 	if len(data) == 0 {
 		errorResponse(w, http.StatusUnprocessableEntity, "no favicon found")
 		return
@@ -618,13 +618,3 @@ func (s *Server) applyServiceIcon(w http.ResponseWriter, svc *store.Service, ico
 	renderTemplate(w, "icon-preview.html", &updated)
 }
 
-// fetchAndWriteFavicon fetches the favicon for target and writes it to the store
-// under id. Returns true if data was fetched and written successfully.
-// The caller is responsible for updating the entity's Icon field.
-func fetchAndWriteFavicon(ctx context.Context, st *store.Store, id, target string) bool {
-	data := discovery.FetchFaviconForTarget(ctx, target)
-	if len(data) == 0 {
-		return false
-	}
-	return st.WriteIcon(id, data) == nil
-}

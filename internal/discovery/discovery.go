@@ -28,6 +28,11 @@ type Discoverer struct {
 	logLines []string // recent scan log lines (capped at 30)
 }
 
+// save persists the store to disk, appending any error to the scan log.
+func (d *Discoverer) save() {
+	d.save()
+}
+
 // logf writes to the standard logger and appends to the internal scan log buffer.
 func (d *Discoverer) logf(format string, args ...any) {
 	msg := fmt.Sprintf(format, args...)
@@ -167,9 +172,7 @@ func (d *Discoverer) runLightScan(ctx context.Context) {
 		}
 		d.upsertProbeResult(r)
 	}
-	if err := d.store.Save(); err != nil {
-		d.logf("save: %v", err)
-	}
+	d.save()
 }
 
 func (d *Discoverer) runScan(ctx context.Context) {
@@ -218,17 +221,13 @@ func (d *Discoverer) runScan(ctx context.Context) {
 		count++
 		// Flush to disk every 10 results so the UI shows partial progress.
 		if count%10 == 0 {
-			if err := d.store.Save(); err != nil {
-				d.logf("save: %v", err)
-			}
+			d.save()
 		}
 	}
 
 	now := time.Now()
 	d.store.SetLastScan(now)
-	if err := d.store.Save(); err != nil {
-		d.logf("save: %v", err)
-	}
+	d.save()
 
 	d.mu.Lock()
 	d.lastScan = now

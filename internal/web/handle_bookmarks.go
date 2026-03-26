@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"lantern/internal/store"
+	"lantern/internal/util"
 )
 
 func (s *Server) listBookmarks(w http.ResponseWriter, r *http.Request) {
@@ -81,7 +82,7 @@ func (s *Server) deleteBookmark(w http.ResponseWriter, r *http.Request) {
 func (s *Server) fetchBookmarkFavicon(id, bmURL string) {
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
-	if !fetchAndWriteFavicon(ctx, s.store, id, bmURL) {
+	if !util.FetchAndWriteFavicon(ctx, s.store, id, bmURL) {
 		return
 	}
 	if bm := s.store.GetBookmarkByID(id); bm != nil && bm.Icon != "file" {

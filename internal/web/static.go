@@ -16,7 +16,7 @@ import (
 	"sync"
 	"time"
 
-	"lantern/internal/discovery"
+	"lantern/internal/util"
 )
 
 // acceptsGzip reports whether the Accept-Encoding header value includes gzip.
@@ -137,7 +137,7 @@ func detectIconContentType(data []byte) string {
 // mixed-content and CORS issues in the browser. Results are cached server-side
 // for 1 hour (positive) or 15 minutes (negative) to avoid repeated fetches.
 // It parses the target page HTML to find the correct favicon URL, matching the
-// behaviour of discovery.FetchFaviconForTarget.
+// behaviour of util.FetchFaviconForTarget.
 func (s *Server) getFavicon(w http.ResponseWriter, r *http.Request) {
 	rawURL := r.URL.Query().Get("url")
 	if rawURL == "" {
@@ -165,7 +165,7 @@ func (s *Server) getFavicon(w http.ResponseWriter, r *http.Request) {
 
 	ctx, cancel := context.WithTimeout(r.Context(), 5*time.Second)
 	defer cancel()
-	data := discovery.FetchFaviconForTarget(ctx, rawURL)
+	data := util.FetchFaviconForTarget(ctx, rawURL)
 
 	if len(data) == 0 {
 		s.faviconCache.Set(cacheKey, &faviconEntry{}, 15*time.Minute)

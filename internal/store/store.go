@@ -7,6 +7,7 @@ import (
 	"log"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"sync"
 	"time"
@@ -237,6 +238,13 @@ func (s *Store) Save() error {
 	return os.Rename(tmp, s.path)
 }
 
+// SaveLog calls Save and logs any error with the given context prefix.
+func (s *Store) SaveLog(ctx string) {
+	if err := s.Save(); err != nil {
+		log.Printf("%s: save: %v", ctx, err)
+	}
+}
+
 // ---- Icon file storage ------------------------------------------------------
 
 func (s *Store) iconPath(id string) string {
@@ -408,39 +416,19 @@ func (s *Store) ReorderServices(ids []string) {
 
 // filterSlice removes elements in place, zeroing the tail to aid GC.
 func filterSlice[T any](s *[]*T, keep func(*T) bool) {
-	orig := *s
-	n := orig[:0]
-	for _, v := range orig {
-		if keep(v) {
-			n = append(n, v)
-		}
-	}
-	for i := len(n); i < len(orig); i++ {
-		orig[i] = nil
-	}
-	*s = n
+	*s = slices.DeleteFunc(*s, func(v *T) bool { return !keep(v) })
 }
 
 // removeString removes the first occurrence of val from s in place.
 func removeString(s *[]string, val string) {
-	orig := *s
-	n := orig[:0]
-	for _, v := range orig {
-		if v != val {
-			n = append(n, v)
-		}
-	}
-	*s = n
+	*s = slices.DeleteFunc(*s, func(v string) bool { return v == val })
 }
 
 // addUnique appends val to s only if it is not already present.
 func addUnique(s *[]string, val string) {
-	for _, v := range *s {
-		if v == val {
-			return
-		}
+	if !slices.Contains(*s, val) {
+		*s = append(*s, val)
 	}
-	*s = append(*s, val)
 }
 
 // ---- Discovered -------------------------------------------------------------

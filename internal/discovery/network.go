@@ -38,22 +38,9 @@ var (
 		},
 	}
 
-	reTitleTag        = regexp.MustCompile(`(?is)<title[^>]*>(.*?)</title>`)
-	reFaviconHref     = regexp.MustCompile(`(?i)<link[^>]+rel=["'][^"']*icon[^"']*["'][^>]+href=["']([^"']+)["']`)
-	reFaviconHref2    = regexp.MustCompile(`(?i)<link[^>]+href=["']([^"']+)["'][^>]+rel=["'][^"']*icon[^"']*["']`)
-	reAppleTouchIcon  = regexp.MustCompile(`(?i)<link[^>]+rel=["']apple-touch-icon["'][^>]+href=["']([^"']+)["']`)
-	reAppleTouchIcon2 = regexp.MustCompile(`(?i)<link[^>]+href=["']([^"']+)["'][^>]+rel=["']apple-touch-icon["']`)
+	reTitleTag = regexp.MustCompile(`(?is)<title[^>]*>(.*?)</title>`)
 )
 
-// allPorts is the full 1-65535 range used during TCP sweeps.
-// Initialised once at startup to avoid a 512 KB allocation per scan.
-var allPorts = func() []int {
-	p := make([]int, 65535)
-	for i := range p {
-		p[i] = i + 1
-	}
-	return p
-}()
 
 // resolveURLToPort parses a URL and resolves the host to an IP, returning the
 // resulting openPort. Used by SSDP and WS-Discovery to normalise device addresses.
@@ -549,6 +536,10 @@ func (d *Discoverer) scanNetwork(ctx context.Context, cidrs []string, withTCP bo
 					d.logf("[ARP] No live hosts via ARP (unavailable or all dead) — scanning all %d IPs", len(ips))
 				}
 
+				allPorts := make([]int, 65535)
+				for i := range allPorts {
+					allPorts[i] = i + 1
+				}
 				d.logf("[TCP] Handing off to tcpSweep: %d hosts × %d ports", len(ips), len(allPorts))
 				open := tcpSweep(ctx, ips, allPorts, d.logf, d.cfg.ScanTimeout)
 				d.logf("[TCP] tcpSweep returned: %d open ports total", len(open))
@@ -688,7 +679,7 @@ func tryProbe(ctx context.Context, ip string, port int, scheme string) *probeRes
 	svcName, confidence, svcIcon := fingerprint(resp.Header, bodyStr, title)
 
 	// Always try to fetch a real favicon; use fingerprint emoji only as fallback.
-	iconData := fetchFaviconBytes(ctx, extractFaviconURL(bodyStr, rawURL))
+	iconData := util.FetchFaviconFromHTML(ctx, bodyStr, rawURL)
 	iconStr := svcIcon // emoji fallback
 	if len(iconData) > 0 {
 		iconStr = "file"
@@ -756,77 +747,3 @@ func extractTitle(html string) string {
 	return t
 }
 
-func extractFaviconURL(html, baseURL string) string {
-	// Prefer apple-touch-icon: always a high-quality PNG, no ICO format artifacts.
-	for _, pair := range [][2]*regexp.Regexp{
-		{reAppleTouchIcon, reAppleTouchIcon2},
-		{reFaviconHref, reFaviconHref2},
-	} {
-		for _, re := range pair {
-			if m := re.FindStringSubmatch(html); len(m) >= 2 {
-				return resolveRef(m[1], baseURL)
-			}
-		}
-	}
-	return resolveRef("/favicon.ico", baseURL)
-}
-
-func resolveRef(ref, base string) string {
-	if strings.HasPrefix(ref, "//") {
-		bu, _ := url.Parse(base)
-		return bu.Scheme + ":" + ref
-	}
-	if strings.HasPrefix(ref, "http://") || strings.HasPrefix(ref, "https://") {
-		return ref
-	}
-	bu, err := url.Parse(base)
-	if err != nil {
-		return ref
-	}
-	rel, err := url.Parse(ref)
-	if err != nil {
-		return ref
-	}
-	return bu.ResolveReference(rel).String()
-}
-
-// FetchFaviconForTarget fetches the page at targetURL, extracts the favicon
-// link, fetches the favicon, and returns the raw image bytes.
-// Returns nil if no favicon is found or the fetch fails.
-func FetchFaviconForTarget(ctx context.Context, targetURL string) []byte {
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, targetURL, nil)
-	if err != nil {
-		return nil
-	}
-	resp, err := httpClient.Do(req)
-	if err != nil {
-		return nil
-	}
-	defer resp.Body.Close()
-	body, err := io.ReadAll(io.LimitReader(resp.Body, 64*1024))
-	if err != nil {
-		return nil
-	}
-	faviconURL := extractFaviconURL(string(body), targetURL)
-	return fetchFaviconBytes(ctx, faviconURL)
-}
-
-func fetchFaviconBytes(ctx context.Context, faviconURL string) []byte {
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, faviconURL, nil)
-	if err != nil {
-		return nil
-	}
-	resp, err := httpClient.Do(req)
-	if err != nil || resp.StatusCode != http.StatusOK {
-		if resp != nil {
-			resp.Body.Close()
-		}
-		return nil
-	}
-	defer resp.Body.Close()
-	data, err := io.ReadAll(io.LimitReader(resp.Body, 64*1024))
-	if err != nil || len(data) == 0 {
-		return nil
-	}
-	return data
-}

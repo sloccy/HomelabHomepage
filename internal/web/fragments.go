@@ -7,6 +7,7 @@ import (
 	"strings"
 	"time"
 
+	"lantern/internal/store"
 	"lantern/internal/sysinfo"
 	"lantern/internal/util"
 )
@@ -19,35 +20,33 @@ func (s *Server) uniqueCategories() []string {
 
 func (s *Server) fragServicesGrid(w http.ResponseWriter, r *http.Request) {
 	q := strings.ToLower(r.URL.Query().Get("q"))
-	services := s.store.GetAllServices()
-	if q != "" {
-		filtered := services[:0]
-		for _, svc := range services {
-			if strings.Contains(strings.ToLower(svc.Name), q) ||
-				strings.Contains(strings.ToLower(svc.Subdomain), q) ||
-				strings.Contains(strings.ToLower(svc.Target), q) {
-				filtered = append(filtered, svc)
-			}
-		}
-		services = filtered
-	}
+	services := filterByQuery(s.store.GetAllServices(), q, func(svc *store.Service) string {
+		return svc.Name + " " + svc.Subdomain + " " + svc.Target
+	})
 	renderTemplate(w, "services-grid.html", buildServicesGrid(services, s.cfg.Domain, s.healthSnapshot(), q != ""))
 }
 
 func (s *Server) fragBookmarksGrid(w http.ResponseWriter, r *http.Request) {
 	q := strings.ToLower(r.URL.Query().Get("q"))
-	bookmarks := s.store.GetAllBookmarks()
-	if q != "" {
-		filtered := bookmarks[:0]
-		for _, bm := range bookmarks {
-			if strings.Contains(strings.ToLower(bm.Name), q) ||
-				strings.Contains(strings.ToLower(bm.URL), q) {
-				filtered = append(filtered, bm)
-			}
-		}
-		bookmarks = filtered
-	}
+	bookmarks := filterByQuery(s.store.GetAllBookmarks(), q, func(bm *store.Bookmark) string {
+		return bm.Name + " " + bm.URL
+	})
 	renderTemplate(w, "bookmarks-grid.html", buildBookmarksGrid(bookmarks))
+}
+
+// filterByQuery returns items whose text (lowercased) contains q (already lowercased).
+// Returns all items unchanged when q is empty.
+func filterByQuery[T any](items []*T, q string, text func(*T) string) []*T {
+	if q == "" {
+		return items
+	}
+	var out []*T
+	for _, v := range items {
+		if strings.Contains(strings.ToLower(text(v)), q) {
+			out = append(out, v)
+		}
+	}
+	return out
 }
 
 func (s *Server) fragSysinfo(w http.ResponseWriter, r *http.Request) {

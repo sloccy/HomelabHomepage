@@ -64,9 +64,7 @@ func (m *Manager) Create(ctx context.Context) (*store.TunnelInfo, error) {
 		CreatedAt: time.Now(),
 	}
 	m.store.SetTunnel(info)
-	if err := m.store.Save(); err != nil {
-		log.Printf("tunnel: save store: %v", err)
-	}
+	m.store.SaveLog("tunnel")
 	if err := m.startProcess(m.rootCtx, token); err != nil {
 		return nil, err
 	}
@@ -84,9 +82,7 @@ func (m *Manager) Delete(ctx context.Context) error {
 	}
 	m.store.ClearTunnel()
 	m.cf.SetTunnelID("")
-	if err := m.store.Save(); err != nil {
-		log.Printf("tunnel: save store: %v", err)
-	}
+	m.store.SaveLog("tunnel")
 	return nil
 }
 
