@@ -204,7 +204,7 @@ func (d *Discoverer) upsertContainerWithLabels(ctx context.Context, id, name str
 func (d *Discoverer) resolveContainer(ctx context.Context, name string, ports []dockertypes.Port, labels map[string]string) *containerInfo {
 	info := &containerInfo{
 		name:      name,
-		subdomain: sanitiseSubdomain(name),
+		subdomain: util.SanitiseSubdomain(name),
 	}
 
 	// Display name override.
@@ -216,14 +216,14 @@ func (d *Discoverer) resolveContainer(ctx context.Context, name string, ports []
 	if u := labels["lantern.url"]; u != "" {
 		info.target = u
 		if s := labels["lantern.subdomain"]; s != "" {
-			info.subdomain = sanitiseSubdomain(s)
+			info.subdomain = util.SanitiseSubdomain(s)
 		}
 		return info
 	}
 
 	// Subdomain: lantern label > traefik rule > container name.
 	if s := labels["lantern.subdomain"]; s != "" {
-		info.subdomain = sanitiseSubdomain(s)
+		info.subdomain = util.SanitiseSubdomain(s)
 	} else if sub := traefikSubdomain(labels, d.cfg.Domain); sub != "" {
 		info.subdomain = sub
 	}
@@ -261,7 +261,7 @@ func (d *Discoverer) addDockerDiscovered(id, name, target, suggestedSub string) 
 	}
 	ip, port := splitTarget(target)
 	disc := &store.DiscoveredService{
-		ID:                 newID(),
+		ID:                 util.NewID(),
 		IP:                 ip,
 		Port:               port,
 		Title:              name,
@@ -308,7 +308,7 @@ func traefikSubdomain(labels map[string]string, domain string) string {
 		if domain != "" && strings.HasSuffix(host, "."+domain) {
 			return strings.TrimSuffix(host, "."+domain)
 		}
-		return sanitiseSubdomain(host)
+		return util.SanitiseSubdomain(host)
 	}
 	return ""
 }
@@ -401,4 +401,3 @@ func preserveScheme(oldTarget, newTarget string) string {
 
 // ── String helpers ────────────────────────────────────────────────────────────
 
-var sanitiseSubdomain = util.SanitiseSubdomain

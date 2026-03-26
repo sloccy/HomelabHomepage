@@ -41,7 +41,6 @@ func New(token, zoneID, tunnelID, accountID string) (*Client, error) {
 
 // ---- DNS records ------------------------------------------------------------
 
-// CreateRecord creates an A record and returns its ID.
 func (c *Client) CreateRecord(ctx context.Context, name, ip string) (string, error) {
 	if c.noop {
 		return "", nil
@@ -63,7 +62,6 @@ func (c *Client) CreateRecord(ctx context.Context, name, ip string) (string, err
 	return rec.ID, nil
 }
 
-// UpdateRecord updates an existing A record's IP via a partial PATCH.
 func (c *Client) UpdateRecord(ctx context.Context, recordID, ip string) error {
 	if c.noop {
 		return nil
@@ -78,7 +76,6 @@ func (c *Client) UpdateRecord(ctx context.Context, recordID, ip string) error {
 	return nil
 }
 
-// DeleteRecord deletes a DNS record by ID.
 func (c *Client) DeleteRecord(ctx context.Context, recordID string) error {
 	if c.noop {
 		return nil
@@ -89,7 +86,6 @@ func (c *Client) DeleteRecord(ctx context.Context, recordID string) error {
 	return err
 }
 
-// FindRecord looks up a record ID and current IP by exact name.
 func (c *Client) FindRecord(ctx context.Context, name string) (string, string, error) {
 	if c.noop {
 		return "", "", nil
@@ -140,7 +136,6 @@ func (c *Client) CreateTunnel(ctx context.Context, name string) (tunnelID, token
 	return tunnel.ID, *tokenStr, nil
 }
 
-// DeleteTunnel deletes a Cloudflare Tunnel by ID.
 func (c *Client) DeleteTunnel(ctx context.Context, tunnelID string) error {
 	if c.noop || c.accountID == "" {
 		return nil
@@ -151,7 +146,6 @@ func (c *Client) DeleteTunnel(ctx context.Context, tunnelID string) error {
 	return err
 }
 
-// SetTunnelID updates the active tunnel ID used for ingress management.
 func (c *Client) SetTunnelID(id string) {
 	c.tunnelMu.Lock()
 	c.tunnelID = id

@@ -28,7 +28,7 @@ func (s *Server) createBookmark(w http.ResponseWriter, r *http.Request) {
 		name = bmURL
 	}
 	bm := &store.Bookmark{
-		ID:       newID(),
+		ID:       util.NewID(),
 		Name:     name,
 		URL:      bmURL,
 		Category: r.FormValue("category"),

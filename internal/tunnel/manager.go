@@ -74,7 +74,7 @@ func (m *Manager) Create(ctx context.Context) (*store.TunnelInfo, error) {
 // Delete stops cloudflared and deletes the tunnel from Cloudflare.
 func (m *Manager) Delete(ctx context.Context) error {
 	info := m.store.GetTunnel()
-	m.stopProcess()
+	m.Stop()
 	if info != nil {
 		if err := m.cf.DeleteTunnel(ctx, info.TunnelID); err != nil {
 			return err
@@ -101,11 +101,6 @@ func (m *Manager) Status() TunnelStatus {
 		Running:   running,
 		CreatedAt: info.CreatedAt,
 	}
-}
-
-// Stop gracefully shuts down the cloudflared subprocess.
-func (m *Manager) Stop() {
-	m.stopProcess()
 }
 
 // startProcess launches cloudflared as a managed subprocess.
@@ -200,8 +195,8 @@ func (m *Manager) watchAndRestart(ctx context.Context, token string) {
 	}
 }
 
-// stopProcess kills the subprocess and cancels the watch goroutine.
-func (m *Manager) stopProcess() {
+// Stop gracefully shuts down the cloudflared subprocess.
+func (m *Manager) Stop() {
 	m.mu.Lock()
 	cancel := m.cancel
 	cmd := m.cmd

@@ -111,9 +111,7 @@ func (d *Discoverer) ScanNow(ctx context.Context) {
 	d.scanning = true
 	d.mu.Unlock()
 
-	go func() {
-		d.runScan(ctx)
-	}()
+	go d.runScan(ctx)
 }
 
 // Status returns current scan status for the API.
@@ -146,7 +144,7 @@ func isAssignedTarget(targets map[string]bool, r *probeResult) bool {
 // writes any fetched icon bytes to disk. Returns the stored entry's ID.
 func (d *Discoverer) upsertProbeResult(r *probeResult) string {
 	id := d.store.UpsertNetworkDiscovered(&store.DiscoveredService{
-		ID:           newID(),
+		ID:           util.NewID(),
 		IP:           r.ip,
 		Port:         r.port,
 		Title:        r.title,
@@ -239,8 +237,6 @@ func (d *Discoverer) runScan(ctx context.Context) {
 	d.logf("Scan complete: %d services found in %s",
 		count, time.Since(start).Round(time.Second))
 }
-
-var newID = util.NewID
 
 // closeOnCancel closes c when ctx is done. Returns a cancel func that must be
 // deferred to release the goroutine when the calling function returns normally.

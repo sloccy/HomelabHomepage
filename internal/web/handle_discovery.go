@@ -90,7 +90,7 @@ func (s *Server) ignoreDiscovered(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	s.save()
-	hxTrigger(w, "refreshIgnored", nil)
+	w.Header().Set("HX-Trigger", `{"refreshIgnored":null}`)
 	w.WriteHeader(http.StatusOK)
 }
 
@@ -115,6 +115,6 @@ func (s *Server) unignoreService(w http.ResponseWriter, r *http.Request) {
 		DiscoveredAt: time.Now(),
 	})
 	s.save()
-	hxTrigger(w, "refreshDiscovered", nil)
+	w.Header().Set("HX-Trigger", `{"refreshDiscovered":null}`)
 	w.WriteHeader(http.StatusOK)
 }

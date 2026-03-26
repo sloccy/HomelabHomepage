@@ -60,7 +60,7 @@ func (s *Server) createService(w http.ResponseWriter, r *http.Request) {
 			}
 		}
 	}
-	req.Subdomain = sanitiseSubdomain(req.Subdomain)
+	req.Subdomain = util.SanitiseSubdomain(req.Subdomain)
 	if !req.DirectOnly {
 		if req.Subdomain == "" {
 			errorResponse(w, http.StatusBadRequest, "subdomain is required")
@@ -107,7 +107,7 @@ func (s *Server) createService(w http.ResponseWriter, r *http.Request) {
 		name = req.Subdomain
 	}
 
-	svcID := newID()
+	svcID := util.NewID()
 	subdomain := req.Subdomain
 	if req.DirectOnly {
 		subdomain = "_direct_" + svcID
@@ -454,7 +454,7 @@ func (s *Server) updateService(w http.ResponseWriter, r *http.Request) {
 			newSub = "_direct_" + svc.ID
 		}
 	} else {
-		newSub = sanitiseSubdomain(req.Subdomain)
+		newSub = util.SanitiseSubdomain(req.Subdomain)
 		if newSub == "" {
 			newSub = oldSub
 		}
@@ -506,6 +506,10 @@ func (s *Server) updateService(w http.ResponseWriter, r *http.Request) {
 func (s *Server) deleteService(w http.ResponseWriter, r *http.Request) {
 	id := r.PathValue("id")
 	svc := s.store.GetServiceByID(id)
+	if svc == nil {
+		w.WriteHeader(http.StatusOK)
+		return
+	}
 	_, dnsID, tunnelRoute := s.store.DeleteService(id)
 	if tunnelRoute != "" {
 		if err := s.cf.RemoveTunnelRoute(r.Context(), tunnelRoute, dnsID); err != nil {
@@ -518,7 +522,7 @@ func (s *Server) deleteService(w http.ResponseWriter, r *http.Request) {
 	}
 	if svc != nil && svc.Source == store.SourceDocker && svc.ContainerID != "" {
 		s.store.AddDiscovered(&store.DiscoveredService{
-			ID:            newID(),
+			ID:            util.NewID(),
 			IP:            "",
 			Port:          0,
 			Title:         svc.Name,
@@ -527,7 +531,7 @@ func (s *Server) deleteService(w http.ResponseWriter, r *http.Request) {
 			ContainerName: svc.ContainerName,
 			DiscoveredAt:  time.Now(),
 		})
-		hxTrigger(w, "refreshDiscovered", nil)
+		w.Header().Set("HX-Trigger", `{"refreshDiscovered":null}`)
 	}
 	s.store.DeleteIcon(id)
 	s.save()

@@ -14,7 +14,6 @@ import (
 	"lantern/internal/config"
 	"lantern/internal/store"
 	"lantern/internal/tunnel"
-	"lantern/internal/util"
 )
 
 // Scanner is the subset of discovery.Discoverer the web server needs.
@@ -169,5 +168,3 @@ func apiError(w http.ResponseWriter, code int, msg string) {
 }
 
 
-var sanitiseSubdomain = util.SanitiseSubdomain
-var newID = util.NewID

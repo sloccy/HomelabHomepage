@@ -98,7 +98,6 @@ type data struct {
 	Tunnel       *TunnelInfo           `json:"tunnel,omitempty"`
 }
 
-// Store is a thread-safe, JSON-backed persistence layer.
 type Store struct {
 	mu               sync.RWMutex
 	saveMu           sync.Mutex // serialises concurrent disk writes
@@ -425,7 +424,7 @@ func (s *Store) ReorderServices(ids []string) {
 
 // ---- Slice helpers ----------------------------------------------------------
 
-// filterSlice removes elements in place, zeroing the tail to aid GC.
+// filterSlice removes elements in place.
 func filterSlice[T any](s *[]*T, keep func(*T) bool) {
 	*s = slices.DeleteFunc(*s, func(v *T) bool { return !keep(v) })
 }
