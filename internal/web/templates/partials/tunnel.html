@@ -5,21 +5,21 @@
   </header>
   <div class="card-subtitle">Create a Cloudflare Tunnel managed by Lantern. The tunnel runs as a subprocess and restarts automatically. Individual services can be routed through it via the tunnel checkbox.</div>
   {{if .Status.TunnelID}}
-  <div style="padding:1rem 2rem;display:flex;flex-direction:column;gap:.75rem">
+  <div class="px-4 py-3 d-flex flex-column gap-3">
     <div>
       <span class="status-label">Tunnel ID</span>
-      <span class="status-value" style="display:inline;margin-left:.5rem">{{.Status.TunnelID}}</span>
+      <span class="status-value d-inline ms-2">{{.Status.TunnelID}}</span>
     </div>
     <div>
       <span class="status-label">Status</span>
-      <span class="status-value {{if .Status.Running}}ok{{end}}" style="display:inline;margin-left:.5rem">
+      <span class="status-value {{if .Status.Running}}ok{{end}} d-inline ms-2">
         {{if .Status.Running}}Running{{else}}Stopped{{end}}
       </span>
     </div>
     {{if not .Status.CreatedAt.IsZero}}
     <div>
       <span class="status-label">Created</span>
-      <span style="margin-left:.5rem">{{fmtTime .Status.CreatedAt}}</span>
+      <span class="ms-2">{{fmtTime .Status.CreatedAt}}</span>
     </div>
     {{end}}
     <div>
@@ -33,7 +33,7 @@
     </div>
   </div>
   {{else}}
-  <div style="padding:1rem 2rem">
+  <div class="px-4 py-3">
     <button class="btn btn-warning"
             hx-post="/api/tunnel"
             hx-target="#tunnel-section"
