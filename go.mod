@@ -12,7 +12,7 @@ require (
 	github.com/miekg/dns v1.1.72
 	github.com/shirou/gopsutil/v4 v4.26.2
 	go4.org/netipx v0.0.0-20231129151722-fdeea329fbba
-	golang.org/x/sync v0.19.0
+	golang.org/x/sync v0.20.0
 )
 
 require (
