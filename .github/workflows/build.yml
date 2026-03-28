@@ -39,7 +39,7 @@ jobs:
       # Regenerates static/vendor/ from package.json so Dependabot version
       # bumps flow through to the embedded assets in the Docker image.
       - name: Set up Node
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v6
         with:
           node-version: '22'
 
