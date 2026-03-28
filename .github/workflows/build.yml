@@ -35,7 +35,18 @@ jobs:
       - name: Tidy modules
         run: go mod tidy
 
-      # ── 3. Docker infrastructure ──────────────────────────────────────────
+      # ── 3. Vendor front-end libs ──────────────────────────────────────────
+      # Regenerates static/vendor/ from package.json so Dependabot version
+      # bumps flow through to the embedded assets in the Docker image.
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Copy vendor files
+        run: npm ci && node scripts/vendor.js
+
+      # ── 4. Docker infrastructure ──────────────────────────────────────────
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v4
 

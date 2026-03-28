@@ -15,3 +15,6 @@ atlas
 # Go test cache
 *.test
 *.out
+
+# Node (used only for vendor file updates)
+node_modules/

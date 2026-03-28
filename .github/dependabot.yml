@@ -3,14 +3,31 @@ updates:
   - package-ecosystem: gomod
     directory: /
     schedule:
-      interval: weekly
+      interval: daily
+    groups:
+      all-dependencies:
+        patterns:
+          - "*"
 
   - package-ecosystem: docker
     directory: /
     schedule:
+      interval: daily
+
+  - package-ecosystem: npm
+    directory: /
+    schedule:
       interval: weekly
+    groups:
+      vendor-libs:
+        patterns:
+          - "*"
 
   - package-ecosystem: github-actions
     directory: /
     schedule:
-      interval: weekly
+      interval: daily
+    groups:
+      all-actions:
+        patterns:
+          - "*"
