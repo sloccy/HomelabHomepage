@@ -3,6 +3,7 @@ module lantern
 go 1.25.0
 
 require (
+	github.com/andybalholm/brotli v1.2.0
 	github.com/cloudflare/cloudflare-go/v6 v6.8.0
 	github.com/docker/docker v28.5.2+incompatible
 	github.com/docker/go-connections v0.6.0
@@ -11,6 +12,7 @@ require (
 	github.com/klauspost/compress v1.18.5
 	github.com/miekg/dns v1.1.72
 	github.com/shirou/gopsutil/v4 v4.26.2
+	github.com/tdewolff/minify/v2 v2.24.11
 	go4.org/netipx v0.0.0-20231129151722-fdeea329fbba
 	golang.org/x/sync v0.20.0
 )
@@ -39,6 +41,7 @@ require (
 	github.com/opencontainers/image-spec v1.1.1 // indirect
 	github.com/pkg/errors v0.9.1 // indirect
 	github.com/power-devops/perfstat v0.0.0-20240221224432-82ca36839d55 // indirect
+	github.com/tdewolff/parse/v2 v2.8.11 // indirect
 	github.com/tidwall/gjson v1.14.4 // indirect
 	github.com/tidwall/match v1.1.1 // indirect
 	github.com/tidwall/pretty v1.2.1 // indirect
