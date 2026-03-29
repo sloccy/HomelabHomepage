@@ -277,12 +277,17 @@ func (d *Discoverer) addDockerDiscovered(id, name, target, suggestedSub string) 
 	go fetchAndStoreDiscoveredFavicon(d.store, disc.ID, target)
 }
 
-// fetchAndStoreDiscoveredFavicon fetches the favicon for target, writes it to
-// the store under id, and updates the discovered service's Icon field.
+// fetchAndStoreDiscoveredFavicon fetches the favicon for target (a
+// system-generated URL, not user input), writes it to the store under id, and
+// updates the discovered service's Icon field.
 func fetchAndStoreDiscoveredFavicon(st *store.Store, id, target string) {
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
-	if !util.FetchAndWriteFavicon(ctx, st, id, target) {
+	data := util.FetchFaviconForTarget(ctx, target)
+	if len(data) == 0 {
+		return
+	}
+	if st.WriteIcon(id, data) != nil {
 		return
 	}
 	st.UpdateDiscoveredIcon(id, store.IconFile)

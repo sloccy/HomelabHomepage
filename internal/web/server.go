@@ -126,7 +126,7 @@ func (s *Server) routes() {
 	s.mux.HandleFunc("POST /api/ddns", s.addDDNS)
 	s.mux.HandleFunc("DELETE /api/ddns/{domain}", s.removeDDNS)
 
-	s.mux.HandleFunc("GET /api/favicon", s.getFavicon)
+	s.mux.HandleFunc("GET /api/favicon/{id}", s.getFavicon)
 	s.mux.HandleFunc("POST /api/services/reorder", s.reorderServices)
 	s.mux.HandleFunc("GET /api/icons/{id}", s.getIcon)
 	s.mux.HandleFunc("POST /api/services/{id}/icon", s.uploadServiceIcon)

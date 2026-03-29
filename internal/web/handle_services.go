@@ -176,10 +176,10 @@ func (s *Server) createService(w http.ResponseWriter, r *http.Request) {
 
 	// Asynchronously fetch favicon if no icon is set yet.
 	if svc.Icon == "" {
-		go func(id, target string) {
+		go func(id string) {
 			ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 			defer cancel()
-			if !util.FetchAndWriteFavicon(ctx, s.store, id, target) {
+			if !util.FetchAndWriteFavicon(ctx, s.store, id) {
 				return
 			}
 			if existing := s.store.GetServiceByID(id); existing != nil {
@@ -188,7 +188,7 @@ func (s *Server) createService(w http.ResponseWriter, r *http.Request) {
 				s.store.UpdateService(id, &updated)
 				s.save()
 			}
-		}(svc.ID, svc.Target)
+		}(svc.ID)
 	}
 
 	toastTrigger(w, "Service added", "success", "refreshServicesTable", "refreshDiscovered")

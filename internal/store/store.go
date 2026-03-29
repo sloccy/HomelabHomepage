@@ -678,6 +678,20 @@ func (s *Store) GetBookmarkByID(id string) *Bookmark {
 	return s.bookmarkIdx[id]
 }
 
+// GetTarget returns the target URL for the service or bookmark with the given
+// id, or an empty string if no matching entity is found.
+func (s *Store) GetTarget(id string) string {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	if svc, ok := s.idIdx[id]; ok {
+		return svc.Target
+	}
+	if bm, ok := s.bookmarkIdx[id]; ok {
+		return bm.URL
+	}
+	return ""
+}
+
 func (s *Store) GetAllBookmarks() []*Bookmark {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
