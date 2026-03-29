@@ -4,7 +4,7 @@
   {{else if isDataIcon .Icon}}
   <img src="{{safeURL .Icon}}" width="64" height="64" class="icon-preview-img">
   {{else if .Target}}
-  <img src="{{safeURL (faviconURL .Target)}}" width="64" height="64" class="icon-preview-img"
+  <img src="{{safeURL (faviconURL .ID)}}" width="64" height="64" class="icon-preview-img"
        onerror="this.style.display='none'">
   {{else}}
   <div style="width:64px;height:64px;background:var(--surface);border-radius:10px;

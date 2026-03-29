@@ -149,10 +149,16 @@ func FetchFaviconFromHTML(ctx context.Context, html, baseURL string) []byte {
 	return fetchFaviconBytes(ctx, extractFaviconURL(html, baseURL))
 }
 
-// FetchAndWriteFavicon fetches the favicon for target and writes it to the
-// store under id. Returns true if data was fetched and written successfully.
+// FetchAndWriteFavicon looks up the target URL for id from the store, fetches
+// its favicon, and writes the result to disk. Returns true on success.
 // The caller is responsible for updating the entity's Icon field.
-func FetchAndWriteFavicon(ctx context.Context, st *store.Store, id, target string) bool {
+// Using a store-derived URL (rather than a caller-supplied string) ensures the
+// URL is server-controlled, not user-tainted.
+func FetchAndWriteFavicon(ctx context.Context, st *store.Store, id string) bool {
+	target := st.GetTarget(id)
+	if target == "" {
+		return false
+	}
 	data := FetchFaviconForTarget(ctx, target)
 	if len(data) == 0 {
 		return false

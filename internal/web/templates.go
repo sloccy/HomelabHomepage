@@ -130,8 +130,8 @@ var funcMap = template.FuncMap{
 				template.HTMLEscapeString(icon),
 			))
 		}
-		if src != "" {
-			proxyURL := "/api/favicon?url=" + url.QueryEscape(src)
+		if src != "" && id != "" {
+			proxyURL := "/api/favicon/" + id
 			ph := strings.TrimSuffix(cls, "-icon") + "-icon-placeholder"
 			return template.HTML(fmt.Sprintf(
 				`<img class="%s" src="%s" alt="" onerror="this.outerHTML='<div class=&quot;%s&quot;>📦</div>'">`,
@@ -144,9 +144,9 @@ var funcMap = template.FuncMap{
 		return template.HTML(fmt.Sprintf(`<div class="%s">📦</div>`, template.HTMLEscapeString(ph)))
 	},
 
-	// faviconURL builds the favicon proxy URL.
-	"faviconURL": func(target string) string {
-		return "/api/favicon?url=" + url.QueryEscape(target)
+	// faviconURL builds the favicon proxy URL for a given entity ID.
+	"faviconURL": func(id string) string {
+		return "/api/favicon/" + id
 	},
 
 	// serviceURL builds https://sub.domain

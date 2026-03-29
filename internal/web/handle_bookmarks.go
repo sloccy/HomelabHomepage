@@ -35,7 +35,7 @@ func (s *Server) createBookmark(w http.ResponseWriter, r *http.Request) {
 	}
 	s.store.AddBookmark(bm)
 	s.save()
-	go s.fetchBookmarkFavicon(bm.ID, bmURL)
+	go s.fetchBookmarkFavicon(bm.ID)
 	toastTrigger(w, "Bookmark added", "success", "refreshBookmarksTable")
 	w.WriteHeader(http.StatusNoContent)
 }
@@ -57,7 +57,7 @@ func (s *Server) updateBookmark(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	s.save()
-	go s.fetchBookmarkFavicon(id, updated.URL)
+	go s.fetchBookmarkFavicon(id)
 	toastTrigger(w, "Bookmark updated", "success", "refreshBookmarksTable")
 	w.WriteHeader(http.StatusNoContent)
 }
@@ -75,10 +75,10 @@ func (s *Server) deleteBookmark(w http.ResponseWriter, r *http.Request) {
 
 // fetchBookmarkFavicon asynchronously fetches and persists the favicon for a
 // bookmark, then sets Icon = "file" so subsequent renders use the fast disk path.
-func (s *Server) fetchBookmarkFavicon(id, bmURL string) {
+func (s *Server) fetchBookmarkFavicon(id string) {
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
-	if !util.FetchAndWriteFavicon(ctx, s.store, id, bmURL) {
+	if !util.FetchAndWriteFavicon(ctx, s.store, id) {
 		return
 	}
 	if bm := s.store.GetBookmarkByID(id); bm != nil && bm.Icon != store.IconFile {

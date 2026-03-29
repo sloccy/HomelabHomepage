@@ -9,7 +9,6 @@ import (
 	"io/fs"
 	"log"
 	"net/http"
-	"net/url"
 	"strconv"
 	"strings"
 	"sync"
@@ -163,25 +162,19 @@ func detectIconContentType(data []byte) string {
 	return "application/octet-stream"
 }
 
-// getFavicon proxies a favicon from an internal service target, avoiding
-// mixed-content and CORS issues in the browser. Results are cached server-side
-// for 1 hour (positive) or 15 minutes (negative) to avoid repeated fetches.
-// It parses the target page HTML to find the correct favicon URL, matching the
-// behaviour of util.FetchFaviconForTarget.
+// getFavicon proxies a favicon for a dashboard entity (service or bookmark),
+// avoiding mixed-content and CORS issues in the browser. The entity ID is used
+// to look up the target URL from the store — the URL is never taken directly
+// from the request, so it is always server-controlled. Results are cached
+// server-side for 1 hour (positive) or 15 minutes (negative).
 func (s *Server) getFavicon(w http.ResponseWriter, r *http.Request) {
-	rawURL := r.URL.Query().Get("url")
-	if rawURL == "" {
+	id := r.PathValue("id")
+	if !isValidIconID(id) {
 		http.NotFound(w, r)
 		return
 	}
-	u, err := url.Parse(rawURL)
-	if err != nil || (u.Scheme != "http" && u.Scheme != "https") {
-		http.NotFound(w, r)
-		return
-	}
-	cacheKey := u.Host
 
-	if item := s.faviconCache.Get(cacheKey); item != nil {
+	if item := s.faviconCache.Get(id); item != nil {
 		e := item.Value()
 		if e.data == nil {
 			http.NotFound(w, r)
@@ -193,17 +186,24 @@ func (s *Server) getFavicon(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	target := s.store.GetTarget(id)
+	if target == "" {
+		s.faviconCache.Set(id, &faviconEntry{}, 15*time.Minute)
+		http.NotFound(w, r)
+		return
+	}
+
 	ctx, cancel := context.WithTimeout(r.Context(), 5*time.Second)
 	defer cancel()
-	data := util.FetchFaviconForTarget(ctx, rawURL)
+	data := util.FetchFaviconForTarget(ctx, target)
 
 	if len(data) == 0 {
-		s.faviconCache.Set(cacheKey, &faviconEntry{}, 15*time.Minute)
+		s.faviconCache.Set(id, &faviconEntry{}, 15*time.Minute)
 		http.NotFound(w, r)
 		return
 	}
 	ct := detectIconContentType(data)
-	s.faviconCache.Set(cacheKey, &faviconEntry{data: data, contentType: ct}, time.Hour)
+	s.faviconCache.Set(id, &faviconEntry{data: data, contentType: ct}, time.Hour)
 
 	w.Header().Set("Content-Type", ct)
 	w.Header().Set("Cache-Control", "public, max-age=3600")
