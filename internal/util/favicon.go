@@ -3,7 +3,10 @@ package util
 import (
 	"context"
 	"crypto/tls"
+	"errors"
+	"fmt"
 	"io"
+	"net"
 	"net/http"
 	"net/url"
 	"regexp"
@@ -13,11 +16,73 @@ import (
 	"lantern/internal/store"
 )
 
+// blockedCIDRs are IP ranges that must never be the target of favicon fetches.
+// RFC1918 private ranges are intentionally NOT blocked — Lantern is a homelab
+// dashboard whose entire purpose is to reach LAN services.
+var blockedCIDRs = func() []*net.IPNet {
+	cidrs := []string{
+		"127.0.0.0/8",    // loopback IPv4
+		"::1/128",        // loopback IPv6
+		"169.254.0.0/16", // link-local / cloud metadata (AWS, GCP, Azure)
+		"fe80::/10",      // link-local IPv6
+		"0.0.0.0/8",      // unspecified
+		"::/128",         // unspecified IPv6
+	}
+	nets := make([]*net.IPNet, 0, len(cidrs))
+	for _, c := range cidrs {
+		_, ipnet, _ := net.ParseCIDR(c)
+		nets = append(nets, ipnet)
+	}
+	return nets
+}()
+
+func isBlockedIP(ip net.IP) bool {
+	for _, cidr := range blockedCIDRs {
+		if cidr.Contains(ip) {
+			return true
+		}
+	}
+	return false
+}
+
+var baseDialer = &net.Dialer{Timeout: 5 * time.Second}
+
+// safeDialContext resolves the hostname and rejects blocked IPs before
+// establishing a TCP connection, preventing SSRF to loopback and metadata
+// endpoints while still allowing access to LAN/RFC1918 addresses.
+func safeDialContext(ctx context.Context, network, addr string) (net.Conn, error) {
+	host, port, err := net.SplitHostPort(addr)
+	if err != nil {
+		return nil, err
+	}
+	addrs, err := net.DefaultResolver.LookupHost(ctx, host)
+	if err != nil {
+		return nil, err
+	}
+	for _, a := range addrs {
+		ip := net.ParseIP(a)
+		if ip != nil && isBlockedIP(ip) {
+			return nil, fmt.Errorf("favicon: host %s resolves to blocked IP %s", host, a)
+		}
+	}
+	return baseDialer.DialContext(ctx, network, net.JoinHostPort(addrs[0], port))
+}
+
 var faviconClient = &http.Client{
 	Timeout: 5 * time.Second,
 	Transport: &http.Transport{
 		TLSClientConfig:   &tls.Config{InsecureSkipVerify: true}, //nolint:gosec
 		DisableKeepAlives: true,
+		DialContext:       safeDialContext,
+	},
+	CheckRedirect: func(req *http.Request, via []*http.Request) error {
+		if len(via) >= 5 {
+			return errors.New("favicon: too many redirects")
+		}
+		if req.URL.Scheme != "http" && req.URL.Scheme != "https" {
+			return fmt.Errorf("favicon: redirect to disallowed scheme %q", req.URL.Scheme)
+		}
+		return nil
 	},
 }
 
@@ -32,6 +97,10 @@ var (
 // link, fetches the favicon, and returns the raw image bytes.
 // Returns nil if no favicon is found or the fetch fails.
 func FetchFaviconForTarget(ctx context.Context, targetURL string) []byte {
+	u, err := url.Parse(targetURL)
+	if err != nil || (u.Scheme != "http" && u.Scheme != "https") {
+		return nil
+	}
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, targetURL, nil)
 	if err != nil {
 		return nil
