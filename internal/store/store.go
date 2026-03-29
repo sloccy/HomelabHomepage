@@ -261,16 +261,42 @@ func (s *Store) iconPath(id string) string {
 	return filepath.Join(s.iconDir, id)
 }
 
+// safeIconPath returns the icon file path for id after validating that id is a
+// clean, single-component name that stays within iconDir. This prevents path
+// traversal even if callers forget to validate the id themselves.
+func (s *Store) safeIconPath(id string) (string, error) {
+	if strings.ContainsAny(id, "/\\") || strings.Contains(id, "..") || id == "" {
+		return "", fmt.Errorf("invalid icon id: %q", id)
+	}
+	p := filepath.Join(s.iconDir, filepath.Clean(id))
+	if !strings.HasPrefix(p, s.iconDir) {
+		return "", fmt.Errorf("icon path escapes icon directory: %q", id)
+	}
+	return p, nil
+}
+
 func (s *Store) WriteIcon(id string, data []byte) error {
-	return os.WriteFile(s.iconPath(id), data, 0o644)
+	p, err := s.safeIconPath(id)
+	if err != nil {
+		return err
+	}
+	return os.WriteFile(p, data, 0o644)
 }
 
 func (s *Store) ReadIcon(id string) ([]byte, error) {
-	return os.ReadFile(s.iconPath(id))
+	p, err := s.safeIconPath(id)
+	if err != nil {
+		return nil, err
+	}
+	return os.ReadFile(p)
 }
 
 func (s *Store) DeleteIcon(id string) {
-	_ = os.Remove(s.iconPath(id))
+	p, err := s.safeIconPath(id)
+	if err != nil {
+		return
+	}
+	_ = os.Remove(p)
 }
 
 // migrateIcons converts any base64 data URIs stored in the Icon field to on-disk

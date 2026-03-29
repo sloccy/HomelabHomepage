@@ -374,9 +374,15 @@ func splitTarget(target string) (string, int) {
 func portsFromNat(pm nat.PortMap) []dockertypes.Port {
 	ports := make([]dockertypes.Port, 0, len(pm))
 	for p, bindings := range pm {
-		priv, _ := strconv.Atoi(p.Port())
+		priv, err := strconv.ParseUint(p.Port(), 10, 16)
+		if err != nil {
+			continue
+		}
 		for _, b := range bindings {
-			pub, _ := strconv.Atoi(b.HostPort)
+			pub, err := strconv.ParseUint(b.HostPort, 10, 16)
+			if err != nil {
+				continue
+			}
 			ports = append(ports, dockertypes.Port{
 				Type:        p.Proto(),
 				PrivatePort: uint16(priv),
