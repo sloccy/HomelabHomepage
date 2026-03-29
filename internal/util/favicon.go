@@ -47,9 +47,35 @@ func isBlockedIP(ip net.IP) bool {
 
 var baseDialer = &net.Dialer{Timeout: 5 * time.Second}
 
+// validateFaviconURL parses rawURL, enforces http/https scheme, resolves the
+// hostname, and rejects blocked IPs. Returns the reconstructed URL string so
+// the caller uses a URL derived from validated, parsed components rather than
+// the raw user-supplied string.
+func validateFaviconURL(ctx context.Context, rawURL string) (string, error) {
+	u, err := url.Parse(rawURL)
+	if err != nil {
+		return "", err
+	}
+	if u.Scheme != "http" && u.Scheme != "https" {
+		return "", fmt.Errorf("favicon: disallowed scheme %q", u.Scheme)
+	}
+	host := u.Hostname()
+	addrs, err := net.DefaultResolver.LookupHost(ctx, host)
+	if err != nil {
+		return "", err
+	}
+	for _, a := range addrs {
+		ip := net.ParseIP(a)
+		if ip != nil && isBlockedIP(ip) {
+			return "", fmt.Errorf("favicon: host %s resolves to blocked IP %s", host, a)
+		}
+	}
+	return u.String(), nil
+}
+
 // safeDialContext resolves the hostname and rejects blocked IPs before
-// establishing a TCP connection, preventing SSRF to loopback and metadata
-// endpoints while still allowing access to LAN/RFC1918 addresses.
+// establishing a TCP connection. This is defense-in-depth against redirect-
+// based bypasses — the primary check is in validateFaviconURL.
 func safeDialContext(ctx context.Context, network, addr string) (net.Conn, error) {
 	host, port, err := net.SplitHostPort(addr)
 	if err != nil {
@@ -97,11 +123,11 @@ var (
 // link, fetches the favicon, and returns the raw image bytes.
 // Returns nil if no favicon is found or the fetch fails.
 func FetchFaviconForTarget(ctx context.Context, targetURL string) []byte {
-	u, err := url.Parse(targetURL)
-	if err != nil || (u.Scheme != "http" && u.Scheme != "https") {
+	safeURL, err := validateFaviconURL(ctx, targetURL)
+	if err != nil {
 		return nil
 	}
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, targetURL, nil)
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, safeURL, nil)
 	if err != nil {
 		return nil
 	}
@@ -135,7 +161,11 @@ func FetchAndWriteFavicon(ctx context.Context, st *store.Store, id, target strin
 }
 
 func fetchFaviconBytes(ctx context.Context, faviconURL string) []byte {
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, faviconURL, nil)
+	safeURL, err := validateFaviconURL(ctx, faviconURL)
+	if err != nil {
+		return nil
+	}
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, safeURL, nil)
 	if err != nil {
 		return nil
 	}
