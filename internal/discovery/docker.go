@@ -80,7 +80,7 @@ func (d *Discoverer) DockerWatch(ctx context.Context) {
 }
 
 // dockerEvents subscribes to container events and returns message/error channels.
-func dockerEvents(ctx context.Context, dc *client.Client) (<-chan dockerevents.Message, <-chan error) {
+func dockerEvents(ctx context.Context, dc *client.Client) (msgs <-chan dockerevents.Message, errs <-chan error) {
 	f := filters.NewArgs()
 	f.Add("type", "container")
 	return dc.Events(ctx, dockerevents.ListOptions{Filters: f})
@@ -187,12 +187,12 @@ func (d *Discoverer) upsertContainerWithLabels(ctx context.Context, id, name str
 			log.Printf("discovery: reattached %q → %s (%s)", name, existing.Subdomain, id)
 			return
 		}
-		d.addDockerDiscovered(id, info.name, info.target, info.subdomain)
+		d.addDockerDiscovered(id, info.name, info.target, info.subdomain) //nolint:contextcheck // favicon fetch is a background task with its own timeout
 		return
 	}
 
 	// New container — send to Discovered for user review instead of auto-assigning.
-	d.addDockerDiscovered(id, info.name, info.target, info.subdomain)
+	d.addDockerDiscovered(id, info.name, info.target, info.subdomain) //nolint:contextcheck // favicon fetch is a background task with its own timeout
 }
 
 // resolveContainer determines the display name, subdomain and target URL for a container
@@ -359,7 +359,7 @@ func bestPort(ports []container.Port) int {
 }
 
 // splitTarget splits "http://ip:port" into (ip, port).
-func splitTarget(target string) (string, int) {
+func splitTarget(target string) (ip string, port int) {
 	s := strings.TrimPrefix(target, "http://")
 	s = strings.TrimPrefix(s, "https://")
 	s = strings.TrimSuffix(s, "/")
@@ -367,7 +367,7 @@ func splitTarget(target string) (string, int) {
 	if idx < 0 {
 		return s, 0
 	}
-	port, _ := strconv.Atoi(s[idx+1:])
+	port, _ = strconv.Atoi(s[idx+1:])
 	return s[:idx], port
 }
 

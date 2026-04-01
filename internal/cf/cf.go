@@ -86,7 +86,7 @@ func (c *Client) DeleteRecord(ctx context.Context, recordID string) error {
 	return err
 }
 
-func (c *Client) FindRecord(ctx context.Context, name string) (string, string, error) {
+func (c *Client) FindRecord(ctx context.Context, name string) (recordID, ip string, err error) {
 	if c.noop {
 		return "", "", nil
 	}

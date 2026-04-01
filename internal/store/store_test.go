@@ -1,6 +1,7 @@
 package store
 
 import (
+	"bytes"
 	"crypto/rand"
 	"encoding/hex"
 	"os"
@@ -343,7 +344,7 @@ func TestIconWriteReadDelete(t *testing.T) {
 	if err != nil {
 		t.Fatalf("ReadIcon: %v", err)
 	}
-	if string(got) != string(data) {
+	if !bytes.Equal(got, data) {
 		t.Error("ReadIcon: data mismatch")
 	}
 	st.DeleteIcon("ico1")

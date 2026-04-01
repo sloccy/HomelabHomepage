@@ -77,7 +77,7 @@ func (h *Handler) proxySubdomain(w http.ResponseWriter, r *http.Request, sub str
 	// Use cached proxy; rebuild only when the service's target URL has changed.
 	var rp *httputil.ReverseProxy
 	if v, ok := h.proxies.Load(sub); ok {
-		if e := v.(*proxyEntry); e.target == svc.Target {
+		if e, ok := v.(*proxyEntry); ok && e.target == svc.Target {
 			rp = e.rp
 		}
 	}
@@ -130,7 +130,7 @@ func (h *Handler) buildProxy(sub string, target *url.URL) *httputil.ReverseProxy
 		}
 		locURL, err := url.Parse(loc)
 		if err != nil {
-			return nil
+			return nil //nolint:nilerr // unparseable Location header: skip rewrite, don't fail the response
 		}
 		if locURL.Host == target.Host {
 			locURL.Scheme = "https"

@@ -95,7 +95,7 @@ func (m *Manager) checkAndUpdate(ctx context.Context) {
 }
 
 func getPublicIP(ctx context.Context) (string, error) {
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, ipifyURL, nil)
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, ipifyURL, http.NoBody)
 	if err != nil {
 		return "", err
 	}

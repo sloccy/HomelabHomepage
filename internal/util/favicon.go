@@ -97,7 +97,7 @@ func safeDialContext(ctx context.Context, network, addr string) (net.Conn, error
 var faviconClient = &http.Client{
 	Timeout: 5 * time.Second,
 	Transport: &http.Transport{
-		TLSClientConfig:   &tls.Config{InsecureSkipVerify: true}, //nolint:gosec
+		TLSClientConfig:   &tls.Config{InsecureSkipVerify: true}, //nolint:gosec // fetching favicons from arbitrary LAN hosts: TLS cert validity is not meaningful
 		DisableKeepAlives: true,
 		DialContext:       safeDialContext,
 	},
@@ -127,7 +127,7 @@ func FetchFaviconForTarget(ctx context.Context, targetURL string) []byte {
 	if err != nil {
 		return nil
 	}
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, safeURL, nil)
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, safeURL, http.NoBody)
 	if err != nil {
 		return nil
 	}
@@ -171,7 +171,7 @@ func fetchFaviconBytes(ctx context.Context, faviconURL string) []byte {
 	if err != nil {
 		return nil
 	}
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, safeURL, nil)
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, safeURL, http.NoBody)
 	if err != nil {
 		return nil
 	}

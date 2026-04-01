@@ -214,7 +214,7 @@ func (s *Server) getFavicon(w http.ResponseWriter, r *http.Request) {
 // isValidIconID reports whether id is a safe icon filename (hex chars only).
 // NewID generates 16-char hex strings; anything else is rejected.
 func isValidIconID(id string) bool {
-	if len(id) == 0 || len(id) > 64 {
+	if id == "" || len(id) > 64 {
 		return false
 	}
 	for _, c := range id {

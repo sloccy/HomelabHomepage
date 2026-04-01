@@ -177,7 +177,7 @@ func (s *Server) createService(w http.ResponseWriter, r *http.Request) {
 
 	// Asynchronously fetch favicon if no icon is set yet.
 	if svc.Icon == "" {
-		go func(id string) { //nolint:gosec // intentional background task; request context would be cancelled before fetch completes
+		go func(id string) { //nolint:gosec,contextcheck // intentional background task with its own timeout; request context would be cancelled before fetch completes
 			ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 			defer cancel()
 			if !util.FetchAndWriteFavicon(ctx, s.store, id) {
@@ -601,7 +601,7 @@ func (s *Server) pullServiceFavicon(w http.ResponseWriter, r *http.Request) {
 		apiError(w, http.StatusNotFound, "service not found")
 		return
 	}
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	ctx, cancel := context.WithTimeout(r.Context(), 10*time.Second)
 	defer cancel()
 	data := util.FetchFaviconForTarget(ctx, svc.Target)
 	if len(data) == 0 {

@@ -65,7 +65,7 @@ func (m *Manager) Create(ctx context.Context) (*store.TunnelInfo, error) {
 	}
 	m.store.SetTunnel(info)
 	m.store.SaveLog("tunnel")
-	if err := m.startProcess(m.rootCtx, token); err != nil {
+	if err := m.startProcess(m.rootCtx, token); err != nil { //nolint:contextcheck // tunnel process uses app-scoped context, not request context
 		return nil, err
 	}
 	return info, nil
