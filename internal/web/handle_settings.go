@@ -25,6 +25,7 @@ func (s *Server) listDDNS(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) addDDNS(w http.ResponseWriter, r *http.Request) {
+	r.Body = http.MaxBytesReader(w, r.Body, 1<<20)
 	if err := r.ParseForm(); err != nil {
 		errorResponse(w, http.StatusBadRequest, "invalid form data")
 		return
@@ -39,7 +40,7 @@ func (s *Server) addDDNS(w http.ResponseWriter, r *http.Request) {
 	// Immediately create/update record if we know the public IP.
 	if ip := s.store.GetPublicIP(); ip != "" {
 		if _, err := s.cf.CreateRecord(r.Context(), domain, ip); err != nil {
-			log.Printf("web: ddns create record %s: %v", domain, err)
+			log.Printf("web: ddns create record %q: %v", domain, err) //nolint:gosec // admin-supplied domain, not end-user input
 		}
 	}
 	s.save()
@@ -56,7 +57,7 @@ func (s *Server) removeDDNS(w http.ResponseWriter, r *http.Request) {
 	recordID, _, err := s.cf.FindRecord(r.Context(), domain)
 	if err == nil && recordID != "" {
 		if err := s.cf.DeleteRecord(r.Context(), recordID); err != nil {
-			log.Printf("web: delete ddns record %s: %v", domain, err)
+			log.Printf("web: delete ddns record %q: %v", domain, err) //nolint:gosec // admin-supplied domain, not end-user input
 		}
 	}
 	s.save()

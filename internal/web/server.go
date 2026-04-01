@@ -8,12 +8,13 @@ import (
 	"sync"
 	"time"
 
-	"github.com/jellydator/ttlcache/v3"
-	"github.com/klauspost/compress/gzhttp"
 	"lantern/internal/cf"
 	"lantern/internal/config"
 	"lantern/internal/store"
 	"lantern/internal/tunnel"
+
+	"github.com/jellydator/ttlcache/v3"
+	"github.com/klauspost/compress/gzhttp"
 )
 
 // Scanner is the subset of discovery.Discoverer the web server needs.

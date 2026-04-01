@@ -132,10 +132,10 @@ func (m *Manager) tryLoadExisting() bool {
 	return true
 }
 
-func (m *Manager) buildLegoClient() (*lego.Client, *acmeUser, error) {
+func (m *Manager) buildLegoClient() (*lego.Client, error) {
 	user, err := loadOrCreateUser(m.acmeDir, m.cfg.Domain)
 	if err != nil {
-		return nil, nil, fmt.Errorf("acme user: %w", err)
+		return nil, fmt.Errorf("acme user: %w", err)
 	}
 
 	legoConfig := lego.NewConfig(user)
@@ -143,34 +143,34 @@ func (m *Manager) buildLegoClient() (*lego.Client, *acmeUser, error) {
 
 	client, err := lego.NewClient(legoConfig)
 	if err != nil {
-		return nil, nil, fmt.Errorf("lego client: %w", err)
+		return nil, fmt.Errorf("lego client: %w", err)
 	}
 
 	cfConfig := legocf.NewDefaultConfig()
 	cfConfig.AuthToken = m.cfg.CFAPIToken
 	provider, err := legocf.NewDNSProviderConfig(cfConfig)
 	if err != nil {
-		return nil, nil, fmt.Errorf("cloudflare provider: %w", err)
+		return nil, fmt.Errorf("cloudflare provider: %w", err)
 	}
 	if err := client.Challenge.SetDNS01Provider(provider); err != nil {
-		return nil, nil, err
+		return nil, err
 	}
 
 	if user.Registration == nil {
 		reg, err := client.Registration.Register(registration.RegisterOptions{TermsOfServiceAgreed: true})
 		if err != nil {
-			return nil, nil, fmt.Errorf("register: %w", err)
+			return nil, fmt.Errorf("register: %w", err)
 		}
 		user.Registration = reg
 		if err := saveUser(m.acmeDir, user); err != nil {
 			log.Printf("certs: save user: %v", err)
 		}
 	}
-	return client, user, nil
+	return client, nil
 }
 
 func (m *Manager) obtain() error {
-	client, _, err := m.buildLegoClient()
+	client, err := m.buildLegoClient()
 	if err != nil {
 		return err
 	}
@@ -195,7 +195,7 @@ func (m *Manager) renew() error {
 	if err := json.Unmarshal(raw, &res); err != nil {
 		return m.obtain()
 	}
-	client, _, err := m.buildLegoClient()
+	client, err := m.buildLegoClient()
 	if err != nil {
 		return err
 	}
@@ -207,7 +207,7 @@ func (m *Manager) renew() error {
 }
 
 func (m *Manager) saveCert(res *certificate.Resource) error {
-	if err := os.WriteFile(m.certFile, res.Certificate, 0o644); err != nil {
+	if err := os.WriteFile(m.certFile, res.Certificate, 0o600); err != nil {
 		return err
 	}
 	if err := os.WriteFile(m.keyFile, res.PrivateKey, 0o600); err != nil {
@@ -282,7 +282,7 @@ func loadOrCreateUser(dir, domain string) (*acmeUser, error) {
 	regPath := filepath.Join(dir, "account.json")
 
 	var key *ecdsa.PrivateKey
-	if raw, err := os.ReadFile(keyPath); err == nil {
+	if raw, err := os.ReadFile(keyPath); err == nil { //nolint:gosec // path constructed from trusted config dir
 		block, _ := pem.Decode(raw)
 		if block != nil {
 			if k, err := x509.ParseECPrivateKey(block.Bytes); err == nil {
@@ -304,7 +304,7 @@ func loadOrCreateUser(dir, domain string) (*acmeUser, error) {
 		Email: "admin@" + domain,
 		key:   key,
 	}
-	if raw, err := os.ReadFile(regPath); err == nil {
+	if raw, err := os.ReadFile(regPath); err == nil { //nolint:gosec // path constructed from trusted config dir
 		var reg registration.Resource
 		if json.Unmarshal(raw, &reg) == nil {
 			user.Registration = &reg

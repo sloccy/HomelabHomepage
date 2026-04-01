@@ -65,12 +65,12 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 func (h *Handler) proxySubdomain(w http.ResponseWriter, r *http.Request, sub string) {
 	svc := h.store.GetServiceBySubdomain(sub)
 	if svc == nil {
-		h.errorPage(w, r, 404, fmt.Sprintf("No service assigned to <strong>%s.%s</strong>", html.EscapeString(sub), html.EscapeString(h.cfg.Domain)))
+		h.errorPage(w, 404, fmt.Sprintf("No service assigned to <strong>%s.%s</strong>", html.EscapeString(sub), html.EscapeString(h.cfg.Domain)))
 		return
 	}
 	target, err := url.Parse(svc.Target)
 	if err != nil {
-		h.errorPage(w, r, 502, "Invalid target URL for this service.")
+		h.errorPage(w, 502, "Invalid target URL for this service.")
 		return
 	}
 
@@ -93,7 +93,7 @@ func (h *Handler) proxySubdomain(w http.ResponseWriter, r *http.Request, sub str
 // needed values are derived from the outgoing request clone that the
 // httputil.ReverseProxy passes to Director/ModifyResponse.
 func (h *Handler) buildProxy(sub string, target *url.URL) *httputil.ReverseProxy {
-	rp := httputil.NewSingleHostReverseProxy(target)
+	rp := httputil.NewSingleHostReverseProxy(target) //nolint:gosec // target URL is store-derived, not user-supplied
 	rp.Transport = insecureTransport
 	rp.ErrorHandler = func(w http.ResponseWriter, r *http.Request, err error) {
 		svcName := ""
@@ -102,7 +102,7 @@ func (h *Handler) buildProxy(sub string, target *url.URL) *httputil.ReverseProxy
 		}
 		msg := fmt.Sprintf("Could not reach <strong>%s</strong>.<br><small>%s</small>",
 			html.EscapeString(svcName), html.EscapeString(err.Error()))
-		h.errorPage(w, r, 502, msg)
+		h.errorPage(w, 502, msg)
 	}
 	// Wrap the default Director to set forwarding headers.
 	// req is a clone of the incoming request; req.Host is still the original
@@ -142,14 +142,14 @@ func (h *Handler) buildProxy(sub string, target *url.URL) *httputil.ReverseProxy
 	return rp
 }
 
-func (h *Handler) errorPage(w http.ResponseWriter, r *http.Request, code int, msg string) {
+func (h *Handler) errorPage(w http.ResponseWriter, code int, msg string) {
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	w.WriteHeader(code)
 	title := "Service Unavailable"
 	if code == 404 {
 		title = "Service Not Found"
 	}
-	_, _ = fmt.Fprintf(w, errorHTML, title, title, msg, h.cfg.Domain)
+	_, _ = fmt.Fprintf(w, errorHTML, title, title, msg, h.cfg.Domain) //nolint:gosec // errorHTML is a fixed format string; caller-escaped variables
 }
 
 func realIP(r *http.Request) string {

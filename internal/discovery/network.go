@@ -16,10 +16,11 @@ import (
 	"sync/atomic"
 	"time"
 
-	"go4.org/netipx"
-	"golang.org/x/sync/errgroup"
 	"lantern/internal/store"
 	"lantern/internal/util"
+
+	"go4.org/netipx"
+	"golang.org/x/sync/errgroup"
 )
 
 var (
@@ -44,14 +45,14 @@ var (
 
 // resolveURLToPort parses a URL and resolves the host to an IP, returning the
 // resulting openPort. Used by SSDP and WS-Discovery to normalise device addresses.
-func resolveURLToPort(rawURL string) (openPort, bool) {
+func resolveURLToPort(ctx context.Context, rawURL string) (openPort, bool) {
 	u, err := url.Parse(rawURL)
 	if err != nil || u.Hostname() == "" {
 		return openPort{}, false
 	}
 	host := u.Hostname()
 	if net.ParseIP(host) == nil {
-		addrs, err := net.LookupHost(host)
+		addrs, err := net.DefaultResolver.LookupHost(ctx, host)
 		if err != nil || len(addrs) == 0 {
 			return openPort{}, false
 		}
@@ -305,13 +306,12 @@ func tcpSweep(ctx context.Context, ips []string, ports []int, logf func(string, 
 
 	for _, ip := range ips {
 		for _, port := range ports {
-			ip, port := ip, port
 			g.Go(func() error {
 				if gctx.Err() != nil {
 					return nil
 				}
 				addr := net.JoinHostPort(ip, strconv.Itoa(port))
-				conn, err := net.DialTimeout("tcp", addr, timeout)
+				conn, err := (&net.Dialer{Timeout: timeout}).DialContext(gctx, "tcp", addr)
 				if err == nil {
 					_ = conn.Close()
 					countOpen.Add(1)

@@ -121,7 +121,7 @@ func discoverMDNS(ctx context.Context, timeout time.Duration) []openPort {
 		if !ok {
 			// Try the system resolver (works for .local names with avahi/nss-mdns).
 			host := strings.TrimSuffix(srv.host, ".")
-			addrs, err := net.LookupHost(host)
+			addrs, err := net.DefaultResolver.LookupHost(ctx, host)
 			if err != nil || len(addrs) == 0 {
 				continue
 			}

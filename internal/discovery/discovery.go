@@ -141,8 +141,8 @@ func isAssignedTarget(targets map[string]bool, r *probeResult) bool {
 }
 
 // upsertProbeResult stores a probe result as a network-discovered service and
-// writes any fetched icon bytes to disk. Returns the stored entry's ID.
-func (d *Discoverer) upsertProbeResult(r *probeResult) string {
+// writes any fetched icon bytes to disk.
+func (d *Discoverer) upsertProbeResult(r *probeResult) {
 	id := d.store.UpsertNetworkDiscovered(&store.DiscoveredService{
 		ID:           util.NewID(),
 		IP:           r.ip,
@@ -157,7 +157,6 @@ func (d *Discoverer) upsertProbeResult(r *probeResult) string {
 	if len(r.iconBytes) > 0 {
 		_ = d.store.WriteIcon(id, r.iconBytes)
 	}
-	return id
 }
 
 // runLightScan runs mDNS, SSDP, and WS-Discovery without a TCP sweep.

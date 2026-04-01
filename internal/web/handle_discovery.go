@@ -54,6 +54,7 @@ func (s *Server) listScanSubnets(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) addScanSubnet(w http.ResponseWriter, r *http.Request) {
+	r.Body = http.MaxBytesReader(w, r.Body, 1<<20)
 	if err := r.ParseForm(); err != nil {
 		errorResponse(w, http.StatusBadRequest, "invalid form data")
 		return
