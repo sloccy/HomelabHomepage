@@ -36,7 +36,7 @@ func (s *Server) createBookmark(w http.ResponseWriter, r *http.Request) {
 	}
 	s.store.AddBookmark(bm)
 	s.save()
-	go s.fetchBookmarkFavicon(bm.ID)
+	go s.fetchBookmarkFavicon(bm.ID) //nolint:contextcheck // background task with its own timeout; must outlive request
 	toastTrigger(w, "Bookmark added", "refreshBookmarksTable")
 	w.WriteHeader(http.StatusNoContent)
 }
@@ -59,7 +59,7 @@ func (s *Server) updateBookmark(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	s.save()
-	go s.fetchBookmarkFavicon(id)
+	go s.fetchBookmarkFavicon(id) //nolint:contextcheck // background task with its own timeout; must outlive request
 	toastTrigger(w, "Bookmark updated", "refreshBookmarksTable")
 	w.WriteHeader(http.StatusNoContent)
 }

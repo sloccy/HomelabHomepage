@@ -12,7 +12,7 @@ import (
 var healthClient = &http.Client{
 	Timeout: 5 * time.Second,
 	Transport: &http.Transport{
-		TLSClientConfig:   &tls.Config{InsecureSkipVerify: true}, //nolint:gosec
+		TLSClientConfig:   &tls.Config{InsecureSkipVerify: true}, //nolint:gosec // health-checking arbitrary backend services: TLS cert validity is not meaningful
 		DisableKeepAlives: true,
 	},
 }
@@ -24,7 +24,7 @@ const healthConcurrency = 20
 // whether each is reachable. Any HTTP response (including 3xx/4xx/5xx) counts
 // as "up" — only a connection failure counts as "down".
 func (s *Server) StartHealthChecker(ctx context.Context) {
-	s.checkHealth()
+	s.checkHealth(ctx)
 	tick := time.NewTicker(30 * time.Second)
 	defer tick.Stop()
 	for {
@@ -32,12 +32,12 @@ func (s *Server) StartHealthChecker(ctx context.Context) {
 		case <-ctx.Done():
 			return
 		case <-tick.C:
-			s.checkHealth()
+			s.checkHealth(ctx)
 		}
 	}
 }
 
-func (s *Server) checkHealth() {
+func (s *Server) checkHealth(ctx context.Context) {
 	services := s.store.GetAllServices()
 	result := make(map[string]string, len(services))
 	var mu sync.Mutex
@@ -53,7 +53,7 @@ func (s *Server) checkHealth() {
 			defer wg.Done()
 			defer func() { <-sem }()
 			status := "down"
-			req, err := http.NewRequestWithContext(context.Background(), http.MethodGet, target, nil)
+			req, err := http.NewRequestWithContext(ctx, http.MethodGet, target, http.NoBody)
 			if err == nil {
 				resp, err := healthClient.Do(req)
 				if err == nil {

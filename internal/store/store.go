@@ -547,16 +547,17 @@ func (s *Store) UpsertNetworkDiscovered(svc *DiscoveredService) string {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	for _, existing := range s.d.Discovered {
-		if existing.Source == SourceNetwork && existing.IP == svc.IP && existing.Port == svc.Port {
-			existing.Title = svc.Title
-			existing.Icon = svc.Icon
-			existing.ServiceName = svc.ServiceName
-			existing.SuggestedSubdomain = svc.SuggestedSubdomain
-			existing.Confidence = svc.Confidence
-			existing.DiscoveredAt = svc.DiscoveredAt
-			// Index already points to existing; no re-indexing needed.
-			return existing.ID
+		if existing.Source != SourceNetwork || existing.IP != svc.IP || existing.Port != svc.Port {
+			continue
 		}
+		existing.Title = svc.Title
+		existing.Icon = svc.Icon
+		existing.ServiceName = svc.ServiceName
+		existing.SuggestedSubdomain = svc.SuggestedSubdomain
+		existing.Confidence = svc.Confidence
+		existing.DiscoveredAt = svc.DiscoveredAt
+		// Index already points to existing; no re-indexing needed.
+		return existing.ID
 	}
 	s.d.Discovered = append(s.d.Discovered, svc)
 	s.indexDiscovered(svc)

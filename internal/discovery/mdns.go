@@ -99,7 +99,7 @@ func discoverMDNS(ctx context.Context, timeout time.Duration) []openPort {
 			case *dns.PTR:
 				// Meta-query response: _services._dns-sd._udp.local. PTR _foo._tcp.local.
 				// Dynamically query the newly discovered service type.
-				if strings.ToLower(v.Hdr.Name) == mdnsServicesMeta {
+				if strings.EqualFold(v.Hdr.Name, mdnsServicesMeta) {
 					sendQuery(strings.ToLower(v.Ptr))
 				}
 			case *dns.SRV:

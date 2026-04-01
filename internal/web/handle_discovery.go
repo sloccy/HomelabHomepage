@@ -25,7 +25,7 @@ func (s *Server) deleteDiscovered(w http.ResponseWriter, r *http.Request) {
 
 func (s *Server) triggerScan(w http.ResponseWriter, r *http.Request) {
 	if s.scanner != nil {
-		s.scanner.ScanNow(context.Background())
+		s.scanner.ScanNow(context.Background()) //nolint:contextcheck // network scan must outlive the HTTP request
 	}
 	renderTemplate(w, "status.html", s.buildStatusData())
 }

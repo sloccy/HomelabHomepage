@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"crypto/tls"
+	"errors"
 	"log"
 	"net/http"
 	"os"
@@ -33,7 +34,7 @@ func main() {
 	// Distroless images have no shell or wget, so the binary handles its own check.
 	// Usage: /lantern healthcheck
 	if len(os.Args) > 1 && os.Args[1] == "healthcheck" {
-		req, err := http.NewRequestWithContext(context.Background(), http.MethodGet, "http://127.0.0.1/healthz", nil)
+		req, err := http.NewRequestWithContext(context.Background(), http.MethodGet, "http://127.0.0.1/healthz", http.NoBody)
 		if err != nil {
 			os.Exit(1)
 		}
@@ -133,7 +134,7 @@ func main() {
 	}
 	go func() {
 		log.Println("HTTP  listening on :80")
-		if err := httpSrv.ListenAndServe(); err != http.ErrServerClosed {
+		if err := httpSrv.ListenAndServe(); !errors.Is(err, http.ErrServerClosed) {
 			log.Printf("HTTP server error: %v", err)
 		}
 	}()
@@ -159,7 +160,7 @@ func main() {
 	}
 	go func() {
 		log.Println("HTTPS listening on :443")
-		if err := httpsSrv.ListenAndServeTLS("", ""); err != http.ErrServerClosed {
+		if err := httpsSrv.ListenAndServeTLS("", ""); !errors.Is(err, http.ErrServerClosed) {
 			log.Printf("HTTPS server error: %v", err)
 			os.Exit(1)
 		}

@@ -27,7 +27,7 @@ var (
 	httpClient = &http.Client{
 		Timeout: 5 * time.Second,
 		Transport: &http.Transport{
-			TLSClientConfig:     &tls.Config{InsecureSkipVerify: true}, //nolint:gosec
+			TLSClientConfig:     &tls.Config{InsecureSkipVerify: true}, //nolint:gosec // probing arbitrary LAN hosts: TLS cert validity is not meaningful
 			DisableKeepAlives:   true,
 			IdleConnTimeout:     5 * time.Second,
 			TLSHandshakeTimeout: 3 * time.Second,
@@ -204,7 +204,7 @@ var signatures = []signature{
 	simpleSig("Immich", 0.95, "📷", "Immich", "Immich"),
 	simpleSig("PhotoPrism", 0.95, "📸", "PhotoPrism", "PhotoPrism"),
 	{"Nextcloud", 0.97, "☁️", func(h http.Header, b, t string) bool {
-		return h.Get("X-Nextcloud-Request-ID") != "" || strings.Contains(b, "Nextcloud") || strings.Contains(t, "Nextcloud")
+		return h.Get("X-Nextcloud-Request-Id") != "" || strings.Contains(b, "Nextcloud") || strings.Contains(t, "Nextcloud")
 	}},
 	{"Syncthing", 0.97, "🔄", func(h http.Header, b, t string) bool {
 		return h.Get("X-Syncthing-Id") != "" || strings.Contains(t, "Syncthing") || strings.Contains(b, "syncthing")
@@ -308,7 +308,7 @@ func tcpSweep(ctx context.Context, ips []string, ports []int, logf func(string, 
 		for _, port := range ports {
 			g.Go(func() error {
 				if gctx.Err() != nil {
-					return nil
+					return nil //nolint:nilerr // intentionally suppress context error to avoid errgroup cancellation noise
 				}
 				addr := net.JoinHostPort(ip, strconv.Itoa(port))
 				conn, err := (&net.Dialer{Timeout: timeout}).DialContext(gctx, "tcp", addr)
@@ -645,7 +645,7 @@ func probeHTTP(ctx context.Context, ip string, port int) *probeResult {
 func tryProbe(ctx context.Context, ip string, port int, scheme string) *probeResult {
 	rawURL := fmt.Sprintf("%s://%s:%d/", scheme, ip, port)
 
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, rawURL, nil)
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, rawURL, http.NoBody)
 	if err != nil {
 		return nil
 	}
@@ -721,7 +721,7 @@ func detectScheme(ctx context.Context, ip string, port int) string {
 
 func schemeReachable(ctx context.Context, ip string, port int, scheme string) bool {
 	rawURL := fmt.Sprintf("%s://%s:%d/", scheme, ip, port)
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, rawURL, nil)
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, rawURL, http.NoBody)
 	if err != nil {
 		return false
 	}

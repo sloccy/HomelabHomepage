@@ -47,7 +47,7 @@ func init() {
 }
 
 func renderTemplate(w http.ResponseWriter, name string, data any) {
-	buf := bufPool.Get().(*bytes.Buffer)
+	buf := bufPool.Get().(*bytes.Buffer) //nolint:forcetypeassert // pool always contains *bytes.Buffer
 	buf.Reset()
 	defer bufPool.Put(buf)
 	if err := tmpl.ExecuteTemplate(buf, name, data); err != nil {
@@ -74,7 +74,7 @@ func renderPage(w http.ResponseWriter, t *template.Template, data pageData) {
 }
 
 func preRender(name string, data any) template.HTML {
-	buf := bufPool.Get().(*bytes.Buffer)
+	buf := bufPool.Get().(*bytes.Buffer) //nolint:forcetypeassert // pool always contains *bytes.Buffer
 	buf.Reset()
 	defer bufPool.Put(buf)
 	_ = tmpl.ExecuteTemplate(buf, name, data)
@@ -110,7 +110,7 @@ var funcMap = template.FuncMap{
 	// id: entity ID; icon: "file", emoji, or empty; src: URL for favicon proxy; cls: CSS class.
 	"iconEl": func(id, icon, src, cls string) template.HTML {
 		if icon == store.IconFile {
-			return template.HTML(fmt.Sprintf( //nolint:gosec // all values passed through HTMLEscapeString
+			return template.HTML(fmt.Sprintf( //nolint:gosec,gocritic // all values passed through HTMLEscapeString; %q would alter output
 				`<img class="%s" src="/api/icons/%s" alt="">`,
 				template.HTMLEscapeString(cls),
 				template.HTMLEscapeString(id),
@@ -119,12 +119,12 @@ var funcMap = template.FuncMap{
 		// Emoji icon from fingerprint.
 		if icon != "" && !strings.HasPrefix(icon, "data:") {
 			ph := strings.TrimSuffix(cls, "-icon") + "-icon-placeholder"
-			return template.HTML(fmt.Sprintf(`<div class="%s">%s</div>`, //nolint:gosec // all values passed through HTMLEscapeString
+			return template.HTML(fmt.Sprintf(`<div class="%s">%s</div>`, //nolint:gosec,gocritic // all values passed through HTMLEscapeString; %q would alter output
 				template.HTMLEscapeString(ph), template.HTMLEscapeString(icon)))
 		}
 		// Legacy: handle old data URIs that weren't migrated (e.g., fresh in-memory only).
 		if strings.HasPrefix(icon, "data:") {
-			return template.HTML(fmt.Sprintf( //nolint:gosec // all values passed through HTMLEscapeString
+			return template.HTML(fmt.Sprintf( //nolint:gosec,gocritic // all values passed through HTMLEscapeString; %q would alter output
 				`<img class="%s" src="%s" alt="">`,
 				template.HTMLEscapeString(cls),
 				template.HTMLEscapeString(icon),
@@ -133,7 +133,7 @@ var funcMap = template.FuncMap{
 		if src != "" && id != "" {
 			proxyURL := "/api/favicon/" + id
 			ph := strings.TrimSuffix(cls, "-icon") + "-icon-placeholder"
-			return template.HTML(fmt.Sprintf( //nolint:gosec // all values passed through HTMLEscapeString
+			return template.HTML(fmt.Sprintf( //nolint:gosec,gocritic // all values passed through HTMLEscapeString; %q would alter output
 				`<img class="%s" src="%s" alt="" onerror="this.outerHTML='<div class=&quot;%s&quot;>📦</div>'">`,
 				template.HTMLEscapeString(cls),
 				template.HTMLEscapeString(proxyURL),
@@ -141,7 +141,7 @@ var funcMap = template.FuncMap{
 			))
 		}
 		ph := strings.TrimSuffix(cls, "-icon") + "-icon-placeholder"
-		return template.HTML(fmt.Sprintf(`<div class="%s">📦</div>`, template.HTMLEscapeString(ph))) //nolint:gosec // all values passed through HTMLEscapeString
+		return template.HTML(fmt.Sprintf(`<div class="%s">📦</div>`, template.HTMLEscapeString(ph))) //nolint:gosec,gocritic // all values passed through HTMLEscapeString; %q would alter output
 	},
 
 	// faviconURL builds the favicon proxy URL for a given entity ID.
@@ -243,7 +243,7 @@ var funcMap = template.FuncMap{
 	// safeURL returns a template.URL to bypass Go's URL sanitisation for
 	// trusted internal URLs (data URIs, favicon proxy paths).
 	"safeURL": func(s string) template.URL {
-		return template.URL(s) //nolint:gosec
+		return template.URL(s) //nolint:gosec // trusted internal URLs passed from templates
 	},
 }
 
@@ -314,7 +314,7 @@ type subnetsFragData struct {
 // sortAndGroup sorts items by Order then Name, groups them by Category, and
 // returns ordered category keys (empty category first, then alphabetical) plus
 // a map from category name to its items.
-func sortAndGroup[T any](items []T, order func(T) int, name func(T) string, category func(T) string) ([]string, map[string][]T) {
+func sortAndGroup[T any](items []T, order func(T) int, name, category func(T) string) (keys []string, groups map[string][]T) {
 	sorted := make([]T, len(items))
 	copy(sorted, items)
 	sort.Slice(sorted, func(i, j int) bool {
@@ -324,8 +324,7 @@ func sortAndGroup[T any](items []T, order func(T) int, name func(T) string, cate
 		return strings.ToLower(name(sorted[i])) < strings.ToLower(name(sorted[j]))
 	})
 
-	groups := make(map[string][]T)
-	var keys []string
+	groups = make(map[string][]T)
 	seen := make(map[string]bool)
 	for _, item := range sorted {
 		cat := category(item)
