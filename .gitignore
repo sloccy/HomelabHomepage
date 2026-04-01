@@ -12,6 +12,9 @@ atlas
 *.swp
 *.swo
 
+# Claude Code local settings (personal permissions)
+.claude/settings.local.json
+
 # Go test cache
 *.test
 *.out

@@ -1,0 +1,16 @@
+{
+  "hooks": {
+    "PostToolUse": [
+      {
+        "matcher": "Edit|Write",
+        "hooks": [
+          {
+            "type": "command",
+            "if": "Edit(*.go)|Write(*.go)",
+            "command": "cd \"$CLAUDE_PROJECT_DIR\" && golangci-lint run ./..."
+          }
+        ]
+      }
+    ]
+  }
+}
