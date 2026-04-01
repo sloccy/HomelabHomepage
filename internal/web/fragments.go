@@ -229,6 +229,7 @@ type reorderItem struct {
 // doMove swaps the item with the given id one position left or right in the
 // ordering, then calls reorder and save. Writes the HTTP response.
 func doMove(w http.ResponseWriter, r *http.Request, items []reorderItem, reorder func([]string), save func() error) {
+	r.Body = http.MaxBytesReader(w, r.Body, 1<<20)
 	id := r.PathValue("id")
 	direction := r.FormValue("direction")
 

@@ -14,6 +14,7 @@ func (s *Server) listBookmarks(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) createBookmark(w http.ResponseWriter, r *http.Request) {
+	r.Body = http.MaxBytesReader(w, r.Body, 1<<20)
 	if err := r.ParseForm(); err != nil {
 		errorResponse(w, http.StatusBadRequest, "invalid form data")
 		return
@@ -36,12 +37,13 @@ func (s *Server) createBookmark(w http.ResponseWriter, r *http.Request) {
 	s.store.AddBookmark(bm)
 	s.save()
 	go s.fetchBookmarkFavicon(bm.ID)
-	toastTrigger(w, "Bookmark added", "success", "refreshBookmarksTable")
+	toastTrigger(w, "Bookmark added", "refreshBookmarksTable")
 	w.WriteHeader(http.StatusNoContent)
 }
 
 func (s *Server) updateBookmark(w http.ResponseWriter, r *http.Request) {
 	id := r.PathValue("id")
+	r.Body = http.MaxBytesReader(w, r.Body, 1<<20)
 	if err := r.ParseForm(); err != nil {
 		errorResponse(w, http.StatusBadRequest, "invalid form data")
 		return
@@ -58,7 +60,7 @@ func (s *Server) updateBookmark(w http.ResponseWriter, r *http.Request) {
 	}
 	s.save()
 	go s.fetchBookmarkFavicon(id)
-	toastTrigger(w, "Bookmark updated", "success", "refreshBookmarksTable")
+	toastTrigger(w, "Bookmark updated", "refreshBookmarksTable")
 	w.WriteHeader(http.StatusNoContent)
 }
 

@@ -14,12 +14,13 @@ import (
 	"sync"
 	"time"
 
+	"lantern/internal/util"
+
 	"github.com/andybalholm/brotli"
 	gzip "github.com/klauspost/compress/gzip"
 	"github.com/tdewolff/minify/v2"
 	"github.com/tdewolff/minify/v2/css"
 	"github.com/tdewolff/minify/v2/js"
-	"lantern/internal/util"
 )
 
 // acceptsEncoding reports whether the Accept-Encoding header includes the given encoding token.
@@ -207,7 +208,7 @@ func (s *Server) getFavicon(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Content-Type", ct)
 	w.Header().Set("Cache-Control", "public, max-age=3600")
-	_, _ = w.Write(data)
+	_, _ = w.Write(data) //nolint:gosec // binary icon data, not HTML; Content-Type is set explicitly
 }
 
 // isValidIconID reports whether id is a safe icon filename (hex chars only).
@@ -245,5 +246,5 @@ func (s *Server) getIcon(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", ct)
 	w.Header().Set("Cache-Control", "public, max-age=3600, must-revalidate")
 	w.Header().Set("ETag", etag)
-	_, _ = w.Write(data)
+	_, _ = w.Write(data) //nolint:gosec // binary icon data, not HTML; Content-Type is set explicitly
 }

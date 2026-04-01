@@ -56,7 +56,7 @@ func discoverSSDP(ctx context.Context, timeout time.Duration) []openPort {
 		}
 		seen[loc] = true
 
-		p, ok := resolveURLToPort(loc)
+		p, ok := resolveURLToPort(ctx, loc)
 		if !ok {
 			continue
 		}

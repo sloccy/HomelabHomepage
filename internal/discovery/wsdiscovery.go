@@ -76,7 +76,7 @@ func discoverWSDiscovery(ctx context.Context, timeout time.Duration) []openPort 
 		}
 		for _, match := range env.Body.ProbeMatches.ProbeMatch {
 			for _, addr := range strings.Fields(match.XAddrs) {
-				p, ok := resolveURLToPort(addr)
+				p, ok := resolveURLToPort(ctx, addr)
 				if !ok {
 					continue
 				}

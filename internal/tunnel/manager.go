@@ -126,7 +126,7 @@ func (m *Manager) startProcess(ctx context.Context, token string) error {
 
 // launchCmd starts the cloudflared process. Must be called with m.mu held.
 func (m *Manager) launchCmd(ctx context.Context, token string) error {
-	cmd := exec.CommandContext(ctx, "/cloudflared",
+	cmd := exec.CommandContext(ctx, "/cloudflared", //nolint:gosec // binary path is hardcoded; token from secure store
 		"tunnel", "--no-autoupdate", "run", "--token", token)
 
 	// Pipe stdout and stderr to the logger with a prefix.
@@ -144,7 +144,7 @@ func (m *Manager) launchCmd(ctx context.Context, token string) error {
 
 	pipe := func(r *bufio.Scanner) {
 		for r.Scan() {
-			log.Printf("[cloudflared] %s", r.Text())
+			log.Printf("[cloudflared] %s", r.Text()) //nolint:gosec // cloudflared output, not user-controlled input
 		}
 	}
 	go pipe(bufio.NewScanner(stdout))

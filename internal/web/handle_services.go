@@ -30,6 +30,7 @@ type createServiceRequest struct {
 
 func (s *Server) createService(w http.ResponseWriter, r *http.Request) {
 	const maxUpload = 5 << 20 // 5 MB
+	r.Body = http.MaxBytesReader(w, r.Body, maxUpload)
 	if err := r.ParseMultipartForm(maxUpload); err != nil {
 		if err := r.ParseForm(); err != nil {
 			errorResponse(w, http.StatusBadRequest, "invalid form data")
@@ -176,7 +177,7 @@ func (s *Server) createService(w http.ResponseWriter, r *http.Request) {
 
 	// Asynchronously fetch favicon if no icon is set yet.
 	if svc.Icon == "" {
-		go func(id string) {
+		go func(id string) { //nolint:gosec // intentional background task; request context would be cancelled before fetch completes
 			ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 			defer cancel()
 			if !util.FetchAndWriteFavicon(ctx, s.store, id) {
@@ -191,7 +192,7 @@ func (s *Server) createService(w http.ResponseWriter, r *http.Request) {
 		}(svc.ID)
 	}
 
-	toastTrigger(w, "Service added", "success", "refreshServicesTable", "refreshDiscovered")
+	toastTrigger(w, "Service added", "refreshServicesTable", "refreshDiscovered")
 	w.WriteHeader(http.StatusNoContent)
 }
 
@@ -394,6 +395,7 @@ func (s *Server) updateService(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	r.Body = http.MaxBytesReader(w, r.Body, 1<<20)
 	if err := r.ParseForm(); err != nil {
 		errorResponse(w, http.StatusBadRequest, "invalid form data")
 		return
@@ -499,7 +501,7 @@ func (s *Server) updateService(w http.ResponseWriter, r *http.Request) {
 
 	s.store.UpdateService(id, updated)
 	s.save()
-	toastTrigger(w, "Service updated", "success", "refreshServicesTable")
+	toastTrigger(w, "Service updated", "refreshServicesTable")
 	w.WriteHeader(http.StatusNoContent)
 }
 

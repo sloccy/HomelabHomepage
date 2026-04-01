@@ -53,7 +53,7 @@ func (s *Server) checkHealth() {
 			defer wg.Done()
 			defer func() { <-sem }()
 			status := "down"
-			req, err := http.NewRequest(http.MethodGet, target, nil)
+			req, err := http.NewRequestWithContext(context.Background(), http.MethodGet, target, nil)
 			if err == nil {
 				resp, err := healthClient.Do(req)
 				if err == nil {

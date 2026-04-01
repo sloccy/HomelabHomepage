@@ -114,11 +114,11 @@ type Store struct {
 }
 
 func New(dataDir string) (*Store, error) {
-	if err := os.MkdirAll(dataDir, 0o755); err != nil {
+	if err := os.MkdirAll(dataDir, 0o750); err != nil {
 		return nil, fmt.Errorf("create data dir: %w", err)
 	}
 	iconDir := filepath.Join(dataDir, "icons")
-	if err := os.MkdirAll(iconDir, 0o755); err != nil {
+	if err := os.MkdirAll(iconDir, 0o750); err != nil {
 		return nil, fmt.Errorf("create icon dir: %w", err)
 	}
 	s := &Store{
@@ -241,7 +241,7 @@ func (s *Store) Save() error {
 	s.saveMu.Lock()
 	defer s.saveMu.Unlock()
 	tmp := s.path + ".tmp"
-	if err := os.WriteFile(tmp, raw, 0o644); err != nil {
+	if err := os.WriteFile(tmp, raw, 0o600); err != nil {
 		return err
 	}
 	return os.Rename(tmp, s.path)
@@ -279,7 +279,7 @@ func (s *Store) WriteIcon(id string, data []byte) error {
 	if err != nil {
 		return err
 	}
-	return os.WriteFile(p, data, 0o644)
+	return os.WriteFile(p, data, 0o600)
 }
 
 func (s *Store) ReadIcon(id string) ([]byte, error) {
@@ -287,7 +287,7 @@ func (s *Store) ReadIcon(id string) ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
-	return os.ReadFile(p)
+	return os.ReadFile(p) //nolint:gosec // path validated by safeIconPath
 }
 
 func (s *Store) DeleteIcon(id string) {
@@ -346,7 +346,7 @@ func writeDataURI(path, dataURI string) bool {
 	if err != nil || len(data) == 0 {
 		return false
 	}
-	return os.WriteFile(path, data, 0o644) == nil
+	return os.WriteFile(path, data, 0o600) == nil
 }
 
 // ---- Services ---------------------------------------------------------------

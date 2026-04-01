@@ -33,7 +33,11 @@ func main() {
 	// Distroless images have no shell or wget, so the binary handles its own check.
 	// Usage: /lantern healthcheck
 	if len(os.Args) > 1 && os.Args[1] == "healthcheck" {
-		resp, err := http.Get("http://127.0.0.1/healthz")
+		req, err := http.NewRequestWithContext(context.Background(), http.MethodGet, "http://127.0.0.1/healthz", nil)
+		if err != nil {
+			os.Exit(1)
+		}
+		resp, err := http.DefaultClient.Do(req)
 		if err != nil || resp.StatusCode != http.StatusOK {
 			os.Exit(1)
 		}

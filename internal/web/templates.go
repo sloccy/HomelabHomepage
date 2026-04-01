@@ -78,14 +78,14 @@ func preRender(name string, data any) template.HTML {
 	buf.Reset()
 	defer bufPool.Put(buf)
 	_ = tmpl.ExecuteTemplate(buf, name, data)
-	return template.HTML(buf.String())
+	return template.HTML(buf.String()) //nolint:gosec // output is rendered by html/template which handles escaping
 }
 
 // toastTrigger writes HX-Trigger headers that close the modal and show a toast.
-func toastTrigger(w http.ResponseWriter, msg, typ string, extraEvents ...string) {
+func toastTrigger(w http.ResponseWriter, msg string, extraEvents ...string) {
 	m := map[string]any{
 		"closemodal": nil,
-		"showtoast":  map[string]string{"msg": msg, "type": typ},
+		"showtoast":  map[string]string{"msg": msg, "type": "success"},
 	}
 	for _, ev := range extraEvents {
 		m[ev] = nil
@@ -110,7 +110,7 @@ var funcMap = template.FuncMap{
 	// id: entity ID; icon: "file", emoji, or empty; src: URL for favicon proxy; cls: CSS class.
 	"iconEl": func(id, icon, src, cls string) template.HTML {
 		if icon == store.IconFile {
-			return template.HTML(fmt.Sprintf(
+			return template.HTML(fmt.Sprintf( //nolint:gosec // all values passed through HTMLEscapeString
 				`<img class="%s" src="/api/icons/%s" alt="">`,
 				template.HTMLEscapeString(cls),
 				template.HTMLEscapeString(id),
@@ -119,12 +119,12 @@ var funcMap = template.FuncMap{
 		// Emoji icon from fingerprint.
 		if icon != "" && !strings.HasPrefix(icon, "data:") {
 			ph := strings.TrimSuffix(cls, "-icon") + "-icon-placeholder"
-			return template.HTML(fmt.Sprintf(`<div class="%s">%s</div>`,
+			return template.HTML(fmt.Sprintf(`<div class="%s">%s</div>`, //nolint:gosec // all values passed through HTMLEscapeString
 				template.HTMLEscapeString(ph), template.HTMLEscapeString(icon)))
 		}
 		// Legacy: handle old data URIs that weren't migrated (e.g., fresh in-memory only).
 		if strings.HasPrefix(icon, "data:") {
-			return template.HTML(fmt.Sprintf(
+			return template.HTML(fmt.Sprintf( //nolint:gosec // all values passed through HTMLEscapeString
 				`<img class="%s" src="%s" alt="">`,
 				template.HTMLEscapeString(cls),
 				template.HTMLEscapeString(icon),
@@ -133,7 +133,7 @@ var funcMap = template.FuncMap{
 		if src != "" && id != "" {
 			proxyURL := "/api/favicon/" + id
 			ph := strings.TrimSuffix(cls, "-icon") + "-icon-placeholder"
-			return template.HTML(fmt.Sprintf(
+			return template.HTML(fmt.Sprintf( //nolint:gosec // all values passed through HTMLEscapeString
 				`<img class="%s" src="%s" alt="" onerror="this.outerHTML='<div class=&quot;%s&quot;>📦</div>'">`,
 				template.HTMLEscapeString(cls),
 				template.HTMLEscapeString(proxyURL),
@@ -141,7 +141,7 @@ var funcMap = template.FuncMap{
 			))
 		}
 		ph := strings.TrimSuffix(cls, "-icon") + "-icon-placeholder"
-		return template.HTML(fmt.Sprintf(`<div class="%s">📦</div>`, template.HTMLEscapeString(ph)))
+		return template.HTML(fmt.Sprintf(`<div class="%s">📦</div>`, template.HTMLEscapeString(ph))) //nolint:gosec // all values passed through HTMLEscapeString
 	},
 
 	// faviconURL builds the favicon proxy URL for a given entity ID.

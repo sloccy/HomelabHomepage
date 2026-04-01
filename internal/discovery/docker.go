@@ -122,7 +122,7 @@ func (d *Discoverer) handleDockerEvent(ctx context.Context, dc *client.Client, m
 		}
 
 	case "die", "stop", "destroy", "kill":
-		d.detachContainer(ctx, msg.Actor.ID)
+		d.detachContainer(msg.Actor.ID)
 	}
 }
 
@@ -136,7 +136,7 @@ type containerInfo struct {
 // detachContainer clears the ContainerID from a service (preserving user
 // customisations) and removes any discovered entry for that container.
 // It does NOT delete the service — the entry stays on the homepage as offline.
-func (d *Discoverer) detachContainer(ctx context.Context, id string) {
+func (d *Discoverer) detachContainer(id string) {
 	d.store.ClearContainerID(id)
 	d.store.RemoveDiscoveredByContainerID(id)
 	d.store.SaveLog("discovery")
