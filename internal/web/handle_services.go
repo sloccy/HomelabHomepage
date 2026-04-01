@@ -52,7 +52,7 @@ func (s *Server) createService(w http.ResponseWriter, r *http.Request) {
 		if fh := r.MultipartForm.File["icon"]; len(fh) > 0 {
 			f, err := fh[0].Open()
 			if err == nil {
-				defer f.Close()
+				defer func() { _ = f.Close() }()
 				data, err := io.ReadAll(io.LimitReader(f, 512*1024))
 				if err == nil && len(data) > 0 {
 					uploadedIconData = data
@@ -568,7 +568,7 @@ func (s *Server) uploadServiceIcon(w http.ResponseWriter, r *http.Request) {
 		apiError(w, http.StatusBadRequest, "icon file required")
 		return
 	}
-	defer file.Close()
+	defer func() { _ = file.Close() }()
 	data, err := io.ReadAll(io.LimitReader(file, 512*1024))
 	if err != nil || len(data) == 0 {
 		apiError(w, http.StatusBadRequest, "could not read file")
@@ -621,4 +621,3 @@ func (s *Server) applyServiceIcon(w http.ResponseWriter, svc *store.Service, ico
 	s.save()
 	renderTemplate(w, "icon-preview.html", &updated)
 }
-

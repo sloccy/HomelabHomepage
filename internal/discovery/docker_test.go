@@ -3,7 +3,7 @@ package discovery
 import (
 	"testing"
 
-	dockertypes "github.com/docker/docker/api/types"
+	"github.com/docker/docker/api/types/container"
 	"github.com/docker/go-connections/nat"
 )
 
@@ -112,22 +112,22 @@ func TestTraefikPort(t *testing.T) {
 func TestBestPort(t *testing.T) {
 	tests := []struct {
 		name  string
-		ports []dockertypes.Port
+		ports []container.Port
 		want  int
 	}{
 		{
 			name:  "prefers 8080 over other ports",
-			ports: []dockertypes.Port{{Type: "tcp", PublicPort: 32400}, {Type: "tcp", PublicPort: 8080}},
+			ports: []container.Port{{Type: "tcp", PublicPort: 32400}, {Type: "tcp", PublicPort: 8080}},
 			want:  8080,
 		},
 		{
 			name:  "falls back to first tcp port",
-			ports: []dockertypes.Port{{Type: "tcp", PublicPort: 32400}},
+			ports: []container.Port{{Type: "tcp", PublicPort: 32400}},
 			want:  32400,
 		},
 		{
 			name:  "ignores udp ports",
-			ports: []dockertypes.Port{{Type: "udp", PublicPort: 9000}},
+			ports: []container.Port{{Type: "udp", PublicPort: 9000}},
 			want:  0,
 		},
 		{
@@ -137,7 +137,7 @@ func TestBestPort(t *testing.T) {
 		},
 		{
 			name:  "prefers 80 over 9000",
-			ports: []dockertypes.Port{{Type: "tcp", PublicPort: 9000}, {Type: "tcp", PublicPort: 80}},
+			ports: []container.Port{{Type: "tcp", PublicPort: 9000}, {Type: "tcp", PublicPort: 80}},
 			want:  80,
 		},
 	}

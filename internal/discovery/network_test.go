@@ -24,7 +24,6 @@ func TestExtractTitle(t *testing.T) {
 	}
 }
 
-
 func TestFingerprint(t *testing.T) {
 	// Fingerprint with no matching signature should return empty values.
 	name, conf, icon := fingerprint(nil, "random body content", "Random Title")

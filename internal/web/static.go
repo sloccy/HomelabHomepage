@@ -40,10 +40,10 @@ var staticFiles embed.FS
 
 // staticAsset holds the pre-compressed bytes for a static file.
 type staticAsset struct {
-	plain  []byte // raw bytes
-	gzip   []byte // gzip-compressed; nil for binary formats
-	br     []byte // brotli-compressed; nil for binary formats
-	ct     string // Content-Type
+	plain []byte // raw bytes
+	gzip  []byte // gzip-compressed; nil for binary formats
+	br    []byte // brotli-compressed; nil for binary formats
+	ct    string // Content-Type
 }
 
 type faviconEntry struct {
@@ -217,7 +217,7 @@ func isValidIconID(id string) bool {
 		return false
 	}
 	for _, c := range id {
-		if !((c >= '0' && c <= '9') || (c >= 'a' && c <= 'f') || (c >= 'A' && c <= 'F')) {
+		if (c < '0' || c > '9') && (c < 'a' || c > 'f') && (c < 'A' || c > 'F') {
 			return false
 		}
 	}

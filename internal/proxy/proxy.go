@@ -149,7 +149,7 @@ func (h *Handler) errorPage(w http.ResponseWriter, r *http.Request, code int, ms
 	if code == 404 {
 		title = "Service Not Found"
 	}
-	fmt.Fprintf(w, errorHTML, title, title, msg, h.cfg.Domain)
+	_, _ = fmt.Fprintf(w, errorHTML, title, title, msg, h.cfg.Domain)
 }
 
 func realIP(r *http.Request) string {

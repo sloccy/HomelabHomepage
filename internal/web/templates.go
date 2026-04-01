@@ -60,7 +60,7 @@ func renderTemplate(w http.ResponseWriter, name string, data any) {
 }
 
 type pageData struct {
-	Version      string
+	Version       string
 	ServicesHTML  template.HTML
 	BookmarksHTML template.HTML
 }
@@ -289,9 +289,9 @@ type serviceFormData struct {
 }
 
 type assignFormData struct {
-	Discovered   *store.DiscoveredService
-	Categories   []string
-	Domain       string
+	Discovered    *store.DiscoveredService
+	Categories    []string
+	Domain        string
 	TunnelEnabled bool
 }
 

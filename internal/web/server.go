@@ -166,5 +166,3 @@ func readJSON(r *http.Request, v any) error {
 func apiError(w http.ResponseWriter, code int, msg string) {
 	writeJSON(w, code, map[string]string{"error": msg})
 }
-
-

@@ -42,7 +42,6 @@ var (
 	reTitleTag = regexp.MustCompile(`(?is)<title[^>]*>(.*?)</title>`)
 )
 
-
 // resolveURLToPort parses a URL and resolves the host to an IP, returning the
 // resulting openPort. Used by SSDP and WS-Discovery to normalise device addresses.
 func resolveURLToPort(rawURL string) (openPort, bool) {
@@ -285,12 +284,13 @@ func tcpSweep(ctx context.Context, ips []string, ports []int, logf func(string, 
 	start := time.Now()
 	logf("[TCP] Starting sweep: %d hosts × %d ports = %d combinations", len(ips), len(ports), len(ips)*len(ports))
 	logf("[TCP] Timeout: %v/conn, 4096 concurrent workers", timeout)
-	if len(ips) == 0 {
+	switch {
+	case len(ips) == 0:
 		logf("[TCP] ERROR: no hosts to scan — check subnet config")
 		return nil
-	} else if len(ips) <= 30 {
+	case len(ips) <= 30:
 		logf("[TCP] Hosts: %s", strings.Join(ips, ", "))
-	} else {
+	default:
 		logf("[TCP] Hosts: %s … %s (%d total)", ips[0], ips[len(ips)-1], len(ips))
 	}
 
@@ -313,7 +313,7 @@ func tcpSweep(ctx context.Context, ips []string, ports []int, logf func(string, 
 				addr := net.JoinHostPort(ip, strconv.Itoa(port))
 				conn, err := net.DialTimeout("tcp", addr, timeout)
 				if err == nil {
-					conn.Close()
+					_ = conn.Close()
 					countOpen.Add(1)
 					mu.Lock()
 					open = append(open, openPort{ip, port})
@@ -653,7 +653,7 @@ func tryProbe(ctx context.Context, ip string, port int, scheme string) *probeRes
 	if err != nil {
 		return nil
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	// Skip responses that indicate no real service at this address.
 	if resp.StatusCode == http.StatusBadRequest || resp.StatusCode == http.StatusNotFound {
@@ -729,7 +729,7 @@ func schemeReachable(ctx context.Context, ip string, port int, scheme string) bo
 	if err != nil {
 		return false
 	}
-	resp.Body.Close()
+	_ = resp.Body.Close()
 	return resp.StatusCode != http.StatusBadRequest
 }
 
@@ -747,4 +747,3 @@ func extractTitle(html string) string {
 	}
 	return t
 }
-
