@@ -34,7 +34,7 @@ func arpSweep(ctx context.Context, ips []string, timeout time.Duration) map[stri
 	go func() {
 		select {
 		case <-ctx.Done():
-			syscall.Close(fd) //nolint:errcheck
+			_ = syscall.Close(fd)
 		case <-done:
 		}
 	}()
