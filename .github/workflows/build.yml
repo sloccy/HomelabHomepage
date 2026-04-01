@@ -31,7 +31,7 @@ jobs:
         uses: golangci/golangci-lint-action@v7
 
   build:
-    name: Build linux/amd64
+    name: Build multi-arch
     runs-on: ubuntu-latest
 
     permissions:
@@ -65,6 +65,9 @@ jobs:
         run: npm ci && node scripts/vendor.js
 
       # ── 4. Docker infrastructure ──────────────────────────────────────────
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
+
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v4
 
@@ -106,7 +109,7 @@ jobs:
         uses: docker/build-push-action@v7
         with:
           context: .
-          platforms: linux/amd64
+          platforms: linux/amd64,linux/arm64
           # Only push on branch/tag pushes — not on pull requests.
           push: ${{ github.event_name != 'pull_request' }}
           tags: ${{ steps.meta.outputs.tags }}

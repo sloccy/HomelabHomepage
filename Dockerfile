@@ -5,6 +5,8 @@ FROM golang:1.26-trixie AS builder
 # Build-time metadata (injected by CI via --build-arg).
 ARG BUILD_VERSION=dev
 ARG BUILD_COMMIT=unknown
+# Populated automatically by BuildKit when --platform is specified.
+ARG TARGETARCH
 
 WORKDIR /build
 
@@ -22,7 +24,7 @@ RUN --mount=type=cache,target=/go/pkg/mod \
 COPY . .
 RUN --mount=type=cache,target=/go/pkg/mod \
     --mount=type=cache,target=/root/.cache/go-build \
-    CGO_ENABLED=0 GOOS=linux GOARCH=amd64 \
+    CGO_ENABLED=0 GOOS=linux GOARCH=${TARGETARCH} \
     go build -trimpath \
       -ldflags="-s -w -X main.version=${BUILD_VERSION} -X main.commit=${BUILD_COMMIT}" \
       -o lantern .
@@ -37,7 +39,7 @@ RUN apt-get update -qq && \
 
 # Download cloudflared for tunnel management.
 RUN curl -fsSL -o /cloudflared \
-    "https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-amd64" \
+    "https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-${TARGETARCH}" \
     && chmod +x /cloudflared
 
 # ── Stage 2: final ────────────────────────────────────────────────────────────
