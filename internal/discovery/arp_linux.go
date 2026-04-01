@@ -26,7 +26,7 @@ func arpSweep(ctx context.Context, ips []string, timeout time.Duration) map[stri
 		log.Printf("discovery: arp: raw socket unavailable (add CAP_NET_RAW for ARP pre-sweep): %v", err)
 		return nil
 	}
-	defer syscall.Close(fd)
+	defer func() { _ = syscall.Close(fd) }()
 
 	// Cancel reads if ctx is done alongside the SO_RCVTIMEO deadline.
 	done := make(chan struct{})
