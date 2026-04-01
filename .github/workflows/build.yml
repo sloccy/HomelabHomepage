@@ -30,32 +30,29 @@ jobs:
       - name: Run golangci-lint
         uses: golangci/golangci-lint-action@v7
 
-  build:
-    name: Build multi-arch
+  # Runs once: tidies modules, vendors frontend libs, computes image tags.
+  # Uploads the full build context as an artifact so both arch runners get
+  # identical source without re-running node/go setup on each.
+  prepare:
+    name: Prepare build context
     runs-on: ubuntu-latest
-
-    permissions:
-      contents: read
-      packages: write   # needed to push to ghcr.io
-
+    if: github.event_name != 'pull_request'
+    outputs:
+      metadata-json: ${{ steps.meta.outputs.json }}
+      metadata-labels: ${{ steps.meta.outputs.labels }}
     steps:
-      # ── 1. Source ─────────────────────────────────────────────────────────
       - name: Checkout
         uses: actions/checkout@v6
 
-      # ── 2. Go — resolve deps and generate go.sum ──────────────────────────
       - name: Set up Go
         uses: actions/setup-go@v6
         with:
           go-version-file: "go.mod"
-          cache: true   # caches $GOPATH/pkg/mod between runs
+          cache: true
 
       - name: Tidy modules
         run: go mod tidy
 
-      # ── 3. Vendor front-end libs ──────────────────────────────────────────
-      # Regenerates static/vendor/ from package.json so Dependabot version
-      # bumps flow through to the embedded assets in the Docker image.
       - name: Set up Node
         uses: actions/setup-node@v6
         with:
@@ -64,22 +61,7 @@ jobs:
       - name: Copy vendor files
         run: npm ci && node scripts/vendor.js
 
-      # ── 4. Docker infrastructure ──────────────────────────────────────────
-      - name: Set up QEMU
-        uses: docker/setup-qemu-action@v3
-
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v4
-
-      - name: Log in to GHCR
-        if: github.event_name != 'pull_request'
-        uses: docker/login-action@v4
-        with:
-          registry: ${{ env.REGISTRY }}
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
-
-      # ── 4. Image tags & labels ────────────────────────────────────────────
+      # ── Image tags & labels ───────────────────────────────────────────────
       # Produces tags like:
       #   latest           (default branch only)
       #   main / master    (branch push)
@@ -104,20 +86,107 @@ jobs:
             org.opencontainers.image.licenses=MIT
             org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}
 
-      # ── 5. Build & push ───────────────────────────────────────────────────
-      - name: Build and push
+      - name: Upload build context
+        uses: actions/upload-artifact@v4
+        with:
+          name: build-context
+          path: |
+            .
+            !.git
+            !node_modules
+          retention-days: 1
+
+  # Builds each architecture on its native runner in parallel — no QEMU.
+  # Pushes by digest (no tag) so the manifest job can assemble the final list.
+  build-image:
+    name: Build ${{ matrix.arch }}
+    needs: prepare
+    permissions:
+      contents: read
+      packages: write
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - arch: amd64
+            runner: ubuntu-latest
+          - arch: arm64
+            runner: ubuntu-24.04-arm
+    runs-on: ${{ matrix.runner }}
+    steps:
+      - name: Download build context
+        uses: actions/download-artifact@v4
+        with:
+          name: build-context
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v4
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v4
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and push by digest
+        id: build
         uses: docker/build-push-action@v7
         with:
           context: .
-          platforms: linux/amd64,linux/arm64
-          # Only push on branch/tag pushes — not on pull requests.
-          push: ${{ github.event_name != 'pull_request' }}
-          tags: ${{ steps.meta.outputs.tags }}
-          labels: ${{ steps.meta.outputs.labels }}
-          # GitHub Actions cache — dramatically speeds up repeated builds.
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
-          # Pass build metadata for image inspection.
+          platforms: linux/${{ matrix.arch }}
+          labels: ${{ needs.prepare.outputs.metadata-labels }}
+          outputs: type=image,name=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }},push-by-digest=true,name-canonical=true,push=true
+          cache-from: type=gha,scope=linux-${{ matrix.arch }}
+          cache-to: type=gha,mode=max,scope=linux-${{ matrix.arch }}
           build-args: |
             BUILD_VERSION=${{ github.ref_type == 'tag' && github.ref_name || 'dev' }}
             BUILD_COMMIT=${{ github.sha }}
+
+      # Touch a file named by the digest so the merge job can discover it.
+      - name: Export digest
+        run: |
+          mkdir -p /tmp/digests
+          digest="${{ steps.build.outputs.digest }}"
+          touch "/tmp/digests/${digest#sha256:}"
+
+      - name: Upload digest
+        uses: actions/upload-artifact@v4
+        with:
+          name: digest-${{ matrix.arch }}
+          path: /tmp/digests/*
+          if-no-files-found: error
+          retention-days: 1
+
+  # Combines the per-arch digests into a single multi-arch manifest list
+  # and pushes it with all computed tags (latest, semver, sha, etc.).
+  merge-manifests:
+    name: Merge manifests
+    needs: [prepare, build-image]
+    runs-on: ubuntu-latest
+    permissions:
+      packages: write
+    steps:
+      - name: Download digests
+        uses: actions/download-artifact@v4
+        with:
+          pattern: digest-*
+          path: /tmp/digests
+          merge-multiple: true
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v4
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v4
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Create and push manifest list
+        working-directory: /tmp/digests
+        run: |
+          docker buildx imagetools create \
+            $(jq -cr '.tags | map("-t " + .) | join(" ")' <<< '${{ needs.prepare.outputs.metadata-json }}') \
+            $(printf '${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}@sha256:%s ' *)
