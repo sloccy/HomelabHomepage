@@ -19,8 +19,8 @@ import (
 
 	"github.com/go-acme/lego/v4/certificate"
 	"github.com/go-acme/lego/v4/lego"
-	"github.com/go-acme/lego/v4/registration"
 	legocf "github.com/go-acme/lego/v4/providers/dns/cloudflare"
+	"github.com/go-acme/lego/v4/registration"
 
 	"lantern/internal/config"
 )
@@ -199,7 +199,7 @@ func (m *Manager) renew() error {
 	if err != nil {
 		return err
 	}
-	renewed, err := client.Certificate.Renew(res, true, false, "")
+	renewed, err := client.Certificate.RenewWithOptions(res, &certificate.RenewOptions{Bundle: true})
 	if err != nil {
 		return fmt.Errorf("renew cert: %w", err)
 	}

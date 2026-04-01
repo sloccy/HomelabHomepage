@@ -26,7 +26,7 @@ type Manager struct {
 	store *store.Store
 	cfg   *config.Config
 
-	rootCtx context.Context    // application lifetime context for subprocess lifecycle
+	rootCtx context.Context // application lifetime context for subprocess lifecycle
 	mu      sync.Mutex
 	cmd     *exec.Cmd
 	running bool

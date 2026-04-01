@@ -9,7 +9,6 @@ import (
 	"strings"
 	"time"
 
-	dockertypes "github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/container"
 	dockerevents "github.com/docker/docker/api/types/events"
 	"github.com/docker/docker/api/types/filters"
@@ -43,7 +42,7 @@ func (d *Discoverer) DockerWatch(ctx context.Context) {
 		log.Printf("discovery: Docker client unavailable (%v) — skipping Docker discovery", err)
 		return
 	}
-	defer dc.Close()
+	defer func() { _ = dc.Close() }()
 
 	// Verify connectivity.
 	if _, err := dc.Ping(ctx); err != nil {
@@ -145,7 +144,7 @@ func (d *Discoverer) detachContainer(ctx context.Context, id string) {
 
 // upsertContainerWithLabels resolves a container's configuration from Docker labels,
 // then creates or updates the service entry.
-func (d *Discoverer) upsertContainerWithLabels(ctx context.Context, id, name string, ports []dockertypes.Port, labels map[string]string) {
+func (d *Discoverer) upsertContainerWithLabels(ctx context.Context, id, name string, ports []container.Port, labels map[string]string) {
 	if name == "" || name == "lantern" {
 		return
 	}
@@ -201,7 +200,7 @@ func (d *Discoverer) upsertContainerWithLabels(ctx context.Context, id, name str
 //  1. lantern.* labels
 //  2. Traefik v2/v3 labels
 //  3. Published ports (bestPort heuristic)
-func (d *Discoverer) resolveContainer(ctx context.Context, name string, ports []dockertypes.Port, labels map[string]string) *containerInfo {
+func (d *Discoverer) resolveContainer(ctx context.Context, name string, ports []container.Port, labels map[string]string) *containerInfo {
 	info := &containerInfo{
 		name:      name,
 		subdomain: util.SanitiseSubdomain(name),
@@ -244,7 +243,7 @@ func (d *Discoverer) resolveContainer(ctx context.Context, name string, ports []
 	}
 
 	// Scheme: explicit label > live probe (falls back to port heuristic if unreachable).
-	scheme := "http"
+	var scheme string
 	if s := labels["lantern.scheme"]; s == "https" || s == "http" {
 		scheme = s
 	} else {
@@ -337,7 +336,7 @@ func traefikPort(labels map[string]string) int {
 // ── Port / target helpers ─────────────────────────────────────────────────────
 
 // bestPort picks the most useful published TCP port, preferring common web UI ports.
-func bestPort(ports []dockertypes.Port) int {
+func bestPort(ports []container.Port) int {
 	preferred := []int{80, 8080, 3000, 5000, 9443, 9000, 8096, 8123, 443, 8443, 8000}
 	portSet := make(map[int]bool)
 	for _, p := range ports {
@@ -376,8 +375,8 @@ func splitTarget(target string) (string, int) {
 
 // portsFromNat converts a nat.PortMap (from ContainerInspect) to the []types.Port
 // slice expected by upsertContainerWithLabels / bestPort.
-func portsFromNat(pm nat.PortMap) []dockertypes.Port {
-	ports := make([]dockertypes.Port, 0, len(pm))
+func portsFromNat(pm nat.PortMap) []container.Port {
+	ports := make([]container.Port, 0, len(pm))
 	for p, bindings := range pm {
 		priv, err := strconv.ParseUint(p.Port(), 10, 16)
 		if err != nil {
@@ -388,7 +387,7 @@ func portsFromNat(pm nat.PortMap) []dockertypes.Port {
 			if err != nil {
 				continue
 			}
-			ports = append(ports, dockertypes.Port{
+			ports = append(ports, container.Port{
 				Type:        p.Proto(),
 				PrivatePort: uint16(priv),
 				PublicPort:  uint16(pub),
@@ -411,4 +410,3 @@ func preserveScheme(oldTarget, newTarget string) string {
 }
 
 // ── String helpers ────────────────────────────────────────────────────────────
-

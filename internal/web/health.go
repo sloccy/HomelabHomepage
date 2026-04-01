@@ -57,7 +57,7 @@ func (s *Server) checkHealth() {
 			if err == nil {
 				resp, err := healthClient.Do(req)
 				if err == nil {
-					resp.Body.Close()
+					_ = resp.Body.Close()
 					status = "up"
 				}
 			}

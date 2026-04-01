@@ -30,7 +30,7 @@ func discoverSSDP(ctx context.Context, timeout time.Duration) []openPort {
 		log.Printf("discovery: ssdp: listen: %v", err)
 		return nil
 	}
-	defer conn.Close()
+	defer func() { _ = conn.Close() }()
 
 	defer closeOnCancel(ctx, conn)()
 

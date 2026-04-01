@@ -245,7 +245,7 @@ func closeOnCancel(ctx context.Context, c io.Closer) func() {
 	go func() {
 		select {
 		case <-ctx.Done():
-			c.Close()
+			_ = c.Close()
 		case <-done:
 		}
 	}()

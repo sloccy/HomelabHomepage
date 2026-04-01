@@ -135,7 +135,7 @@ func FetchFaviconForTarget(ctx context.Context, targetURL string) []byte {
 	if err != nil {
 		return nil
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 	body, err := io.ReadAll(io.LimitReader(resp.Body, 64*1024))
 	if err != nil {
 		return nil
@@ -178,11 +178,11 @@ func fetchFaviconBytes(ctx context.Context, faviconURL string) []byte {
 	resp, err := faviconClient.Do(req)
 	if err != nil || resp.StatusCode != http.StatusOK {
 		if resp != nil {
-			resp.Body.Close()
+			_ = resp.Body.Close()
 		}
 		return nil
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 	data, err := io.ReadAll(io.LimitReader(resp.Body, 64*1024))
 	if err != nil || len(data) == 0 {
 		return nil

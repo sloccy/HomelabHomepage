@@ -26,21 +26,21 @@ const IconFile = "file"
 
 // Service is a subdomain-assigned service (shown on homepage).
 type Service struct {
-	ID          string    `json:"id"`
-	Name        string    `json:"name"`
-	Subdomain   string    `json:"subdomain"`
-	Target      string    `json:"target"` // e.g. http://10.0.0.5:8080
-	Icon        string    `json:"icon,omitempty"`
-	Category    string    `json:"category,omitempty"`
-	Order       int       `json:"order,omitempty"`
-	Source         string    `json:"source"` // "docker" | "network" | "manual"
-	ContainerID    string    `json:"container_id,omitempty"`
-	ContainerName  string    `json:"container_name,omitempty"`
-	DNSRecordID    string    `json:"dns_record_id,omitempty"`
-	TunnelRouteID  string    `json:"tunnel_route_id,omitempty"` // hostname routed via CF tunnel
-	SkipHealth     bool      `json:"skip_health,omitempty"`
-	DirectOnly     bool      `json:"direct_only,omitempty"` // link directly to target, no subdomain/DNS
-	CreatedAt      time.Time `json:"created_at"`
+	ID            string    `json:"id"`
+	Name          string    `json:"name"`
+	Subdomain     string    `json:"subdomain"`
+	Target        string    `json:"target"` // e.g. http://10.0.0.5:8080
+	Icon          string    `json:"icon,omitempty"`
+	Category      string    `json:"category,omitempty"`
+	Order         int       `json:"order,omitempty"`
+	Source        string    `json:"source"` // "docker" | "network" | "manual"
+	ContainerID   string    `json:"container_id,omitempty"`
+	ContainerName string    `json:"container_name,omitempty"`
+	DNSRecordID   string    `json:"dns_record_id,omitempty"`
+	TunnelRouteID string    `json:"tunnel_route_id,omitempty"` // hostname routed via CF tunnel
+	SkipHealth    bool      `json:"skip_health,omitempty"`
+	DirectOnly    bool      `json:"direct_only,omitempty"` // link directly to target, no subdomain/DNS
+	CreatedAt     time.Time `json:"created_at"`
 }
 
 // Bookmark is a plain external link shown on the homepage.
@@ -64,20 +64,19 @@ type IgnoredService struct {
 
 // DiscoveredService is a network/docker service not yet assigned a subdomain.
 type DiscoveredService struct {
-	ID            string    `json:"id"`
-	IP            string    `json:"ip"`
-	Port          int       `json:"port"`
-	Title         string    `json:"title"`
-	Icon          string    `json:"icon,omitempty"`
-	ServiceName   string    `json:"service_name,omitempty"`
-	Confidence    float32   `json:"confidence,omitempty"`
-	Source        string    `json:"source"` // "docker" | "network"
+	ID                 string    `json:"id"`
+	IP                 string    `json:"ip"`
+	Port               int       `json:"port"`
+	Title              string    `json:"title"`
+	Icon               string    `json:"icon,omitempty"`
+	ServiceName        string    `json:"service_name,omitempty"`
+	Confidence         float32   `json:"confidence,omitempty"`
+	Source             string    `json:"source"` // "docker" | "network"
 	ContainerName      string    `json:"container_name,omitempty"`
 	ContainerID        string    `json:"container_id,omitempty"`
 	SuggestedSubdomain string    `json:"suggested_subdomain,omitempty"`
 	DiscoveredAt       time.Time `json:"discovered_at"`
 }
-
 
 // TunnelInfo holds the persisted Cloudflare Tunnel credentials managed by Lantern.
 type TunnelInfo struct {
@@ -87,31 +86,31 @@ type TunnelInfo struct {
 }
 
 type data struct {
-	Services     map[string]*Service   `json:"services"`
-	Discovered   []*DiscoveredService  `json:"discovered"`
-	Ignored      []*IgnoredService     `json:"ignored"`
-	Bookmarks    []*Bookmark           `json:"bookmarks"`
-	DDNSDomains  []string              `json:"ddns_domains"`
-	ScanSubnets  []string              `json:"scan_subnets"`
-	LastScan     time.Time             `json:"last_scan"`
-	PublicIP     string                `json:"public_ip"`
-	Tunnel       *TunnelInfo           `json:"tunnel,omitempty"`
+	Services    map[string]*Service  `json:"services"`
+	Discovered  []*DiscoveredService `json:"discovered"`
+	Ignored     []*IgnoredService    `json:"ignored"`
+	Bookmarks   []*Bookmark          `json:"bookmarks"`
+	DDNSDomains []string             `json:"ddns_domains"`
+	ScanSubnets []string             `json:"scan_subnets"`
+	LastScan    time.Time            `json:"last_scan"`
+	PublicIP    string               `json:"public_ip"`
+	Tunnel      *TunnelInfo          `json:"tunnel,omitempty"`
 }
 
 type Store struct {
-	mu               sync.RWMutex
-	saveMu           sync.Mutex // serialises concurrent disk writes
-	d                data
-	path             string
-	iconDir          string
-	idIdx            map[string]*Service            // service ID -> *Service
-	containerIDIdx   map[string]*Service            // container ID -> *Service
-	containerNameIdx map[string]*Service            // docker container name -> *Service
-	bookmarkIdx      map[string]*Bookmark           // bookmark ID -> *Bookmark
+	mu                     sync.RWMutex
+	saveMu                 sync.Mutex // serialises concurrent disk writes
+	d                      data
+	path                   string
+	iconDir                string
+	idIdx                  map[string]*Service           // service ID -> *Service
+	containerIDIdx         map[string]*Service           // container ID -> *Service
+	containerNameIdx       map[string]*Service           // docker container name -> *Service
+	bookmarkIdx            map[string]*Bookmark          // bookmark ID -> *Bookmark
 	discoveredIdx          map[string]*DiscoveredService // discovered ID -> *DiscoveredService
 	discoveredContainerIdx map[string]*DiscoveredService // container ID -> *DiscoveredService
-	ignoredIdx       map[string]*IgnoredService     // ignored ID -> *IgnoredService
-	ignoredIPPortIdx map[string]struct{}            // "ip:port" -> present
+	ignoredIdx             map[string]*IgnoredService    // ignored ID -> *IgnoredService
+	ignoredIPPortIdx       map[string]struct{}           // "ip:port" -> present
 }
 
 func New(dataDir string) (*Store, error) {
@@ -205,7 +204,7 @@ func (s *Store) unindexService(svc *Service) {
 	delete(s.containerNameIdx, svc.ContainerName)
 }
 
-func (s *Store) indexBookmark(b *Bookmark) { s.bookmarkIdx[b.ID] = b }
+func (s *Store) indexBookmark(b *Bookmark)   { s.bookmarkIdx[b.ID] = b }
 func (s *Store) unindexBookmark(b *Bookmark) { delete(s.bookmarkIdx, b.ID) }
 
 func (s *Store) indexDiscovered(d *DiscoveredService) {
