@@ -30,6 +30,35 @@ jobs:
       - name: Run golangci-lint
         uses: golangci/golangci-lint-action@v7
 
+  # On PRs: compile-only check on native runners to satisfy required branch
+  # protection checks without doing a full Docker build/push.
+  build-pr:
+    name: Build ${{ matrix.arch }}
+    runs-on: ${{ matrix.runner }}
+    if: github.event_name == 'pull_request'
+    permissions:
+      contents: read
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - arch: amd64
+            runner: ubuntu-latest
+          - arch: arm64
+            runner: ubuntu-24.04-arm
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Set up Go
+        uses: actions/setup-go@v6
+        with:
+          go-version-file: "go.mod"
+          cache: true
+
+      - name: Build
+        run: go build ./...
+
   # Runs once: tidies modules, vendors frontend libs, computes image tags.
   # Uploads the full build context as an artifact so both arch runners get
   # identical source without re-running node/go setup on each.
