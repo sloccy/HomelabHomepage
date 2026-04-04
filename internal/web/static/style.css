@@ -16,7 +16,7 @@
 
 /* ── Variables ─────────────────────────────────────────────────────────── */
 :root {
-  font-size: 12px;
+  font-size: 13px;
   --accent:         #d4a830;
   --accent-h:       #b08a1a;
   --accent-bright:  #f0d060;
@@ -357,11 +357,10 @@ button.htmx-request::after {
   padding: 6px 10px 10px;
 }
 .grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
   gap: 1px;
-  background: var(--border-color);
-  border: 1px solid var(--border-color);
   padding: 0;
   contain: layout style;
 }
@@ -437,7 +436,8 @@ details[open] .when-collapsed { display: none; }
 /* ── Service cards ─────────────────────────────────────────────────────── */
 .service-card {
   background: var(--surface2);
-  border: none;
+  border: 1px solid var(--border-color);
+  width: 160px;
   padding: 10px 8px;
   text-align: center;
   cursor: pointer;
@@ -565,7 +565,6 @@ body.edit-mode #edit-layout-btn {
   grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
   gap: 1px;
   background: var(--border-color);
-  border: 1px solid var(--border-color);
 }
 .status-cell {
   background: var(--surface2);
@@ -795,7 +794,8 @@ code {
 @media (max-width: 600px) {
   .header { padding: 4px 6px; }
   .header-right { border-left: none; }
-  .grid { grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); gap: 1px; }
+  .grid { gap: 1px; }
+  .service-card { width: 120px; }
   .grid-root { padding: 4px 6px 8px; }
   .sysinfo-bar { flex-wrap: wrap; gap: 3px 6px; padding: 3px 6px; }
   .mini-bar { width: 36px; }
