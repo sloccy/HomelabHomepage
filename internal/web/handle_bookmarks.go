@@ -13,13 +13,26 @@ func (s *Server) listBookmarks(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, s.store.GetAllBookmarks())
 }
 
+func normalizeBookmarkURL(u string) string {
+	if u == "" {
+		return u
+	}
+	if len(u) >= 7 && u[:7] == "http://" {
+		return u
+	}
+	if len(u) >= 8 && u[:8] == "https://" {
+		return u
+	}
+	return "https://" + u
+}
+
 func (s *Server) createBookmark(w http.ResponseWriter, r *http.Request) {
 	r.Body = http.MaxBytesReader(w, r.Body, 1<<20)
 	if err := r.ParseForm(); err != nil {
 		errorResponse(w, http.StatusBadRequest, "invalid form data")
 		return
 	}
-	bmURL := r.FormValue("url")
+	bmURL := normalizeBookmarkURL(r.FormValue("url"))
 	if bmURL == "" {
 		errorResponse(w, http.StatusBadRequest, "url is required")
 		return
@@ -51,7 +64,7 @@ func (s *Server) updateBookmark(w http.ResponseWriter, r *http.Request) {
 	updated := &store.Bookmark{
 		ID:       id,
 		Name:     r.FormValue("name"),
-		URL:      r.FormValue("url"),
+		URL:      normalizeBookmarkURL(r.FormValue("url")),
 		Category: r.FormValue("category"),
 	}
 	if !s.store.UpdateBookmark(id, updated) {
