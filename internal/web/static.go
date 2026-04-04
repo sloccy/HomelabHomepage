@@ -2,6 +2,7 @@ package web
 
 import (
 	"bytes"
+	"compress/gzip"
 	"context"
 	"crypto/sha256"
 	"embed"
@@ -15,12 +16,6 @@ import (
 	"time"
 
 	"lantern/internal/util"
-
-	"github.com/andybalholm/brotli"
-	gzip "github.com/klauspost/compress/gzip"
-	"github.com/tdewolff/minify/v2"
-	"github.com/tdewolff/minify/v2/css"
-	"github.com/tdewolff/minify/v2/js"
 )
 
 // acceptsEncoding reports whether the Accept-Encoding header includes the given encoding token.
@@ -33,8 +28,7 @@ func acceptsEncoding(header, enc string) bool {
 	return false
 }
 
-func acceptsGzip(header string) bool   { return acceptsEncoding(header, "gzip") }
-func acceptsBrotli(header string) bool { return acceptsEncoding(header, "br") }
+func acceptsGzip(header string) bool { return acceptsEncoding(header, "gzip") }
 
 //go:embed static
 var staticFiles embed.FS
@@ -43,7 +37,6 @@ var staticFiles embed.FS
 type staticAsset struct {
 	plain []byte // raw bytes
 	gzip  []byte // gzip-compressed; nil for binary formats
-	br    []byte // brotli-compressed; nil for binary formats
 	ct    string // Content-Type
 }
 
@@ -59,10 +52,6 @@ var (
 
 func getStaticAssets() map[string]*staticAsset {
 	staticAssetOnce.Do(func() {
-		m := minify.New()
-		m.AddFunc("text/css", css.Minify)
-		m.AddFunc("application/javascript", js.Minify)
-
 		assets := make(map[string]*staticAsset)
 		_ = fs.WalkDir(staticFiles, "static", func(path string, d fs.DirEntry, err error) error {
 			if err != nil || d.IsDir() {
@@ -87,26 +76,15 @@ func getStaticAssets() map[string]*staticAsset {
 			default:
 				ct = "application/octet-stream"
 			}
-			a := &staticAsset{ct: ct}
-			// Minify then pre-compress text assets; images are already binary-compressed.
+			a := &staticAsset{ct: ct, plain: data}
+			// Pre-compress text assets; images are already binary-compressed.
 			if strings.HasPrefix(ct, "text/") || strings.Contains(ct, "javascript") {
-				mediaType := strings.SplitN(ct, ";", 2)[0]
-				if minified, err := m.Bytes(mediaType, data); err == nil {
-					data = minified
-				}
 				var buf bytes.Buffer
 				gz, _ := gzip.NewWriterLevel(&buf, gzip.BestCompression)
 				_, _ = gz.Write(data)
 				_ = gz.Close()
 				a.gzip = buf.Bytes()
-
-				buf.Reset()
-				bw := brotli.NewWriterLevel(&buf, brotli.BestCompression)
-				_, _ = bw.Write(data)
-				_ = bw.Close()
-				a.br = buf.Bytes()
 			}
-			a.plain = data
 			assets[urlPath] = a
 			return nil
 		})
@@ -127,11 +105,6 @@ func serveStaticFiles(mux *http.ServeMux) {
 		w.Header().Set("Content-Type", a.ct)
 		ae := r.Header.Get("Accept-Encoding")
 		switch {
-		case a.br != nil && acceptsBrotli(ae):
-			w.Header().Set("Content-Encoding", "br")
-			w.Header().Set("Vary", "Accept-Encoding")
-			w.Header().Set("Content-Length", strconv.Itoa(len(a.br)))
-			_, _ = w.Write(a.br)
 		case a.gzip != nil && acceptsGzip(ae):
 			w.Header().Set("Content-Encoding", "gzip")
 			w.Header().Set("Vary", "Accept-Encoding")
