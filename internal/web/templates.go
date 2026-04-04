@@ -91,7 +91,7 @@ func toastTrigger(w http.ResponseWriter, msg string, extraEvents ...string) {
 		m[ev] = nil
 	}
 	b, _ := json.Marshal(m)
-	w.Header().Set("HX-Trigger", string(b))
+	w.Header().Set("Hx-Trigger", string(b))
 }
 
 // errorResponse sends an HTMX error toast and the given HTTP status code.
@@ -99,7 +99,7 @@ func errorResponse(w http.ResponseWriter, code int, msg string) {
 	b, _ := json.Marshal(map[string]any{
 		"showtoast": map[string]string{"msg": msg, "type": "error"},
 	})
-	w.Header().Set("HX-Trigger", string(b))
+	w.Header().Set("Hx-Trigger", string(b))
 	w.WriteHeader(code)
 }
 

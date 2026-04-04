@@ -533,7 +533,7 @@ func (s *Server) deleteService(w http.ResponseWriter, r *http.Request) {
 			ContainerName: svc.ContainerName,
 			DiscoveredAt:  time.Now(),
 		})
-		w.Header().Set("HX-Trigger", `{"refreshDiscovered":null}`)
+		w.Header().Set("Hx-Trigger", `{"refreshDiscovered":null}`)
 	}
 	s.store.DeleteIcon(id)
 	s.save()

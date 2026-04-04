@@ -66,7 +66,7 @@ func (s *Server) fragTunnel(w http.ResponseWriter, r *http.Request) {
 	data := s.buildTunnelFragData()
 	if !data.Available {
 		// No Cloudflare tunnel configured — tell htmx to delete the placeholder div.
-		w.Header().Set("HX-Reswap", "delete")
+		w.Header().Set("Hx-Reswap", "delete")
 		w.WriteHeader(http.StatusOK)
 		return
 	}
@@ -89,7 +89,7 @@ func (s *Server) fragServicesTable(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) fragServiceFormAdd(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("HX-Trigger-After-Swap", "openmodal")
+	w.Header().Set("Hx-Trigger-After-Swap", "openmodal")
 	renderTemplate(w, "service-form.html", serviceFormData{
 		Categories:    s.uniqueCategories(),
 		Domain:        s.cfg.Domain,
@@ -103,7 +103,7 @@ func (s *Server) fragServiceFormEdit(w http.ResponseWriter, r *http.Request) {
 		http.NotFound(w, r)
 		return
 	}
-	w.Header().Set("HX-Trigger-After-Swap", "openmodal")
+	w.Header().Set("Hx-Trigger-After-Swap", "openmodal")
 	renderTemplate(w, "service-form.html", serviceFormData{
 		Service:       svc,
 		Categories:    s.uniqueCategories(),
@@ -128,7 +128,7 @@ func (s *Server) fragAssignForm(w http.ResponseWriter, r *http.Request) {
 		http.NotFound(w, r)
 		return
 	}
-	w.Header().Set("HX-Trigger-After-Swap", "openmodal")
+	w.Header().Set("Hx-Trigger-After-Swap", "openmodal")
 	renderTemplate(w, "assign-form.html", assignFormData{
 		Discovered:    disc,
 		Categories:    s.uniqueCategories(),
@@ -142,7 +142,7 @@ func (s *Server) fragBookmarksTable(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) fragBookmarkFormAdd(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("HX-Trigger-After-Swap", "openmodal")
+	w.Header().Set("Hx-Trigger-After-Swap", "openmodal")
 	renderTemplate(w, "bookmark-form.html", bookmarkFormData{
 		Categories: s.uniqueCategories(),
 	})
@@ -155,7 +155,7 @@ func (s *Server) fragBookmarkFormEdit(w http.ResponseWriter, r *http.Request) {
 		http.NotFound(w, r)
 		return
 	}
-	w.Header().Set("HX-Trigger-After-Swap", "openmodal")
+	w.Header().Set("Hx-Trigger-After-Swap", "openmodal")
 	renderTemplate(w, "bookmark-form.html", bookmarkFormData{
 		Bookmark:   bm,
 		Categories: s.uniqueCategories(),
