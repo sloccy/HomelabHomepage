@@ -19,7 +19,6 @@ import (
 	"lantern/internal/store"
 	"lantern/internal/util"
 
-	"go4.org/netipx"
 	"golang.org/x/sync/errgroup"
 )
 
@@ -421,13 +420,25 @@ func generateIPs(subnet *net.IPNet) []string {
 	if err != nil || !prefix.Addr().Is4() {
 		return nil
 	}
-	r := netipx.RangeOfPrefix(prefix.Masked())
+	masked := prefix.Masked()
+	first := masked.Addr()        // network address
+	last := broadcastAddr(masked) // broadcast address
 	var ips []string
-	// r.From() is the network address; r.To() is the broadcast — skip both.
-	for ip := r.From().Next(); ip.Compare(r.To()) < 0; ip = ip.Next() {
+	// Skip the network address (first) and broadcast (last).
+	for ip := first.Next(); ip.Compare(last) < 0; ip = ip.Next() {
 		ips = append(ips, ip.String())
 	}
 	return ips
+}
+
+// broadcastAddr returns the broadcast address for an IPv4 prefix.
+func broadcastAddr(prefix netip.Prefix) netip.Addr {
+	b := prefix.Addr().As4()
+	bits := prefix.Bits()
+	for i := 0; i < 32-bits; i++ {
+		b[3-(i/8)] |= 1 << (uint(i) % 8)
+	}
+	return netip.AddrFrom4(b)
 }
 
 // ── Stage 2 + 3: HTTP probe + fingerprint ─────────────────────────────────────

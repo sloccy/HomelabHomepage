@@ -1,6 +1,7 @@
 package web
 
 import (
+	"compress/gzip"
 	"context"
 	"encoding/json"
 	"io"
@@ -14,7 +15,6 @@ import (
 	"lantern/internal/tunnel"
 
 	"github.com/jellydator/ttlcache/v3"
-	"github.com/klauspost/compress/gzhttp"
 )
 
 // Scanner is the subset of discovery.Discoverer the web server needs.
@@ -48,7 +48,7 @@ func New(cfg *config.Config, st *store.Store, cfClient *cf.Client, version strin
 	s := &Server{cfg: cfg, store: st, cf: cfClient, version: version, faviconCache: fc}
 	s.mux = http.NewServeMux()
 	s.routes()
-	s.handler = gzhttp.GzipHandler(securityHeaders(s.mux))
+	s.handler = gzipHandler(securityHeaders(s.mux))
 	return s
 }
 
@@ -70,6 +70,51 @@ func securityHeaders(next http.Handler) http.Handler {
 		w.Header().Set("Referrer-Policy", "strict-origin-when-cross-origin")
 		next.ServeHTTP(w, r)
 	})
+}
+
+// gzipHandler compresses dynamic responses when the client accepts gzip.
+// Static assets are already pre-compressed and served with an explicit
+// Content-Encoding header, so they pass through without double-compression.
+func gzipHandler(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if !acceptsEncoding(r.Header.Get("Accept-Encoding"), "gzip") {
+			next.ServeHTTP(w, r)
+			return
+		}
+		gz, err := gzip.NewWriterLevel(w, gzip.DefaultCompression)
+		if err != nil {
+			next.ServeHTTP(w, r)
+			return
+		}
+		grw := &gzipResponseWriter{ResponseWriter: w, gz: gz}
+		defer func() {
+			if grw.active {
+				_ = gz.Close() //nolint:errcheck // best-effort flush on response end
+			}
+		}()
+		next.ServeHTTP(grw, r)
+	})
+}
+
+type gzipResponseWriter struct {
+	http.ResponseWriter
+	gz     *gzip.Writer
+	active bool // true once we've started gzip-compressing this response
+}
+
+func (g *gzipResponseWriter) Write(b []byte) (int, error) {
+	// If the inner handler set Content-Encoding before writing (e.g. pre-compressed
+	// static assets), write directly to avoid double-compression.
+	if g.ResponseWriter.Header().Get("Content-Encoding") != "" {
+		return g.ResponseWriter.Write(b)
+	}
+	if !g.active {
+		g.active = true
+		g.ResponseWriter.Header().Set("Content-Encoding", "gzip")
+		g.ResponseWriter.Header().Set("Vary", "Accept-Encoding")
+		g.ResponseWriter.Header().Del("Content-Length")
+	}
+	return g.gz.Write(b)
 }
 
 func (s *Server) routes() {
