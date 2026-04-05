@@ -181,7 +181,6 @@ func realIP(r *http.Request) string {
 	return r.RemoteAddr
 }
 
-
 const errorHTML = `<!DOCTYPE html>
 <html lang="en">
 <head>
