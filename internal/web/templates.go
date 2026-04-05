@@ -134,7 +134,7 @@ var funcMap = template.FuncMap{
 			proxyURL := "/api/favicon/" + id
 			ph := strings.TrimSuffix(cls, "-icon") + "-icon-placeholder"
 			return template.HTML(fmt.Sprintf( //nolint:gosec,gocritic // all values passed through HTMLEscapeString; %q would alter output
-				`<img class="%s" src="%s" alt="" onerror="this.outerHTML='<div class=&quot;%s&quot;>📦</div>'">`,
+				`<img class="%s" src="%s" alt="" loading="lazy" onerror="this.outerHTML='<div class=&quot;%s&quot;>📦</div>'">`,
 				template.HTMLEscapeString(cls),
 				template.HTMLEscapeString(proxyURL),
 				template.HTMLEscapeString(ph),

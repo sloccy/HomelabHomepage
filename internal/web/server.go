@@ -13,6 +13,7 @@ import (
 	"lantern/internal/config"
 	"lantern/internal/store"
 	"lantern/internal/tunnel"
+	"lantern/internal/util"
 )
 
 // Scanner is the subset of discovery.Discoverer the web server needs.
@@ -51,6 +52,63 @@ func New(cfg *config.Config, st *store.Store, cfClient *cf.Client, version strin
 func (s *Server) SetScanner(sc Scanner)              { s.scanner = sc }
 func (s *Server) SetTunnelManager(t *tunnel.Manager) { s.tunnel = t }
 func (s *Server) Stop()                              {}
+
+// WarmFavicons pre-populates the favicon cache for all services and bookmarks
+// that use auto-detected favicons (no custom icon set). It checks disk first
+// and falls back to network fetches with bounded parallelism. Run as a
+// background goroutine — does not block startup.
+func (s *Server) WarmFavicons(ctx context.Context) {
+	type entry struct {
+		id     string
+		target string
+	}
+	var entries []entry
+	for _, svc := range s.store.GetAllServices() {
+		if svc.Icon == "" && svc.Target != "" {
+			entries = append(entries, entry{svc.ID, svc.Target})
+		}
+	}
+	for _, bm := range s.store.GetAllBookmarks() {
+		if bm.Icon == "" && bm.URL != "" {
+			entries = append(entries, entry{bm.ID, bm.URL})
+		}
+	}
+
+	const concurrency = 10
+	sem := make(chan struct{}, concurrency)
+	var wg sync.WaitGroup
+	for _, e := range entries {
+		if ctx.Err() != nil {
+			break
+		}
+		// Skip if already cached in memory.
+		if _, ok := s.faviconCache.Get(e.id); ok {
+			continue
+		}
+		// Check disk cache — populated by a prior successful fetch.
+		if data, err := s.store.ReadIcon(e.id); err == nil && len(data) > 0 {
+			ct := detectIconContentType(data)
+			s.faviconCache.Set(e.id, faviconEntry{data: data, contentType: ct}, time.Hour)
+			continue
+		}
+		wg.Add(1)
+		sem <- struct{}{}
+		go func(id, target string) {
+			defer wg.Done()
+			defer func() { <-sem }()
+			fetchCtx, cancel := context.WithTimeout(ctx, 5*time.Second)
+			defer cancel()
+			data := util.FetchFaviconForTarget(fetchCtx, target)
+			if len(data) == 0 {
+				return
+			}
+			ct := detectIconContentType(data)
+			s.faviconCache.Set(id, faviconEntry{data: data, contentType: ct}, time.Hour)
+			_ = s.store.WriteIcon(id, data)
+		}(e.id, e.target)
+	}
+	wg.Wait()
+}
 
 // save persists the store to disk, logging any error.
 func (s *Server) save() { s.store.SaveLog("web") }

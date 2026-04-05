@@ -108,6 +108,7 @@ func main() {
 	go disco.DockerWatch(ctx)
 	go disco.ScheduledScan(ctx)
 	go webSrv.StartHealthChecker(ctx)
+	go webSrv.WarmFavicons(ctx)
 
 	// Dynamic DNS.
 	ddnsMgr := ddns.New(cfg, st, cfClient)

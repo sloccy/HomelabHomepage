@@ -166,6 +166,16 @@ func (s *Server) getFavicon(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Check disk cache before hitting the network — populated by a prior fetch.
+	if data, err := s.store.ReadIcon(id); err == nil && len(data) > 0 {
+		ct := detectIconContentType(data)
+		s.faviconCache.Set(id, faviconEntry{data: data, contentType: ct}, time.Hour)
+		w.Header().Set("Content-Type", ct)
+		w.Header().Set("Cache-Control", "public, max-age=3600")
+		_, _ = w.Write(data) //nolint:gosec // binary icon data, not HTML; Content-Type is set explicitly
+		return
+	}
+
 	ctx, cancel := context.WithTimeout(r.Context(), 5*time.Second)
 	defer cancel()
 	data := util.FetchFaviconForTarget(ctx, target)
@@ -177,6 +187,7 @@ func (s *Server) getFavicon(w http.ResponseWriter, r *http.Request) {
 	}
 	ct := detectIconContentType(data)
 	s.faviconCache.Set(id, faviconEntry{data: data, contentType: ct}, time.Hour)
+	_ = s.store.WriteIcon(id, data) // persist for next restart
 
 	w.Header().Set("Content-Type", ct)
 	w.Header().Set("Cache-Control", "public, max-age=3600")
