@@ -85,7 +85,7 @@ jobs:
       - name: Set up Node
         uses: actions/setup-node@v6
         with:
-          node-version: '22'
+          node-version: '24'
 
       - name: Copy vendor files
         run: npm ci && node scripts/vendor.js
