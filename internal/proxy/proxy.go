@@ -114,9 +114,10 @@ func (h *Handler) proxySubdomain(w http.ResponseWriter, r *http.Request, sub str
 // needed values are derived from the outgoing request clone that the
 // httputil.ReverseProxy passes to Director/ModifyResponse.
 func (h *Handler) buildProxy(sub string, target *url.URL) *httputil.ReverseProxy {
-	rp := httputil.NewSingleHostReverseProxy(target) //nolint:gosec // target URL is store-derived, not user-supplied
-	rp.Transport = insecureTransport
-	rp.BufferPool = &proxyBufPool
+	rp := &httputil.ReverseProxy{
+		Transport:  insecureTransport,
+		BufferPool: &proxyBufPool,
+	}
 	rp.ErrorHandler = func(w http.ResponseWriter, r *http.Request, err error) {
 		svcName := ""
 		if s := h.store.GetServiceBySubdomain(sub); s != nil {
@@ -126,19 +127,15 @@ func (h *Handler) buildProxy(sub string, target *url.URL) *httputil.ReverseProxy
 			html.EscapeString(svcName), html.EscapeString(err.Error()))
 		h.errorPage(w, 502, msg)
 	}
-	// Wrap the default Director to set forwarding headers.
-	// req is a clone of the incoming request; req.Host is still the original
-	// host before origDirector rewrites it, and req.TLS/RemoteAddr/Header are
-	// identical to the incoming request — so we don't need to capture r.
-	origDirector := rp.Director
-	rp.Director = func(req *http.Request) {
-		origHost := req.Host
-		origDirector(req)
-		req.Host = target.Host
-		req.Header.Set("X-Forwarded-Host", origHost)
-		req.Header.Set("X-Real-IP", realIP(req))
-		if req.Header.Get("X-Forwarded-Proto") == "" {
-			req.Header.Set("X-Forwarded-Proto", scheme(req))
+	rp.Rewrite = func(pr *httputil.ProxyRequest) {
+		pr.SetURL(target) //nolint:gosec // target URL is store-derived, not user-supplied
+		pr.Out.Host = target.Host
+		pr.SetXForwarded()
+		pr.Out.Header.Set("X-Real-IP", realIP(pr.Out))
+		// Preserve upstream X-Forwarded-Proto (e.g. from Cloudflare)
+		// instead of using SetXForwarded's TLS-only detection.
+		if proto := pr.In.Header.Get("X-Forwarded-Proto"); proto != "" {
+			pr.Out.Header.Set("X-Forwarded-Proto", proto)
 		}
 	}
 	// Rewrite Location headers that point to the backend host back to the
@@ -184,12 +181,6 @@ func realIP(r *http.Request) string {
 	return r.RemoteAddr
 }
 
-func scheme(r *http.Request) string {
-	if r.TLS != nil {
-		return "https"
-	}
-	return "http"
-}
 
 const errorHTML = `<!DOCTYPE html>
 <html lang="en">
