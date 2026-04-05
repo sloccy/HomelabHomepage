@@ -94,21 +94,37 @@ func gzipHandler(next http.Handler) http.Handler {
 
 type gzipResponseWriter struct {
 	http.ResponseWriter
-	gz     *gzip.Writer
-	active bool // true once we've started gzip-compressing this response
+	gz      *gzip.Writer
+	active  bool // true once we've committed to gzip-compressing this response
+	decided bool // true after first Write or WriteHeader determines compression mode
+}
+
+// sniff checks whether to use gzip for this response (only runs once).
+func (g *gzipResponseWriter) sniff() {
+	if g.decided {
+		return
+	}
+	g.decided = true
+	// If the inner handler already set Content-Encoding (e.g. pre-compressed
+	// static assets), skip gzip to avoid double-compression.
+	if g.ResponseWriter.Header().Get("Content-Encoding") != "" {
+		return
+	}
+	g.active = true
+	g.ResponseWriter.Header().Set("Content-Encoding", "gzip")
+	g.ResponseWriter.Header().Set("Vary", "Accept-Encoding")
+	g.ResponseWriter.Header().Del("Content-Length")
+}
+
+func (g *gzipResponseWriter) WriteHeader(code int) {
+	g.sniff()
+	g.ResponseWriter.WriteHeader(code)
 }
 
 func (g *gzipResponseWriter) Write(b []byte) (int, error) {
-	// If the inner handler set Content-Encoding before writing (e.g. pre-compressed
-	// static assets), write directly to avoid double-compression.
-	if g.ResponseWriter.Header().Get("Content-Encoding") != "" {
-		return g.ResponseWriter.Write(b)
-	}
+	g.sniff()
 	if !g.active {
-		g.active = true
-		g.ResponseWriter.Header().Set("Content-Encoding", "gzip")
-		g.ResponseWriter.Header().Set("Vary", "Accept-Encoding")
-		g.ResponseWriter.Header().Del("Content-Length")
+		return g.ResponseWriter.Write(b)
 	}
 	return g.gz.Write(b)
 }
