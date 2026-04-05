@@ -19,7 +19,27 @@ var insecureTransport = &http.Transport{
 	TLSClientConfig:     &tls.Config{InsecureSkipVerify: true}, //nolint:gosec // intentional for backend self-signed certs
 	IdleConnTimeout:     90 * time.Second,
 	TLSHandshakeTimeout: 10 * time.Second,
+	MaxIdleConns:        32,
+	MaxIdleConnsPerHost: 4,
 }
+
+// bufferPool implements httputil.BufferPool using sync.Pool to reuse the
+// 32 KB copy buffers that httputil.ReverseProxy allocates per request.
+// *[]byte is stored (not []byte) to avoid boxing the slice header on Put.
+type bufferPool struct{ p sync.Pool }
+
+func (b *bufferPool) Get() []byte {
+	if v := b.p.Get(); v != nil {
+		buf := v.(*[]byte) //nolint:forcetypeassert // pool only stores *[]byte; type is guaranteed
+		return *buf
+	}
+	buf := make([]byte, 32*1024)
+	return buf
+}
+
+func (b *bufferPool) Put(buf []byte) { b.p.Put(&buf) }
+
+var proxyBufPool bufferPool
 
 // proxyEntry caches a reverse proxy along with the target URL string so we can
 // detect when a service's target has changed and rebuild.
@@ -65,6 +85,7 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 func (h *Handler) proxySubdomain(w http.ResponseWriter, r *http.Request, sub string) {
 	svc := h.store.GetServiceBySubdomain(sub)
 	if svc == nil {
+		h.proxies.Delete(sub) // evict stale cache entry if service was deleted
 		h.errorPage(w, 404, fmt.Sprintf("No service assigned to <strong>%s.%s</strong>", html.EscapeString(sub), html.EscapeString(h.cfg.Domain)))
 		return
 	}
@@ -95,6 +116,7 @@ func (h *Handler) proxySubdomain(w http.ResponseWriter, r *http.Request, sub str
 func (h *Handler) buildProxy(sub string, target *url.URL) *httputil.ReverseProxy {
 	rp := httputil.NewSingleHostReverseProxy(target) //nolint:gosec // target URL is store-derived, not user-supplied
 	rp.Transport = insecureTransport
+	rp.BufferPool = &proxyBufPool
 	rp.ErrorHandler = func(w http.ResponseWriter, r *http.Request, err error) {
 		svcName := ""
 		if s := h.store.GetServiceBySubdomain(sub); s != nil {

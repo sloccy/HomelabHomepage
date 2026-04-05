@@ -68,6 +68,15 @@ func securityHeaders(next http.Handler) http.Handler {
 	})
 }
 
+// gzipWriterPool reuses gzip.Writer instances across requests to avoid the
+// per-request allocation of ~256 KB of internal gzip state.
+var gzipWriterPool = sync.Pool{
+	New: func() any {
+		gz, _ := gzip.NewWriterLevel(io.Discard, gzip.DefaultCompression)
+		return gz
+	},
+}
+
 // gzipHandler compresses dynamic responses when the client accepts gzip.
 // Static assets are already pre-compressed and served with an explicit
 // Content-Encoding header, so they pass through without double-compression.
@@ -77,16 +86,18 @@ func gzipHandler(next http.Handler) http.Handler {
 			next.ServeHTTP(w, r)
 			return
 		}
-		gz, err := gzip.NewWriterLevel(w, gzip.DefaultCompression)
-		if err != nil {
+		gz, ok := gzipWriterPool.Get().(*gzip.Writer)
+		if !ok {
 			next.ServeHTTP(w, r)
 			return
 		}
+		gz.Reset(w)
 		grw := &gzipResponseWriter{ResponseWriter: w, gz: gz}
 		defer func() {
 			if grw.active {
 				_ = gz.Close() //nolint:errcheck // best-effort flush on response end
 			}
+			gzipWriterPool.Put(gz)
 		}()
 		next.ServeHTTP(grw, r)
 	})
