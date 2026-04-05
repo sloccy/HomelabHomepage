@@ -13,8 +13,6 @@ import (
 	"lantern/internal/config"
 	"lantern/internal/store"
 	"lantern/internal/tunnel"
-
-	"github.com/jellydator/ttlcache/v3"
 )
 
 // Scanner is the subset of discovery.Discoverer the web server needs.
@@ -36,16 +34,14 @@ type Server struct {
 	version      string
 	healthMu     sync.RWMutex
 	health       map[string]string // service ID → "up" | "down"
-	faviconCache *ttlcache.Cache[string, *faviconEntry]
+	faviconCache *ttlCache[faviconEntry]
 }
 
 func New(cfg *config.Config, st *store.Store, cfClient *cf.Client, version string) *Server {
-	fc := ttlcache.New(
-		ttlcache.WithCapacity[string, *faviconEntry](500),
-		ttlcache.WithDisableTouchOnHit[string, *faviconEntry](),
-	)
-	go fc.Start() // background janitor
-	s := &Server{cfg: cfg, store: st, cf: cfClient, version: version, faviconCache: fc}
+	s := &Server{
+		cfg: cfg, store: st, cf: cfClient, version: version,
+		faviconCache: newTTLCache[faviconEntry](500),
+	}
 	s.mux = http.NewServeMux()
 	s.routes()
 	s.handler = gzipHandler(securityHeaders(s.mux))
@@ -54,7 +50,7 @@ func New(cfg *config.Config, st *store.Store, cfClient *cf.Client, version strin
 
 func (s *Server) SetScanner(sc Scanner)              { s.scanner = sc }
 func (s *Server) SetTunnelManager(t *tunnel.Manager) { s.tunnel = t }
-func (s *Server) Stop()                              { s.faviconCache.Stop() }
+func (s *Server) Stop()                              {}
 
 // save persists the store to disk, logging any error.
 func (s *Server) save() { s.store.SaveLog("web") }

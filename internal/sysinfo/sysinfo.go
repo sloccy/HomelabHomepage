@@ -1,18 +1,18 @@
 package sysinfo
 
 import (
-	"context"
-	"sync/atomic"
+	"bufio"
+	"fmt"
+	"os"
+	"strconv"
+	"strings"
+	"sync"
+	"syscall"
 	"time"
-
-	"github.com/shirou/gopsutil/v4/cpu"
-	"github.com/shirou/gopsutil/v4/disk"
-	"github.com/shirou/gopsutil/v4/mem"
 )
 
 // Stats holds a snapshot of host resource usage.
 type Stats struct {
-	CPUPercent  float64 `json:"cpu_percent"`
 	MemUsedMB   uint64  `json:"mem_used_mb"`
 	MemTotalMB  uint64  `json:"mem_total_mb"`
 	MemPercent  float64 `json:"mem_percent"`
@@ -21,78 +21,113 @@ type Stats struct {
 	DiskPercent float64 `json:"disk_percent"`
 }
 
-// cached holds the latest sampled Stats pointer (atomically swapped).
-var cached atomic.Pointer[Stats]
+var (
+	cacheMu  sync.Mutex
+	cached   *Stats
+	cachedAt time.Time
+)
 
-// Start launches a background goroutine that samples stats every 2 seconds.
-// Call this once from main after the app context is created.
-func Start(ctx context.Context) {
-	go func() {
-		// Prime the cache immediately with a blocking sample.
-		if s, err := sample(); err == nil {
-			cached.Store(s)
-		}
-		ticker := time.NewTicker(2 * time.Second)
-		defer ticker.Stop()
-		for {
-			select {
-			case <-ctx.Done():
-				return
-			case <-ticker.C:
-				if s, err := sample(); err == nil {
-					cached.Store(s)
-				}
-			}
-		}
-	}()
-}
-
-// Get returns the latest cached Stats. If the background sampler has not yet
-// produced a value (e.g., called before Start), it falls back to a blocking
-// sample (200 ms) so the first request always returns real data.
+// Get returns a cached Stats snapshot, refreshing at most once per minute.
 func Get() (*Stats, error) {
-	if s := cached.Load(); s != nil {
-		return s, nil
+	cacheMu.Lock()
+	defer cacheMu.Unlock()
+	if cached != nil && time.Since(cachedAt) < time.Minute {
+		return cached, nil
 	}
-	return sample()
+	s, err := sample()
+	if err != nil {
+		return nil, err
+	}
+	cached = s
+	cachedAt = time.Now()
+	return s, nil
 }
 
-// sample collects a full Stats snapshot. CPU measurement blocks ~200ms.
+// sample collects a Stats snapshot.
 func sample() (*Stats, error) {
-	percents, err := cpu.Percent(200*time.Millisecond, false)
+	memTotal, memAvail, err := readMemInfo()
 	if err != nil {
 		return nil, err
 	}
-	var cpuPct float64
-	if len(percents) > 0 {
-		cpuPct = percents[0]
-	}
-
-	vm, err := mem.VirtualMemory()
-	if err != nil {
-		return nil, err
+	memUsed := memTotal - memAvail
+	var memPct float64
+	if memTotal > 0 {
+		memPct = float64(memUsed) / float64(memTotal) * 100
 	}
 
 	var diskUsedGB, diskTotalGB uint64
 	var diskPct float64
-	setDisk := func(du *disk.UsageStat) {
-		diskUsedGB = du.Used / (1024 * 1024 * 1024)
-		diskTotalGB = du.Total / (1024 * 1024 * 1024)
-		diskPct = du.UsedPercent
-	}
-	if du, err := disk.Usage("/data"); err == nil {
-		setDisk(du)
-	} else if du, err := disk.Usage("/"); err == nil {
-		setDisk(du)
+	for _, path := range []string{"/data", "/"} {
+		used, total, err := diskUsage(path)
+		if err == nil {
+			diskUsedGB = used / (1024 * 1024 * 1024)
+			diskTotalGB = total / (1024 * 1024 * 1024)
+			if total > 0 {
+				diskPct = float64(used) / float64(total) * 100
+			}
+			break
+		}
 	}
 
 	return &Stats{
-		CPUPercent:  cpuPct,
-		MemUsedMB:   vm.Used / (1024 * 1024),
-		MemTotalMB:  vm.Total / (1024 * 1024),
-		MemPercent:  vm.UsedPercent,
+		MemUsedMB:   memUsed / (1024 * 1024),
+		MemTotalMB:  memTotal / (1024 * 1024),
+		MemPercent:  memPct,
 		DiskUsedGB:  diskUsedGB,
 		DiskTotalGB: diskTotalGB,
 		DiskPercent: diskPct,
 	}, nil
+}
+
+// readMemInfo reads MemTotal and MemAvailable from /proc/meminfo (bytes).
+func readMemInfo() (total, available uint64, err error) {
+	f, err := os.Open("/proc/meminfo")
+	if err != nil {
+		return 0, 0, err
+	}
+	defer f.Close() //nolint:errcheck // read-only file
+
+	sc := bufio.NewScanner(f)
+	for sc.Scan() {
+		line := sc.Text()
+		switch {
+		case strings.HasPrefix(line, "MemTotal:"):
+			total, err = parseMemLine(line)
+		case strings.HasPrefix(line, "MemAvailable:"):
+			available, err = parseMemLine(line)
+		}
+		if err != nil {
+			return 0, 0, err
+		}
+		if total > 0 && available > 0 {
+			return total, available, nil
+		}
+	}
+	return 0, 0, fmt.Errorf("MemTotal/MemAvailable not found in /proc/meminfo")
+}
+
+// parseMemLine parses a /proc/meminfo line like "MemTotal:   16384 kB" and
+// returns the value in bytes.
+func parseMemLine(line string) (uint64, error) {
+	fields := strings.Fields(line)
+	if len(fields) < 2 {
+		return 0, fmt.Errorf("unexpected /proc/meminfo line: %q", line)
+	}
+	kb, err := strconv.ParseUint(fields[1], 10, 64)
+	if err != nil {
+		return 0, fmt.Errorf("parse /proc/meminfo value: %w", err)
+	}
+	return kb * 1024, nil
+}
+
+// diskUsage returns used and total bytes for the filesystem at path.
+func diskUsage(path string) (used, total uint64, err error) {
+	var st syscall.Statfs_t
+	if err := syscall.Statfs(path, &st); err != nil {
+		return 0, 0, err
+	}
+	total = st.Blocks * uint64(st.Bsize)  //nolint:gosec // kernel-guaranteed non-negative
+	avail := st.Bavail * uint64(st.Bsize) //nolint:gosec // kernel-guaranteed non-negative
+	used = total - avail
+	return used, total, nil
 }

@@ -1,8 +1,4 @@
 <div class="sysinfo-bar">
-  <span class="sysinfo-label">CPU</span>
-  <div class="mini-bar"><div class="mini-bar-fill" style="width:{{printf "%.0f" .CPUPercent}}%"></div></div>
-  {{printf "%.0f" .CPUPercent}}%
-  <span class="sysinfo-sep">|</span>
   <span class="sysinfo-label">RAM</span>
   <div class="mini-bar"><div class="mini-bar-fill" style="width:{{printf "%.0f" .MemPercent}}%"></div></div>
   {{fmtMem .MemUsedMB}} / {{fmtMem .MemTotalMB}}

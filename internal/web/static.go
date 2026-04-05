@@ -148,8 +148,7 @@ func (s *Server) getFavicon(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if item := s.faviconCache.Get(id); item != nil {
-		e := item.Value()
+	if e, ok := s.faviconCache.Get(id); ok {
 		if e.data == nil {
 			http.NotFound(w, r)
 			return
@@ -162,7 +161,7 @@ func (s *Server) getFavicon(w http.ResponseWriter, r *http.Request) {
 
 	target := s.store.GetTarget(id)
 	if target == "" {
-		s.faviconCache.Set(id, &faviconEntry{}, 15*time.Minute)
+		s.faviconCache.Set(id, faviconEntry{}, 15*time.Minute)
 		http.NotFound(w, r)
 		return
 	}
@@ -172,12 +171,12 @@ func (s *Server) getFavicon(w http.ResponseWriter, r *http.Request) {
 	data := util.FetchFaviconForTarget(ctx, target)
 
 	if len(data) == 0 {
-		s.faviconCache.Set(id, &faviconEntry{}, 15*time.Minute)
+		s.faviconCache.Set(id, faviconEntry{}, 15*time.Minute)
 		http.NotFound(w, r)
 		return
 	}
 	ct := detectIconContentType(data)
-	s.faviconCache.Set(id, &faviconEntry{data: data, contentType: ct}, time.Hour)
+	s.faviconCache.Set(id, faviconEntry{data: data, contentType: ct}, time.Hour)
 
 	w.Header().Set("Content-Type", ct)
 	w.Header().Set("Cache-Control", "public, max-age=3600")
