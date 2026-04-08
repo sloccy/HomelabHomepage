@@ -42,9 +42,10 @@ func (d *Discoverer) logf(format string, args ...any) {
 	d.mu.Lock()
 	ts := time.Now().Format("15:04:05")
 	d.logLines = append(d.logLines, ts+" "+msg)
-	if len(d.logLines) > 2000 {
-		trimmed := make([]string, 2000)
-		copy(trimmed, d.logLines[len(d.logLines)-2000:])
+	if len(d.logLines) > 400 {
+		// Trim to 200 at a high-water mark to amortize allocation cost.
+		trimmed := make([]string, 200)
+		copy(trimmed, d.logLines[len(d.logLines)-200:])
 		d.logLines = trimmed
 	}
 	d.mu.Unlock()
