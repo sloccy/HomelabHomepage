@@ -41,7 +41,7 @@ type Server struct {
 func New(cfg *config.Config, st *store.Store, cfClient *cf.Client, version string) *Server {
 	s := &Server{
 		cfg: cfg, store: st, cf: cfClient, version: version,
-		faviconCache: newTTLCache[faviconEntry](500),
+		faviconCache: newTTLCache[faviconEntry](100),
 	}
 	s.mux = http.NewServeMux()
 	s.routes()

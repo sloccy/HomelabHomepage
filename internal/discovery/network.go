@@ -277,13 +277,13 @@ type openPort struct {
 }
 
 // tcpSweep checks which (ip, port) pairs accept a TCP connection.
-// Uses up to 4096 concurrent goroutines with a configurable dial timeout — no data exchange.
+// Uses up to 1024 concurrent goroutines with a configurable dial timeout — no data exchange.
 // logf is called at 25% progress intervals with per-type error counts.
 func tcpSweep(ctx context.Context, ips []string, ports []int, logf func(string, ...any), timeout time.Duration) []openPort {
 	// ── Pre-sweep debug summary ───────────────────────────────────────────────
 	start := time.Now()
 	logf("[TCP] Starting sweep: %d hosts × %d ports = %d combinations", len(ips), len(ports), len(ips)*len(ports))
-	logf("[TCP] Timeout: %v/conn, 4096 concurrent workers", timeout)
+	logf("[TCP] Timeout: %v/conn, 1024 concurrent workers", timeout)
 	switch {
 	case len(ips) == 0:
 		logf("[TCP] ERROR: no hosts to scan — check subnet config")
@@ -301,7 +301,7 @@ func tcpSweep(ctx context.Context, ips []string, ports []int, logf func(string, 
 	var open []openPort
 
 	g, gctx := errgroup.WithContext(ctx)
-	g.SetLimit(4096)
+	g.SetLimit(1024)
 
 	for _, ip := range ips {
 		for _, port := range ports {
