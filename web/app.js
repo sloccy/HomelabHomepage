@@ -1,9 +1,18 @@
 /* ── Lantern frontend ────────────────────────────────────────────────────── */
 'use strict';
 
-// Shared state for edit-mode card selection (accessible to keydown handler)
-let _selectedCard = null;
-let _selectedCardName = null;
+let _lastWrapper = null; // last dragged/moved card-wrapper (for keyboard reorder)
+let _dragSrc = null;     // card-wrapper currently being dragged
+
+function postReorder(grid) {
+  const ids = [...grid.querySelectorAll(':scope > .card-wrapper[data-id]')].map(w => w.dataset.id);
+  const url = grid.closest('#services-grid') ? '/api/services/reorder' : '/api/bookmarks/reorder';
+  fetch(url, {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({ids}),
+  }).catch(() => {});
+}
 
 document.addEventListener('DOMContentLoaded', () => {
   // ── Modal ─────────────────────────────────────────────────────────────────
@@ -25,56 +34,61 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   }
 
-  // ── Optimistic reorder: swap card-wrappers immediately, sync server async ──
-  document.body.addEventListener('click', e => {
-    const btn = e.target.closest('.reorder-btn');
-    if (!btn) return;
-    let dir;
-    try { dir = JSON.parse(btn.getAttribute('hx-vals') || '{}').direction; } catch(_) {}
-    if (!dir) return;
-
-    const wrapper = btn.closest('.card-wrapper');
-    if (!wrapper) return;
-    const grid = wrapper.parentElement;
-    const siblings = [...grid.children].filter(el => el.classList.contains('card-wrapper'));
-    const idx = siblings.indexOf(wrapper);
-    const targetIdx = dir === 'left' ? idx - 1 : idx + 1;
-    if (targetIdx < 0 || targetIdx >= siblings.length) return;
-
-    const other = siblings[targetIdx];
-    if (dir === 'left') grid.insertBefore(wrapper, other);
-    else grid.insertBefore(other, wrapper);
-
-    const url = btn.getAttribute('hx-post');
-    if (url) {
-      const body = new URLSearchParams();
-      try { Object.entries(JSON.parse(btn.getAttribute('hx-vals') || '{}')).forEach(([k,v]) => body.set(k, v)); } catch(_) {}
-      fetch(url, { method: 'POST', body }).catch(() => {});
-    }
-    e.stopPropagation(); // prevent HTMX full re-render
-  }, true); // capture phase — fires before HTMX bubble-phase listeners
-
   // ── Edit layout toggle ────────────────────────────────────────────────────
   document.getElementById('edit-layout-toggle')?.addEventListener('change', function() {
     document.body.classList.toggle('edit-mode', this.checked);
-    if (!this.checked) {
-      if (_selectedCard) _selectedCard.classList.remove('selected');
-      _selectedCard = null;
-      _selectedCardName = null;
-    }
+    document.querySelectorAll('.card-wrapper').forEach(w => { w.draggable = this.checked; });
+    if (!this.checked) _lastWrapper = null;
   });
 
-  // ── Edit mode: intercept card clicks to select instead of navigate ─────────
-  document.body.addEventListener('click', e => {
-    if (!document.getElementById('edit-layout-toggle')?.checked) return;
-    const card = e.target.closest('.service-card');
-    if (!card || e.target.closest('.reorder-btns')) return;
+  // ── Drag and drop reorder ─────────────────────────────────────────────────
+  document.body.addEventListener('dragstart', e => {
+    const wrapper = e.target.closest('.card-wrapper');
+    if (!wrapper) return;
+    _dragSrc = wrapper;
+    _lastWrapper = wrapper;
+    wrapper.classList.add('dragging');
+    e.dataTransfer.effectAllowed = 'move';
+    e.dataTransfer.setData('text/plain', ''); // required for Firefox
+  });
+
+  document.body.addEventListener('dragend', () => {
+    document.querySelectorAll('.card-wrapper.dragging, .card-wrapper.drag-before, .card-wrapper.drag-after')
+      .forEach(el => el.classList.remove('dragging', 'drag-before', 'drag-after'));
+    _dragSrc = null;
+  });
+
+  document.body.addEventListener('dragover', e => {
+    if (!_dragSrc) return;
+    const wrapper = e.target.closest('.card-wrapper');
+    if (!wrapper || wrapper === _dragSrc || wrapper.parentElement !== _dragSrc.parentElement) return;
     e.preventDefault();
-    const isSame = card === _selectedCard;
-    if (_selectedCard) _selectedCard.classList.remove('selected');
-    _selectedCard = isSame ? null : card;
-    _selectedCardName = isSame ? null : card.dataset.name;
-    if (_selectedCard) _selectedCard.classList.add('selected');
+    e.dataTransfer.dropEffect = 'move';
+    document.querySelectorAll('.card-wrapper.drag-before, .card-wrapper.drag-after')
+      .forEach(el => el.classList.remove('drag-before', 'drag-after'));
+    const rect = wrapper.getBoundingClientRect();
+    wrapper.classList.add(e.clientX < rect.left + rect.width / 2 ? 'drag-before' : 'drag-after');
+  });
+
+  document.body.addEventListener('dragleave', e => {
+    e.target.closest('.card-wrapper')?.classList.remove('drag-before', 'drag-after');
+  });
+
+  document.body.addEventListener('drop', e => {
+    if (!_dragSrc) return;
+    const wrapper = e.target.closest('.card-wrapper');
+    if (!wrapper || wrapper === _dragSrc || wrapper.parentElement !== _dragSrc.parentElement) return;
+    e.preventDefault();
+    const grid = wrapper.parentElement;
+    const rect = wrapper.getBoundingClientRect();
+    if (e.clientX < rect.left + rect.width / 2) {
+      grid.insertBefore(_dragSrc, wrapper);
+    } else {
+      grid.insertBefore(_dragSrc, wrapper.nextSibling);
+    }
+    postReorder(grid);
+    document.querySelectorAll('.card-wrapper.drag-before, .card-wrapper.drag-after')
+      .forEach(el => el.classList.remove('drag-before', 'drag-after'));
   });
 
   // ── Form: subdomain preview ───────────────────────────────────────────────
@@ -86,20 +100,13 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   });
 
-  // ── Category collapse persistence + re-select card after htmx swap ────────
+  // ── Category collapse persistence ─────────────────────────────────────────
   document.body.addEventListener('htmx:afterSettle', e => {
     const details = e.target.querySelectorAll('details[data-storage-key]');
     if (!details.length) return;
     details.forEach(el => {
       if (localStorage.getItem(el.dataset.storageKey) === '0') el.removeAttribute('open');
     });
-    if (_selectedCardName && document.getElementById('edit-layout-toggle')?.checked) {
-      const card = document.querySelector(`.service-card[data-name="${CSS.escape(_selectedCardName)}"]`);
-      if (card) {
-        _selectedCard = card;
-        card.classList.add('selected');
-      }
-    }
   });
 
   // Persist details open/closed state (toggle doesn't bubble, use capture)
@@ -135,13 +142,21 @@ document.addEventListener('keydown', e => {
   const tag = document.activeElement.tagName;
   if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return;
 
-  // Arrow keys: move selected card in edit mode
-  if (document.getElementById('edit-layout-toggle')?.checked && _selectedCard) {
+  // Arrow keys: move last interacted card in edit mode
+  if (document.getElementById('edit-layout-toggle')?.checked && _lastWrapper) {
     if (e.key === 'ArrowLeft' || e.key === 'ArrowRight' ||
         e.key === 'ArrowUp'   || e.key === 'ArrowDown') {
       e.preventDefault();
-      const dir = (e.key === 'ArrowLeft' || e.key === 'ArrowUp') ? 'left' : 'right';
-      _selectedCard.closest('.card-wrapper')?.querySelector(`.reorder-btn[hx-vals*='"direction":"${dir}"']`)?.click();
+      const grid = _lastWrapper.parentElement;
+      const siblings = [...grid.children].filter(el => el.classList.contains('card-wrapper'));
+      const idx = siblings.indexOf(_lastWrapper);
+      const goLeft = e.key === 'ArrowLeft' || e.key === 'ArrowUp';
+      const targetIdx = goLeft ? idx - 1 : idx + 1;
+      if (targetIdx < 0 || targetIdx >= siblings.length) return;
+      const other = siblings[targetIdx];
+      if (goLeft) grid.insertBefore(_lastWrapper, other);
+      else grid.insertBefore(other, _lastWrapper);
+      postReorder(grid);
       return;
     }
   }
@@ -150,12 +165,6 @@ document.addEventListener('keydown', e => {
     e.preventDefault();
     document.getElementById('search-input')?.focus();
   } else if (e.key === 'Escape') {
-    if (_selectedCard) {
-      _selectedCard.classList.remove('selected');
-      _selectedCard = null;
-      _selectedCardName = null;
-      return;
-    }
     const s = document.getElementById('search-input');
     if (s && s.value) { s.value = ''; s.dispatchEvent(new Event('input', {bubbles: true})); s.blur(); }
   } else if (e.key >= '1' && e.key <= '9') {

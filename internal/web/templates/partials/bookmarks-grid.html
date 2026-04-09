@@ -15,23 +15,13 @@
     <div class="grid">
     {{end}}
       {{range $g.Bookmarks}}
-      <div class="card-wrapper">
+      <div class="card-wrapper" data-id="{{.ID}}">
         <a class="bookmark-card service-card" href="{{.URL}}"
            target="_blank" rel="noopener" data-name="{{.Name}}">
           {{iconEl .ID .Icon .URL "card-icon"}}
           <div class="card-name">{{.Name}}</div>
           <div class="card-url">{{.URL}}</div>
         </a>
-        <div class="reorder-btns">
-          <button class="btn btn-link btn-sm reorder-btn"
-                  hx-post="/api/bookmarks/{{.ID}}/move"
-                  hx-vals='{"direction":"left"}'
-                  hx-swap="none">←</button>
-          <button class="btn btn-link btn-sm reorder-btn"
-                  hx-post="/api/bookmarks/{{.ID}}/move"
-                  hx-vals='{"direction":"right"}'
-                  hx-swap="none">→</button>
-        </div>
       </div>
       {{end}}
     </div>
