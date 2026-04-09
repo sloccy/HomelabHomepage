@@ -3,6 +3,7 @@ package discovery
 import (
 	"context"
 	"crypto/tls"
+	"errors"
 	"fmt"
 	"io"
 	"net"
@@ -411,7 +412,7 @@ func getLocalSubnet(logf func(string, ...any)) (*net.IPNet, error) {
 		}
 		logf("  %s: skip (no suitable IPv4 address)", iface.Name)
 	}
-	return nil, fmt.Errorf("no suitable network interface found")
+	return nil, errors.New("no suitable network interface found")
 }
 
 // generateIPs returns all host IPs (excluding network and broadcast) in subnet.
@@ -435,7 +436,7 @@ func generateIPs(subnet *net.IPNet) []string {
 func broadcastAddr(prefix netip.Prefix) netip.Addr {
 	b := prefix.Addr().As4()
 	bits := prefix.Bits()
-	for i := 0; i < 32-bits; i++ {
+	for i := range 32 - bits {
 		b[3-(i/8)] |= 1 << (uint(i) % 8)
 	}
 	return netip.AddrFrom4(b)
@@ -487,10 +488,7 @@ func (d *Discoverer) scanNetwork(ctx context.Context, cidrs []string, withTCP bo
 
 		// ── Path 1: TCP sweep → HTTP probe (manual full scan only) ──────────
 		if withTCP {
-			outerWg.Add(1)
-			go func() {
-				defer outerWg.Done()
-
+			outerWg.Go(func() {
 				// Parse CIDRs or fall back to auto-detect.
 				var nets []*net.IPNet
 				if len(cidrs) == 0 {
@@ -572,10 +570,8 @@ func (d *Discoverer) scanNetwork(ctx context.Context, cidrs []string, withTCP bo
 
 				const httpWorkers = 80
 				var wg sync.WaitGroup
-				for i := 0; i < httpWorkers; i++ {
-					wg.Add(1)
-					go func() {
-						defer wg.Done()
+				for range httpWorkers {
+					wg.Go(func() {
 						for op := range jobs {
 							if ctx.Err() != nil {
 								return
@@ -587,47 +583,41 @@ func (d *Discoverer) scanNetwork(ctx context.Context, cidrs []string, withTCP bo
 							d.logf("[HTTP] Probing %s://%s:%d/", scheme, op.ip, op.port)
 							probeOnce(op)
 						}
-					}()
+					})
 				}
 				wg.Wait()
-			}()
+			})
 		}
 
 		// ── Path 2: mDNS (DNS-SD) ────────────────────────────────────────────
-		outerWg.Add(1)
-		go func() {
-			defer outerWg.Done()
+		outerWg.Go(func() {
 			for _, op := range discoverMDNS(ctx, 4*time.Second) {
 				if ctx.Err() != nil {
 					return
 				}
 				probeOnce(op)
 			}
-		}()
+		})
 
 		// ── Path 3: SSDP (UPnP) ─────────────────────────────────────────────
-		outerWg.Add(1)
-		go func() {
-			defer outerWg.Done()
+		outerWg.Go(func() {
 			for _, op := range discoverSSDP(ctx, 4*time.Second) {
 				if ctx.Err() != nil {
 					return
 				}
 				probeOnce(op)
 			}
-		}()
+		})
 
 		// ── Path 4: WS-Discovery (ONVIF cameras, printers, Windows) ─────────
-		outerWg.Add(1)
-		go func() {
-			defer outerWg.Done()
+		outerWg.Go(func() {
 			for _, op := range discoverWSDiscovery(ctx, 4*time.Second) {
 				if ctx.Err() != nil {
 					return
 				}
 				probeOnce(op)
 			}
-		}()
+		})
 
 		outerWg.Wait()
 	}()

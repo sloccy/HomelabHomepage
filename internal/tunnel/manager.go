@@ -17,7 +17,7 @@ import (
 type TunnelStatus struct {
 	TunnelID  string    `json:"tunnel_id,omitempty"`
 	Running   bool      `json:"running"`
-	CreatedAt time.Time `json:"created_at,omitempty"`
+	CreatedAt time.Time `json:"created_at,omitzero"`
 }
 
 // Manager owns the cloudflared subprocess lifecycle.

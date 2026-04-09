@@ -401,9 +401,9 @@ func portsFromNat(pm nat.PortMap) []container.Port {
 // the host:port from newTarget. This ensures a user-corrected scheme (e.g.
 // changing https→http) survives container restarts.
 func preserveScheme(oldTarget, newTarget string) string {
-	if i := strings.Index(oldTarget, "://"); i >= 0 {
+	if before, _, ok := strings.Cut(oldTarget, "://"); ok {
 		if j := strings.Index(newTarget, "://"); j >= 0 {
-			return oldTarget[:i] + newTarget[j:]
+			return before + newTarget[j:]
 		}
 	}
 	return newTarget

@@ -153,7 +153,7 @@ func gzipHandler(next http.Handler) http.Handler {
 		grw := &gzipResponseWriter{ResponseWriter: w, gz: gz}
 		defer func() {
 			if grw.active {
-				_ = gz.Close() //nolint:errcheck // best-effort flush on response end
+				_ = gz.Close()
 			}
 			gzipWriterPool.Put(gz)
 		}()

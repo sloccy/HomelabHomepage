@@ -14,20 +14,51 @@ linters:
     - noctx
     - unparam
     # Security
+    - bidichk
     - bodyclose
     - depguard
     # Correctness
+    - durationcheck
     - errorlint
     - exhaustive
     - forcetypeassert
+    - musttag
     - nilerr
+    - nakedret
+    - nilnesserr
+    - nilnil
+    - recvcheck
     # Resource efficiency
     - canonicalheader
     - contextcheck
     - fatcontext
+    - makezero
+    - prealloc
+    # Modernisation
+    - exptostd
+    - intrange
+    - modernize
+    - perfsprint
+    - unconvert
     # Consistency
+    - asciicheck
+    - dupword
+    - errname
+    - gocheckcompilerdirectives
+    - iface
+    - nolintlint
+    - nosprintfhostport
+    - predeclared
+    - reassign
     - revive
     - usestdlibvars
+    - wastedassign
+    - whitespace
+    # Testing
+    - thelper
+    - usetesting
+    # Mirror patterns
+    - mirror
   settings:
     exhaustive:
       default-signifies-exhaustive: true
@@ -40,6 +71,8 @@ linters:
         - hugeParam
         - rangeValCopy
         - commentedOutCode
+    nolintlint:
+      require-explanation: true
     revive:
       rules:
         - name: blank-imports

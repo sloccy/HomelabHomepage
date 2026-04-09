@@ -2,6 +2,7 @@ package sysinfo
 
 import (
 	"bufio"
+	"errors"
 	"fmt"
 	"os"
 	"strconv"
@@ -103,7 +104,7 @@ func readMemInfo() (total, available uint64, err error) {
 			return total, available, nil
 		}
 	}
-	return 0, 0, fmt.Errorf("MemTotal/MemAvailable not found in /proc/meminfo")
+	return 0, 0, errors.New("MemTotal/MemAvailable not found in /proc/meminfo")
 }
 
 // parseMemLine parses a /proc/meminfo line like "MemTotal:   16384 kB" and
@@ -126,8 +127,8 @@ func diskUsage(path string) (used, total uint64, err error) {
 	if err := syscall.Statfs(path, &st); err != nil {
 		return 0, 0, err
 	}
-	total = st.Blocks * uint64(st.Bsize)  //nolint:gosec // kernel-guaranteed non-negative
-	avail := st.Bavail * uint64(st.Bsize) //nolint:gosec // kernel-guaranteed non-negative
+	total = st.Blocks * uint64(st.Bsize)
+	avail := st.Bavail * uint64(st.Bsize)
 	used = total - avail
 	return used, total, nil
 }

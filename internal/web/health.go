@@ -3,6 +3,7 @@ package web
 import (
 	"context"
 	"crypto/tls"
+	"maps"
 	"net/http"
 	"sync"
 	"time"
@@ -75,9 +76,7 @@ func (s *Server) checkHealth(ctx context.Context) {
 func (s *Server) healthSnapshot() map[string]string {
 	s.healthMu.RLock()
 	out := make(map[string]string, len(s.health))
-	for k, v := range s.health {
-		out[k] = v
-	}
+	maps.Copy(out, s.health)
 	s.healthMu.RUnlock()
 	return out
 }

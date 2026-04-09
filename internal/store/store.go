@@ -338,11 +338,11 @@ func (s *Store) migrateIcons() {
 // Returns true on success.
 func writeDataURI(path, dataURI string) bool {
 	// Format: data:<mime>;base64,<data>
-	comma := strings.IndexByte(dataURI, ',')
-	if comma < 0 {
+	_, after, ok := strings.Cut(dataURI, ",")
+	if !ok {
 		return false
 	}
-	data, err := base64.StdEncoding.DecodeString(dataURI[comma+1:])
+	data, err := base64.StdEncoding.DecodeString(after)
 	if err != nil || len(data) == 0 {
 		return false
 	}

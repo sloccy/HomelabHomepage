@@ -30,106 +30,12 @@ jobs:
       - name: Run golangci-lint
         uses: golangci/golangci-lint-action@v9
 
-  # On PRs: compile-only check on native runners to satisfy required branch
-  # protection checks without doing a full Docker build/push.
-  build-pr:
+  # On PRs: compile-check only (no Docker build/push).
+  # On pushes: vendor frontend, build Docker image natively, push by digest.
+  build:
     name: Build ${{ matrix.arch }}
+    needs: lint
     runs-on: ${{ matrix.runner }}
-    if: github.event_name == 'pull_request'
-    permissions:
-      contents: read
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - arch: amd64
-            runner: ubuntu-latest
-          - arch: arm64
-            runner: ubuntu-24.04-arm
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v6
-
-      - name: Set up Go
-        uses: actions/setup-go@v6
-        with:
-          go-version-file: "go.mod"
-          cache: true
-
-      - name: Build
-        run: go build ./...
-
-  # Runs once: tidies modules, vendors frontend libs, computes image tags.
-  # Uploads the full build context as an artifact so both arch runners get
-  # identical source without re-running node/go setup on each.
-  prepare:
-    name: Prepare build context
-    runs-on: ubuntu-latest
-    if: github.event_name != 'pull_request'
-    outputs:
-      metadata-json: ${{ steps.meta.outputs.json }}
-      metadata-labels: ${{ steps.meta.outputs.labels }}
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v6
-
-      - name: Set up Go
-        uses: actions/setup-go@v6
-        with:
-          go-version-file: "go.mod"
-          cache: true
-
-      - name: Tidy modules
-        run: go mod tidy
-
-      - name: Set up Node
-        uses: actions/setup-node@v6
-        with:
-          node-version: '24'
-
-      - name: Copy vendor files
-        run: npm ci && node scripts/vendor.js
-
-      # ── Image tags & labels ───────────────────────────────────────────────
-      # Produces tags like:
-      #   latest           (default branch only)
-      #   main / master    (branch push)
-      #   v1.2.3           (annotated tag)
-      #   1.2              (semver major.minor)
-      #   sha-abc1234      (always — useful for pinning)
-      - name: Extract metadata
-        id: meta
-        uses: docker/metadata-action@v6
-        with:
-          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
-          tags: |
-            type=raw,value=latest,enable={{is_default_branch}}
-            type=ref,event=branch
-            type=ref,event=pr,prefix=pr-
-            type=semver,pattern={{version}}
-            type=semver,pattern={{major}}.{{minor}}
-            type=sha,prefix=sha-,format=short
-          labels: |
-            org.opencontainers.image.title=Lantern
-            org.opencontainers.image.description=Homelab reverse proxy, service discovery & homepage
-            org.opencontainers.image.licenses=MIT
-            org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}
-
-      - name: Upload build context
-        uses: actions/upload-artifact@v7
-        with:
-          name: build-context
-          path: |
-            .
-            !.git
-            !node_modules
-          retention-days: 1
-
-  # Builds each architecture on its native runner in parallel — no QEMU.
-  # Pushes by digest (no tag) so the manifest job can assemble the final list.
-  build-image:
-    name: Build ${{ matrix.arch }}
-    needs: prepare
     permissions:
       contents: read
       packages: write
@@ -141,17 +47,57 @@ jobs:
             runner: ubuntu-latest
           - arch: arm64
             runner: ubuntu-24.04-arm
-    runs-on: ${{ matrix.runner }}
     steps:
-      - name: Download build context
-        uses: actions/download-artifact@v8
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      # ── PR path: compile check only ──────────────────────────────────
+      - name: Set up Go
+        if: github.event_name == 'pull_request'
+        uses: actions/setup-go@v6
         with:
-          name: build-context
+          go-version-file: "go.mod"
+          cache: true
+
+      - name: Compile check
+        if: github.event_name == 'pull_request'
+        run: go build ./...
+
+      # ── Push path: vendor frontend + Docker build+push ───────────────
+      - name: Set up Node
+        if: github.event_name != 'pull_request'
+        uses: actions/setup-node@v6
+        with:
+          node-version: '24'
+
+      - name: Vendor frontend
+        if: github.event_name != 'pull_request'
+        run: npm ci && node scripts/vendor.js
+
+      - name: Extract metadata
+        if: github.event_name != 'pull_request'
+        id: meta
+        uses: docker/metadata-action@v6
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+          tags: |
+            type=raw,value=latest,enable={{is_default_branch}}
+            type=ref,event=branch
+            type=semver,pattern={{version}}
+            type=semver,pattern={{major}}.{{minor}}
+            type=sha,prefix=sha-,format=short
+          labels: |
+            org.opencontainers.image.title=Lantern
+            org.opencontainers.image.description=Homelab reverse proxy, service discovery & homepage
+            org.opencontainers.image.licenses=MIT
+            org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}
 
       - name: Set up Docker Buildx
+        if: github.event_name != 'pull_request'
         uses: docker/setup-buildx-action@v4
 
       - name: Log in to GHCR
+        if: github.event_name != 'pull_request'
         uses: docker/login-action@v4
         with:
           registry: ${{ env.REGISTRY }}
@@ -159,12 +105,13 @@ jobs:
           password: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Build and push by digest
+        if: github.event_name != 'pull_request'
         id: build
         uses: docker/build-push-action@v7
         with:
           context: .
           platforms: linux/${{ matrix.arch }}
-          labels: ${{ needs.prepare.outputs.metadata-labels }}
+          labels: ${{ steps.meta.outputs.labels }}
           outputs: type=image,name=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }},push-by-digest=true,name-canonical=true,push=true
           cache-from: type=gha,scope=linux-${{ matrix.arch }}
           cache-to: type=gha,mode=max,scope=linux-${{ matrix.arch }}
@@ -172,14 +119,15 @@ jobs:
             BUILD_VERSION=${{ github.ref_type == 'tag' && github.ref_name || 'dev' }}
             BUILD_COMMIT=${{ github.sha }}
 
-      # Touch a file named by the digest so the merge job can discover it.
       - name: Export digest
+        if: github.event_name != 'pull_request'
         run: |
           mkdir -p /tmp/digests
           digest="${{ steps.build.outputs.digest }}"
           touch "/tmp/digests/${digest#sha256:}"
 
       - name: Upload digest
+        if: github.event_name != 'pull_request'
         uses: actions/upload-artifact@v7
         with:
           name: digest-${{ matrix.arch }}
@@ -187,11 +135,11 @@ jobs:
           if-no-files-found: error
           retention-days: 1
 
-  # Combines the per-arch digests into a single multi-arch manifest list
-  # and pushes it with all computed tags (latest, semver, sha, etc.).
-  merge-manifests:
-    name: Merge manifests
-    needs: [prepare, build-image]
+  # Combines per-arch digests into a multi-arch manifest list and pushes all tags.
+  publish:
+    name: Publish manifest
+    needs: build
+    if: github.event_name != 'pull_request'
     runs-on: ubuntu-latest
     permissions:
       packages: write
@@ -202,6 +150,18 @@ jobs:
           pattern: digest-*
           path: /tmp/digests
           merge-multiple: true
+
+      - name: Extract metadata
+        id: meta
+        uses: docker/metadata-action@v6
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+          tags: |
+            type=raw,value=latest,enable={{is_default_branch}}
+            type=ref,event=branch
+            type=semver,pattern={{version}}
+            type=semver,pattern={{major}}.{{minor}}
+            type=sha,prefix=sha-,format=short
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v4
@@ -217,5 +177,5 @@ jobs:
         working-directory: /tmp/digests
         run: |
           docker buildx imagetools create \
-            $(jq -cr '.tags | map("-t " + .) | join(" ")' <<< '${{ needs.prepare.outputs.metadata-json }}') \
+            $(jq -cr '.tags | map("-t " + .) | join(" ")' <<< '${{ steps.meta.outputs.json }}') \
             $(printf '${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}@sha256:%s ' *)

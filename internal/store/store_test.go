@@ -358,7 +358,7 @@ func TestIconWriteReadDelete(t *testing.T) {
 func TestConcurrentAccess(t *testing.T) {
 	st := newTestStore(t)
 	var wg sync.WaitGroup
-	for i := 0; i < 20; i++ {
+	for i := range 20 {
 		wg.Add(1)
 		go func(_ int) {
 			defer wg.Done()

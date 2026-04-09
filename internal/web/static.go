@@ -20,7 +20,7 @@ import (
 
 // acceptsEncoding reports whether the Accept-Encoding header includes the given encoding token.
 func acceptsEncoding(header, enc string) bool {
-	for _, part := range strings.Split(header, ",") {
+	for part := range strings.SplitSeq(header, ",") {
 		if strings.EqualFold(strings.TrimSpace(strings.SplitN(part, ";", 2)[0]), enc) {
 			return true
 		}

@@ -5,6 +5,7 @@ import (
 	"crypto/rand"
 	"encoding/base64"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
 	"net/url"
@@ -122,7 +123,7 @@ func (c *Client) createDNSRecord(ctx context.Context, params map[string]any) (st
 // The caller is responsible for persisting the token — it authenticates cloudflared.
 func (c *Client) CreateTunnel(ctx context.Context, name string) (tunnelID, token string, err error) {
 	if c.noop || c.accountID == "" {
-		return "", "", fmt.Errorf("cloudflare account not configured")
+		return "", "", errors.New("cloudflare account not configured")
 	}
 	secret := make([]byte, 32)
 	if _, err := rand.Read(secret); err != nil {

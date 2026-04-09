@@ -9,6 +9,7 @@ import (
 	"crypto/x509"
 	"encoding/json"
 	"encoding/pem"
+	"errors"
 	"fmt"
 	"log"
 	"math/big"
@@ -59,7 +60,7 @@ func (m *Manager) GetCertificate(_ *tls.ClientHelloInfo) (*tls.Certificate, erro
 	m.mu.RLock()
 	defer m.mu.RUnlock()
 	if m.cert == nil {
-		return nil, fmt.Errorf("no certificate available")
+		return nil, errors.New("no certificate available")
 	}
 	return m.cert, nil
 }

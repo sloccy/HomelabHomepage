@@ -128,7 +128,7 @@ func (h *Handler) buildProxy(sub string, target *url.URL) *httputil.ReverseProxy
 		h.errorPage(w, 502, msg)
 	}
 	rp.Rewrite = func(pr *httputil.ProxyRequest) {
-		pr.SetURL(target) //nolint:gosec // target URL is store-derived, not user-supplied
+		pr.SetURL(target)
 		pr.Out.Host = target.Host
 		pr.SetXForwarded()
 		pr.Out.Header.Set("X-Real-IP", realIP(pr.Out))

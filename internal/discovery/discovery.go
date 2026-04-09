@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"io"
 	"log"
+	"net"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -136,9 +138,10 @@ func (d *Discoverer) assignedTargets() map[string]bool {
 
 // isAssignedTarget reports whether a probe result matches an already-assigned service.
 func isAssignedTarget(targets map[string]bool, r *probeResult) bool {
+	hp := net.JoinHostPort(r.ip, strconv.Itoa(r.port))
 	return targets[r.url] ||
-		targets[fmt.Sprintf("http://%s:%d", r.ip, r.port)] ||
-		targets[fmt.Sprintf("https://%s:%d", r.ip, r.port)]
+		targets["http://"+hp] ||
+		targets["https://"+hp]
 }
 
 // upsertProbeResult stores a probe result as a network-discovered service and
