@@ -19,6 +19,16 @@ import (
 	"lantern/internal/util"
 )
 
+// Lantern Docker label keys.
+const (
+	labelEnable    = "lantern.enable"
+	labelName      = "lantern.name"
+	labelURL       = "lantern.url"
+	labelSubdomain = "lantern.subdomain"
+	labelPort      = "lantern.port"
+	labelScheme    = "lantern.scheme"
+)
+
 // DockerWatch connects to the Docker socket and watches for container start/stop events.
 // On start:    resolves config from labels, auto-assigns subdomain, creates DNS record.
 // On stop/die: removes from services or discovered.
@@ -149,7 +159,7 @@ func (d *Discoverer) upsertContainerWithLabels(ctx context.Context, id, name str
 		return
 	}
 	// lantern.enable=false → opt out.
-	if labels["lantern.enable"] == "false" {
+	if labels[labelEnable] == "false" {
 		return
 	}
 	// Skip if already tracked by this exact container ID.
@@ -207,21 +217,21 @@ func (d *Discoverer) resolveContainer(ctx context.Context, name string, ports []
 	}
 
 	// Display name override.
-	if n := labels["lantern.name"]; n != "" {
+	if n := labels[labelName]; n != "" {
 		info.name = n
 	}
 
 	// Explicit target URL — takes full precedence over port logic.
-	if u := labels["lantern.url"]; u != "" {
+	if u := labels[labelURL]; u != "" {
 		info.target = u
-		if s := labels["lantern.subdomain"]; s != "" {
+		if s := labels[labelSubdomain]; s != "" {
 			info.subdomain = util.SanitiseSubdomain(s)
 		}
 		return info
 	}
 
 	// Subdomain: lantern label > traefik rule > container name.
-	if s := labels["lantern.subdomain"]; s != "" {
+	if s := labels[labelSubdomain]; s != "" {
 		info.subdomain = util.SanitiseSubdomain(s)
 	} else if sub := traefikSubdomain(labels, d.cfg.Domain); sub != "" {
 		info.subdomain = sub
@@ -229,7 +239,7 @@ func (d *Discoverer) resolveContainer(ctx context.Context, name string, ports []
 
 	// Port: lantern.port > traefik service port > bestPort(published).
 	port := 0
-	if p := labels["lantern.port"]; p != "" {
+	if p := labels[labelPort]; p != "" {
 		port, _ = strconv.Atoi(p)
 	}
 	if port == 0 {
@@ -244,7 +254,7 @@ func (d *Discoverer) resolveContainer(ctx context.Context, name string, ports []
 
 	// Scheme: explicit label > live probe (falls back to port heuristic if unreachable).
 	var scheme string
-	if s := labels["lantern.scheme"]; s == "https" || s == "http" {
+	if s := labels[labelScheme]; s == "https" || s == "http" {
 		scheme = s
 	} else {
 		scheme = detectScheme(ctx, d.cfg.ServerIP, port)

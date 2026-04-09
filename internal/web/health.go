@@ -10,16 +10,21 @@ import (
 )
 
 // healthClient is used for background service health checks.
+// Keep-alives are enabled so TCP/TLS connections are reused across the 30s polling cycles.
 var healthClient = &http.Client{
 	Timeout: 5 * time.Second,
 	Transport: &http.Transport{
-		TLSClientConfig:   &tls.Config{InsecureSkipVerify: true}, //nolint:gosec // health-checking arbitrary backend services: TLS cert validity is not meaningful
-		DisableKeepAlives: true,
+		TLSClientConfig: &tls.Config{InsecureSkipVerify: true}, //nolint:gosec // health-checking arbitrary backend services: TLS cert validity is not meaningful
 	},
 }
 
 // healthConcurrency caps the number of simultaneous health-check goroutines.
 const healthConcurrency = 20
+
+const (
+	healthUp   = "up"
+	healthDown = "down"
+)
 
 // StartHealthChecker polls all assigned services every 30 seconds and records
 // whether each is reachable. Any HTTP response (including 3xx/4xx/5xx) counts
@@ -53,13 +58,13 @@ func (s *Server) checkHealth(ctx context.Context) {
 		go func(id, target string) {
 			defer wg.Done()
 			defer func() { <-sem }()
-			status := "down"
+			status := healthDown
 			req, err := http.NewRequestWithContext(ctx, http.MethodGet, target, http.NoBody)
 			if err == nil {
 				resp, err := healthClient.Do(req)
 				if err == nil {
 					_ = resp.Body.Close()
-					status = "up"
+					status = healthUp
 				}
 			}
 			mu.Lock()

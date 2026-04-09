@@ -41,6 +41,16 @@ var (
 	}
 
 	reTitleTag = regexp.MustCompile(`(?is)<title[^>]*>(.*?)</title>`)
+
+	// allPortsList is the full [1, 65535] port range used by full network scans.
+	// Allocated once since the values never change.
+	allPortsList = func() []int {
+		p := make([]int, 65535)
+		for i := range p {
+			p[i] = i + 1
+		}
+		return p
+	}()
 )
 
 // resolveURLToPort parses a URL and resolves the host to an IP, returning the
@@ -546,12 +556,8 @@ func (d *Discoverer) scanNetwork(ctx context.Context, cidrs []string, withTCP bo
 					d.logf("[ARP] No live hosts via ARP (unavailable or all dead) — scanning all %d IPs", len(ips))
 				}
 
-				allPorts := make([]int, 65535)
-				for i := range allPorts {
-					allPorts[i] = i + 1
-				}
-				d.logf("[TCP] Handing off to tcpSweep: %d hosts × %d ports", len(ips), len(allPorts))
-				open := tcpSweep(ctx, ips, allPorts, d.logf, d.cfg.ScanTimeout)
+				d.logf("[TCP] Handing off to tcpSweep: %d hosts × %d ports", len(ips), len(allPortsList))
+				open := tcpSweep(ctx, ips, allPortsList, d.logf, d.cfg.ScanTimeout)
 				d.logf("[TCP] tcpSweep returned: %d open ports total", len(open))
 				for _, op := range open {
 					d.logf("[TCP]   → %s:%d", op.ip, op.port)

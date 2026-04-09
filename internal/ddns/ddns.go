@@ -46,6 +46,11 @@ func (m *Manager) Run(ctx context.Context) {
 }
 
 func (m *Manager) checkAndUpdate(ctx context.Context) {
+	domains := m.store.GetDDNSDomains()
+	if len(domains) == 0 {
+		return
+	}
+
 	ip, err := getPublicIP(ctx)
 	if err != nil {
 		log.Printf("ddns: get public IP: %v", err)
@@ -59,12 +64,6 @@ func (m *Manager) checkAndUpdate(ctx context.Context) {
 
 	log.Printf("ddns: public IP changed %q → %q", previous, ip)
 	m.store.SetPublicIP(ip)
-
-	domains := m.store.GetDDNSDomains()
-	if len(domains) == 0 {
-		m.store.SaveLog("ddns")
-		return
-	}
 
 	for _, domain := range domains {
 		recordID, current, err := m.cf.FindRecord(ctx, domain)

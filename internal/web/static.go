@@ -28,8 +28,6 @@ func acceptsEncoding(header, enc string) bool {
 	return false
 }
 
-func acceptsGzip(header string) bool { return acceptsEncoding(header, "gzip") }
-
 //go:embed static
 var staticFiles embed.FS
 
@@ -105,7 +103,7 @@ func serveStaticFiles(mux *http.ServeMux) {
 		w.Header().Set("Content-Type", a.ct)
 		ae := r.Header.Get("Accept-Encoding")
 		switch {
-		case a.gzip != nil && acceptsGzip(ae):
+		case a.gzip != nil && acceptsEncoding(ae, "gzip"):
 			w.Header().Set("Content-Encoding", "gzip")
 			w.Header().Set("Vary", "Accept-Encoding")
 			w.Header().Set("Content-Length", strconv.Itoa(len(a.gzip)))

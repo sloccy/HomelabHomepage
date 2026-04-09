@@ -50,14 +50,17 @@ type proxyEntry struct {
 
 // Handler is the top-level HTTP handler that routes by subdomain.
 type Handler struct {
-	cfg        *config.Config
-	store      *store.Store
-	webHandler http.Handler
-	proxies    sync.Map // subdomain → *proxyEntry
+	cfg         *config.Config
+	store       *store.Store
+	webHandler  http.Handler
+	proxies     sync.Map // subdomain → *proxyEntry
+	suffix      string   // ".domain.tld" — pre-computed from cfg.Domain
+	lanternHost string   // "lantern.domain.tld" — pre-computed from cfg.Domain
 }
 
 func New(cfg *config.Config, st *store.Store, webHandler http.Handler) *Handler {
-	return &Handler{cfg: cfg, store: st, webHandler: webHandler}
+	suffix := "." + cfg.Domain
+	return &Handler{cfg: cfg, store: st, webHandler: webHandler, suffix: suffix, lanternHost: "lantern" + suffix}
 }
 
 func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
@@ -67,15 +70,12 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		host = host[:i]
 	}
 
-	suffix := "." + h.cfg.Domain
-	lanternHost := "lantern" + suffix
-
 	switch {
-	case host == lanternHost || host == h.cfg.Domain || host == "":
+	case host == h.lanternHost || host == h.cfg.Domain || host == "":
 		h.webHandler.ServeHTTP(w, r)
 		return
-	case strings.HasSuffix(host, suffix):
-		sub := strings.TrimSuffix(host, suffix)
+	case strings.HasSuffix(host, h.suffix):
+		sub := strings.TrimSuffix(host, h.suffix)
 		h.proxySubdomain(w, r, sub)
 	default:
 		http.NotFound(w, r)
