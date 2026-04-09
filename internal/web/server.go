@@ -241,7 +241,6 @@ func (s *Server) routes() {
 	s.mux.HandleFunc("POST /api/services", s.createService)
 	s.mux.HandleFunc("PUT /api/services/{id}", s.updateService)
 	s.mux.HandleFunc("DELETE /api/services/{id}", s.deleteService)
-	s.mux.HandleFunc("POST /api/services/{id}/move", s.moveService)
 
 	s.mux.HandleFunc("GET /api/discovered", s.listDiscovered)
 	s.mux.HandleFunc("DELETE /api/discovered/{id}", s.deleteDiscovered)
@@ -275,7 +274,7 @@ func (s *Server) routes() {
 	s.mux.HandleFunc("POST /api/bookmarks", s.createBookmark)
 	s.mux.HandleFunc("PUT /api/bookmarks/{id}", s.updateBookmark)
 	s.mux.HandleFunc("DELETE /api/bookmarks/{id}", s.deleteBookmark)
-	s.mux.HandleFunc("POST /api/bookmarks/{id}/move", s.moveBookmark)
+	s.mux.HandleFunc("POST /api/bookmarks/reorder", s.reorderBookmarks)
 
 	s.mux.HandleFunc("GET /api/tunnel", s.getTunnel)
 	s.mux.HandleFunc("POST /api/tunnel", s.createTunnel)

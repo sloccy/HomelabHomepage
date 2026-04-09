@@ -73,6 +73,7 @@ linters:
         - commentedOutCode
     nolintlint:
       require-explanation: true
+      allow-unused: true # needed for platform-specific nolint directives (e.g. gosec G115 on Linux only)
     revive:
       rules:
         - name: blank-imports

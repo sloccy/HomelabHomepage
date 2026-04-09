@@ -21,7 +21,7 @@
   {{end}}
     {{range $g.Services}}
     {{$h := healthStatus .ID $.Health}}
-    <div class="card-wrapper">
+    <div class="card-wrapper" data-id="{{.ID}}">
       <a class="service-card" href="{{cardURL . $.Domain}}"
          target="_blank" rel="noopener" data-name="{{.Name}}">
         {{if $h}}<span class="health-dot {{$h}}"></span>{{end}}
@@ -29,16 +29,6 @@
         <div class="card-name">{{.Name}}</div>
         <div class="card-url">{{if .DirectOnly}}{{.Target}}{{else}}{{.Subdomain}}.{{$.Domain}}{{end}}</div>
       </a>
-      <div class="reorder-btns">
-        <button class="btn btn-link btn-sm reorder-btn"
-                hx-post="/api/services/{{.ID}}/move"
-                hx-vals='{"direction":"left"}'
-                hx-swap="none">←</button>
-        <button class="btn btn-link btn-sm reorder-btn"
-                hx-post="/api/services/{{.ID}}/move"
-                hx-vals='{"direction":"right"}'
-                hx-swap="none">→</button>
-      </div>
     </div>
     {{end}}
   </div>

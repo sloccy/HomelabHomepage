@@ -1,7 +1,6 @@
 package web
 
 import (
-	"log"
 	"net/http"
 	"sort"
 	"strings"
@@ -216,78 +215,4 @@ func (s *Server) buildTunnelFragData() tunnelFragData {
 		data.Available = true
 	}
 	return data
-}
-
-// ---- Move (reorder by direction) --------------------------------------------
-
-type reorderItem struct {
-	ID    string
-	Order int
-	Name  string
-}
-
-// doMove swaps the item with the given id one position left or right in the
-// ordering, then calls reorder and save. Writes the HTTP response.
-func doMove(w http.ResponseWriter, r *http.Request, items []reorderItem, reorder func([]string), save func() error) {
-	r.Body = http.MaxBytesReader(w, r.Body, 1<<20)
-	id := r.PathValue("id")
-	direction := r.FormValue("direction")
-
-	sort.Slice(items, func(i, j int) bool {
-		if items[i].Order != items[j].Order {
-			return items[i].Order < items[j].Order
-		}
-		return items[i].Name < items[j].Name
-	})
-
-	ids := make([]string, len(items))
-	idx := -1
-	for i, item := range items {
-		ids[i] = item.ID
-		if item.ID == id {
-			idx = i
-		}
-	}
-	if idx < 0 {
-		http.NotFound(w, r)
-		return
-	}
-
-	var swapIdx int
-	switch direction {
-	case "left":
-		swapIdx = idx - 1
-	case "right":
-		swapIdx = idx + 1
-	default:
-		w.WriteHeader(http.StatusBadRequest)
-		return
-	}
-
-	if swapIdx >= 0 && swapIdx < len(ids) {
-		ids[idx], ids[swapIdx] = ids[swapIdx], ids[idx]
-		reorder(ids)
-		if err := save(); err != nil {
-			log.Printf("web: save reorder: %v", err)
-		}
-	}
-	w.WriteHeader(http.StatusNoContent)
-}
-
-func (s *Server) moveService(w http.ResponseWriter, r *http.Request) {
-	svcs := s.store.GetAllServices()
-	items := make([]reorderItem, len(svcs))
-	for i, svc := range svcs {
-		items[i] = reorderItem{svc.ID, svc.Order, svc.Name}
-	}
-	doMove(w, r, items, s.store.ReorderServices, s.store.Save)
-}
-
-func (s *Server) moveBookmark(w http.ResponseWriter, r *http.Request) {
-	bms := s.store.GetAllBookmarks()
-	items := make([]reorderItem, len(bms))
-	for i, bm := range bms {
-		items[i] = reorderItem{bm.ID, bm.Order, bm.Name}
-	}
-	doMove(w, r, items, s.store.ReorderBookmarks, s.store.Save)
 }
