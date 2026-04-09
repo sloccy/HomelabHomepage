@@ -522,7 +522,7 @@ func (s *Server) deleteService(w http.ResponseWriter, r *http.Request) {
 			log.Printf("web: delete DNS record: %v", err)
 		}
 	}
-	if svc != nil && svc.Source == store.SourceDocker && svc.ContainerID != "" {
+	if svc.Source == store.SourceDocker && svc.ContainerID != "" {
 		s.store.AddDiscovered(&store.DiscoveredService{
 			ID:            util.NewID(),
 			IP:            "",

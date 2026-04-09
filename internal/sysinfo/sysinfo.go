@@ -104,7 +104,7 @@ func readMemInfo() (total, available uint64, err error) {
 			return total, available, nil
 		}
 	}
-	return 0, 0, errors.New("MemTotal/MemAvailable not found in /proc/meminfo")
+	return 0, 0, errors.New("memTotal/memAvailable not found in /proc/meminfo")
 }
 
 // parseMemLine parses a /proc/meminfo line like "MemTotal:   16384 kB" and

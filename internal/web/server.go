@@ -51,7 +51,7 @@ func New(cfg *config.Config, st *store.Store, cfClient *cf.Client, version strin
 
 func (s *Server) SetScanner(sc Scanner)              { s.scanner = sc }
 func (s *Server) SetTunnelManager(t *tunnel.Manager) { s.tunnel = t }
-func (s *Server) Stop()                              {}
+func (s *Server) Stop()                              {} // satisfies the lifecycle interface; no cleanup needed
 
 // WarmFavicons pre-populates the favicon cache for all services and bookmarks
 // that use auto-detected favicons (no custom icon set). It checks disk first
@@ -92,20 +92,24 @@ func (s *Server) WarmFavicons(ctx context.Context) {
 			continue
 		}
 		wg.Add(1)
-		sem <- struct{}{}
-		go func(id, target string) {
-			defer wg.Done()
-			defer func() { <-sem }()
-			fetchCtx, cancel := context.WithTimeout(ctx, 5*time.Second)
-			defer cancel()
-			data := util.FetchFaviconForTarget(fetchCtx, target)
-			if len(data) == 0 {
-				return
-			}
-			ct := detectIconContentType(data)
-			s.faviconCache.Set(id, faviconEntry{data: data, contentType: ct}, time.Hour)
-			_ = s.store.WriteIcon(id, data)
-		}(e.id, e.target)
+		select {
+		case sem <- struct{}{}:
+			go func(id, target string) {
+				defer wg.Done()
+				defer func() { <-sem }()
+				fetchCtx, cancel := context.WithTimeout(ctx, 5*time.Second)
+				defer cancel()
+				data := util.FetchFaviconForTarget(fetchCtx, target)
+				if len(data) == 0 {
+					return
+				}
+				ct := detectIconContentType(data)
+				s.faviconCache.Set(id, faviconEntry{data: data, contentType: ct}, time.Hour)
+				_ = s.store.WriteIcon(id, data)
+			}(e.id, e.target)
+		case <-ctx.Done():
+			wg.Done()
+		}
 	}
 	wg.Wait()
 }

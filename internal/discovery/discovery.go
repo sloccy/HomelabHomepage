@@ -27,7 +27,7 @@ type Discoverer struct {
 	scanning bool
 	lastScan time.Time
 	nextScan time.Time
-	logLines []string // recent scan log lines (capped at 30)
+	logLines []string // recent scan log lines (trimmed at 400 to 200)
 }
 
 // save persists the store to disk, appending any error to the scan log.

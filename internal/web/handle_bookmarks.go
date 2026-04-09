@@ -3,6 +3,7 @@ package web
 import (
 	"context"
 	"net/http"
+	"strings"
 	"time"
 
 	"lantern/internal/store"
@@ -17,10 +18,7 @@ func normalizeBookmarkURL(u string) string {
 	if u == "" {
 		return u
 	}
-	if len(u) >= 7 && u[:7] == "http://" {
-		return u
-	}
-	if len(u) >= 8 && u[:8] == "https://" {
+	if strings.HasPrefix(u, "http://") || strings.HasPrefix(u, "https://") {
 		return u
 	}
 	return "https://" + u
