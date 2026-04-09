@@ -485,7 +485,7 @@ func (d *Discoverer) scanNetwork(ctx context.Context, cidrs []string, withTCP bo
 		// only probed once. Different ports on the same IP are each probed.
 		var probedPorts sync.Map // key: "ip:port"
 		probeOnce := func(op openPort) {
-			key := fmt.Sprintf("%s:%d", op.ip, op.port)
+			key := op.ip + ":" + strconv.Itoa(op.port)
 			if _, loaded := probedPorts.LoadOrStore(key, struct{}{}); loaded {
 				return
 			}

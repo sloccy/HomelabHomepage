@@ -19,6 +19,9 @@ import (
 	"lantern/internal/util"
 )
 
+// faviconSem limits concurrent favicon fetches triggered by Docker container starts.
+var faviconSem = make(chan struct{}, 5)
+
 // Lantern Docker label keys.
 const (
 	labelEnable    = "lantern.enable"
@@ -283,7 +286,11 @@ func (d *Discoverer) addDockerDiscovered(id, name, target, suggestedSub string) 
 	d.store.AddDiscovered(disc)
 	d.store.SaveLog("discovery")
 
-	go fetchAndStoreDiscoveredFavicon(d.store, disc.ID, target)
+	go func() {
+		faviconSem <- struct{}{}
+		defer func() { <-faviconSem }()
+		fetchAndStoreDiscoveredFavicon(d.store, disc.ID, target)
+	}()
 }
 
 // fetchAndStoreDiscoveredFavicon fetches the favicon for target (a

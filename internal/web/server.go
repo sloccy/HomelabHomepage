@@ -35,12 +35,14 @@ type Server struct {
 	version      string
 	healthMu     sync.RWMutex
 	health       map[string]string // service ID → "up" | "down"
+	healthSem    chan struct{}     // limits concurrent health-check goroutines; allocated once
 	faviconCache *ttlCache[faviconEntry]
 }
 
 func New(cfg *config.Config, st *store.Store, cfClient *cf.Client, version string) *Server {
 	s := &Server{
 		cfg: cfg, store: st, cf: cfClient, version: version,
+		healthSem:    make(chan struct{}, healthConcurrency),
 		faviconCache: newTTLCache[faviconEntry](100),
 	}
 	s.mux = http.NewServeMux()

@@ -48,16 +48,15 @@ func (s *Server) checkHealth(ctx context.Context) {
 	result := make(map[string]string, len(services))
 	var mu sync.Mutex
 	var wg sync.WaitGroup
-	sem := make(chan struct{}, healthConcurrency)
 	for _, svc := range services {
 		if svc.SkipHealth {
 			continue
 		}
 		wg.Add(1)
-		sem <- struct{}{}
+		s.healthSem <- struct{}{}
 		go func(id, target string) {
 			defer wg.Done()
-			defer func() { <-sem }()
+			defer func() { <-s.healthSem }()
 			status := healthDown
 			req, err := http.NewRequestWithContext(ctx, http.MethodGet, target, http.NoBody)
 			if err == nil {

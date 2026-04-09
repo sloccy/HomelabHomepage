@@ -8,6 +8,7 @@ import (
 	"os"
 	"path/filepath"
 	"slices"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -220,7 +221,7 @@ func (s *Store) unindexDiscovered(d *DiscoveredService) {
 	}
 }
 
-func ignoredKey(ip string, port int) string { return fmt.Sprintf("%s:%d", ip, port) }
+func ignoredKey(ip string, port int) string { return ip + ":" + strconv.Itoa(port) }
 func (s *Store) indexIgnored(ig *IgnoredService) {
 	s.ignoredIdx[ig.ID] = ig
 	s.ignoredIPPortIdx[ignoredKey(ig.IP, ig.Port)] = struct{}{}
