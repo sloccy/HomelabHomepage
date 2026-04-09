@@ -41,6 +41,15 @@ document.addEventListener('DOMContentLoaded', () => {
     if (!this.checked) _lastWrapper = null;
   });
 
+  // ── Edit mode: block card navigation on click ────────────────────────────
+  document.body.addEventListener('click', e => {
+    if (!document.getElementById('edit-layout-toggle')?.checked) return;
+    const card = e.target.closest('.service-card');
+    if (!card) return;
+    e.preventDefault();
+    _lastWrapper = card.closest('.card-wrapper');
+  });
+
   // ── Drag and drop reorder ─────────────────────────────────────────────────
   document.body.addEventListener('dragstart', e => {
     const wrapper = e.target.closest('.card-wrapper');
