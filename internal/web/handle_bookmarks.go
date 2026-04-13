@@ -86,7 +86,6 @@ func (s *Server) deleteBookmark(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusOK)
 }
 
-
 // fetchBookmarkFavicon asynchronously fetches and persists the favicon for a
 // bookmark, then sets Icon = "file" so subsequent renders use the fast disk path.
 func (s *Server) fetchBookmarkFavicon(id string) {
