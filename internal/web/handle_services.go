@@ -540,18 +540,6 @@ func (s *Server) deleteService(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusOK)
 }
 
-func (s *Server) reorderServices(w http.ResponseWriter, r *http.Request) {
-	var req struct {
-		IDs []string `json:"ids"`
-	}
-	if err := readJSON(r, &req); err != nil || len(req.IDs) == 0 {
-		apiError(w, http.StatusBadRequest, "ids array is required")
-		return
-	}
-	s.store.ReorderServices(req.IDs)
-	s.save()
-	w.WriteHeader(http.StatusOK)
-}
 
 func (s *Server) uploadServiceIcon(w http.ResponseWriter, r *http.Request) {
 	id := r.PathValue("id")

@@ -45,6 +45,9 @@ func (s *Server) StartHealthChecker(ctx context.Context) {
 
 func (s *Server) checkHealth(ctx context.Context) {
 	services := s.store.GetAllServices()
+	if len(services) == 0 {
+		return
+	}
 	result := make(map[string]string, len(services))
 	var mu sync.Mutex
 	var wg sync.WaitGroup

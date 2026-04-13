@@ -9,6 +9,7 @@ import (
 	"sync"
 	"time"
 
+	"golang.org/x/sync/errgroup"
 	"lantern/internal/cf"
 	"lantern/internal/config"
 	"lantern/internal/store"
@@ -77,10 +78,10 @@ func (s *Server) WarmFavicons(ctx context.Context) {
 	}
 
 	const concurrency = 10
-	sem := make(chan struct{}, concurrency)
-	var wg sync.WaitGroup
+	g, gctx := errgroup.WithContext(ctx)
+	g.SetLimit(concurrency)
 	for _, e := range entries {
-		if ctx.Err() != nil {
+		if gctx.Err() != nil {
 			break
 		}
 		// Skip if already cached in memory.
@@ -93,27 +94,21 @@ func (s *Server) WarmFavicons(ctx context.Context) {
 			s.faviconCache.Set(e.id, faviconEntry{data: data, contentType: ct}, time.Hour)
 			continue
 		}
-		wg.Add(1)
-		select {
-		case sem <- struct{}{}:
-			go func(id, target string) {
-				defer wg.Done()
-				defer func() { <-sem }()
-				fetchCtx, cancel := context.WithTimeout(ctx, 5*time.Second)
-				defer cancel()
-				data := util.FetchFaviconForTarget(fetchCtx, target)
-				if len(data) == 0 {
-					return
-				}
-				ct := detectIconContentType(data)
-				s.faviconCache.Set(id, faviconEntry{data: data, contentType: ct}, time.Hour)
-				_ = s.store.WriteIcon(id, data)
-			}(e.id, e.target)
-		case <-ctx.Done():
-			wg.Done()
-		}
+		id, target := e.id, e.target
+		g.Go(func() error {
+			fetchCtx, cancel := context.WithTimeout(gctx, 5*time.Second)
+			defer cancel()
+			data := util.FetchFaviconForTarget(fetchCtx, target)
+			if len(data) == 0 {
+				return nil
+			}
+			ct := detectIconContentType(data)
+			s.faviconCache.Set(id, faviconEntry{data: data, contentType: ct}, time.Hour)
+			_ = s.store.WriteIcon(id, data)
+			return nil
+		})
 	}
-	wg.Wait()
+	_ = g.Wait()
 }
 
 // save persists the store to disk, logging any error.
@@ -259,7 +254,7 @@ func (s *Server) routes() {
 	s.mux.HandleFunc("DELETE /api/ddns/{domain}", s.removeDDNS)
 
 	s.mux.HandleFunc("GET /api/favicon/{id}", s.getFavicon)
-	s.mux.HandleFunc("POST /api/services/reorder", s.reorderServices)
+	s.mux.HandleFunc("POST /api/services/reorder", s.reorderHandler(s.store.ReorderServices))
 	s.mux.HandleFunc("GET /api/icons/{id}", s.getIcon)
 	s.mux.HandleFunc("POST /api/services/{id}/icon", s.uploadServiceIcon)
 	s.mux.HandleFunc("POST /api/services/{id}/favicon", s.pullServiceFavicon)
@@ -276,7 +271,7 @@ func (s *Server) routes() {
 	s.mux.HandleFunc("POST /api/bookmarks", s.createBookmark)
 	s.mux.HandleFunc("PUT /api/bookmarks/{id}", s.updateBookmark)
 	s.mux.HandleFunc("DELETE /api/bookmarks/{id}", s.deleteBookmark)
-	s.mux.HandleFunc("POST /api/bookmarks/reorder", s.reorderBookmarks)
+	s.mux.HandleFunc("POST /api/bookmarks/reorder", s.reorderHandler(s.store.ReorderBookmarks))
 
 	s.mux.HandleFunc("GET /api/tunnel", s.getTunnel)
 	s.mux.HandleFunc("POST /api/tunnel", s.createTunnel)
@@ -297,4 +292,19 @@ func readJSON(r *http.Request, v any) error {
 
 func apiError(w http.ResponseWriter, code int, msg string) {
 	writeJSON(w, code, map[string]string{"error": msg})
+}
+
+func (s *Server) reorderHandler(reorderFn func([]string)) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		var req struct {
+			IDs []string `json:"ids"`
+		}
+		if err := readJSON(r, &req); err != nil || len(req.IDs) == 0 {
+			apiError(w, http.StatusBadRequest, "ids array is required")
+			return
+		}
+		reorderFn(req.IDs)
+		s.save()
+		w.WriteHeader(http.StatusOK)
+	}
 }
