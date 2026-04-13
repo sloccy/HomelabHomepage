@@ -3,15 +3,20 @@
 
 let _lastWrapper = null; // last dragged/moved card-wrapper (for keyboard reorder)
 let _dragSrc = null;     // card-wrapper currently being dragged
+let _dragOver = null;    // card-wrapper currently showing drag-before/after highlight
 
+let _reorderTimer = null;
 function postReorder(grid) {
-  const ids = [...grid.querySelectorAll(':scope > .card-wrapper[data-id]')].map(w => w.dataset.id);
-  const url = grid.closest('#services-grid') ? '/api/services/reorder' : '/api/bookmarks/reorder';
-  fetch(url, {
-    method: 'POST',
-    headers: {'Content-Type': 'application/json'},
-    body: JSON.stringify({ids}),
-  }).catch(() => {});
+  clearTimeout(_reorderTimer);
+  _reorderTimer = setTimeout(() => {
+    const ids = [...grid.querySelectorAll(':scope > .card-wrapper[data-id]')].map(w => w.dataset.id);
+    const url = grid.closest('#services-grid') ? '/api/services/reorder' : '/api/bookmarks/reorder';
+    fetch(url, {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({ids}),
+    }).catch(() => {});
+  }, 300);
 }
 
 document.addEventListener('DOMContentLoaded', () => {
@@ -62,8 +67,9 @@ document.addEventListener('DOMContentLoaded', () => {
   });
 
   document.body.addEventListener('dragend', () => {
-    document.querySelectorAll('.card-wrapper.dragging, .card-wrapper.drag-before, .card-wrapper.drag-after')
-      .forEach(el => el.classList.remove('dragging', 'drag-before', 'drag-after'));
+    document.querySelectorAll('.card-wrapper.dragging')
+      .forEach(el => el.classList.remove('dragging'));
+    if (_dragOver) { _dragOver.classList.remove('drag-before', 'drag-after'); _dragOver = null; }
     _dragSrc = null;
   });
 
@@ -73,14 +79,18 @@ document.addEventListener('DOMContentLoaded', () => {
     if (!wrapper || wrapper === _dragSrc || wrapper.parentElement !== _dragSrc.parentElement) return;
     e.preventDefault();
     e.dataTransfer.dropEffect = 'move';
-    document.querySelectorAll('.card-wrapper.drag-before, .card-wrapper.drag-after')
-      .forEach(el => el.classList.remove('drag-before', 'drag-after'));
+    if (_dragOver && _dragOver !== wrapper) _dragOver.classList.remove('drag-before', 'drag-after');
+    _dragOver = wrapper;
     const rect = wrapper.getBoundingClientRect();
     wrapper.classList.add(e.clientX < rect.left + rect.width / 2 ? 'drag-before' : 'drag-after');
   });
 
   document.body.addEventListener('dragleave', e => {
-    e.target.closest('.card-wrapper')?.classList.remove('drag-before', 'drag-after');
+    const wrapper = e.target.closest('.card-wrapper');
+    if (wrapper && wrapper === _dragOver) {
+      wrapper.classList.remove('drag-before', 'drag-after');
+      _dragOver = null;
+    }
   });
 
   document.body.addEventListener('drop', e => {
@@ -96,8 +106,6 @@ document.addEventListener('DOMContentLoaded', () => {
       grid.insertBefore(_dragSrc, wrapper.nextSibling);
     }
     postReorder(grid);
-    document.querySelectorAll('.card-wrapper.drag-before, .card-wrapper.drag-after')
-      .forEach(el => el.classList.remove('drag-before', 'drag-after'));
   });
 
   // ── Form: subdomain preview ───────────────────────────────────────────────

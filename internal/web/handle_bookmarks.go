@@ -86,18 +86,6 @@ func (s *Server) deleteBookmark(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusOK)
 }
 
-func (s *Server) reorderBookmarks(w http.ResponseWriter, r *http.Request) {
-	var req struct {
-		IDs []string `json:"ids"`
-	}
-	if err := readJSON(r, &req); err != nil || len(req.IDs) == 0 {
-		apiError(w, http.StatusBadRequest, "ids array is required")
-		return
-	}
-	s.store.ReorderBookmarks(req.IDs)
-	s.save()
-	w.WriteHeader(http.StatusOK)
-}
 
 // fetchBookmarkFavicon asynchronously fetches and persists the favicon for a
 // bookmark, then sets Icon = "file" so subsequent renders use the fast disk path.
