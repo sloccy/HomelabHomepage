@@ -540,7 +540,6 @@ func (s *Server) deleteService(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusOK)
 }
 
-
 func (s *Server) uploadServiceIcon(w http.ResponseWriter, r *http.Request) {
 	id := r.PathValue("id")
 	svc := s.store.GetServiceByID(id)

@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"golang.org/x/sync/errgroup"
+
 	"lantern/internal/cf"
 	"lantern/internal/config"
 	"lantern/internal/store"
