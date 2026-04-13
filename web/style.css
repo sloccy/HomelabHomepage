@@ -1,17 +1,8 @@
 
 /*
- * ╔══════════════════════════════════════════════════════════════════════════╗
- * ║  CSS STACK — Bootstrap 5.3 CDN + custom style.css                       ║
- * ╠══════════════════════════════════════════════════════════════════════════╣
- * ║  Bootstrap 5.3 via CDN with data-bs-theme="dark" on <html>.             ║
- * ║                                                                          ║
- * ║  TOOL-USE HIERARCHY (prefer higher over lower):                         ║
- * ║    1. Semantic HTML                                                      ║
- * ║    2. Bootstrap CSS CDN component and utility classes                   ║
- * ║    3. Custom CSS rules in style.css  ← this file                        ║
- * ║    4. HTMX for server interactions                                      ║
- * ║    5. Vanilla JS only when absolutely necessary                         ║
- * ╚══════════════════════════════════════════════════════════════════════════╝
+ * Bootstrap 5.3 (data-bs-theme="dark" on <html>) + custom style.css.
+ * Theming via --bs-* token overrides. Custom CSS covers layout-specific
+ * components only — not Bootstrap component overrides.
  */
 
 /* ── Variables ─────────────────────────────────────────────────────────── */
@@ -62,112 +53,151 @@ button.htmx-request::after {
   border-radius: 50% !important;
 }
 
-/* ── Bootstrap dark theme overrides ─────────────────────────────────────── */
+/* ── Bootstrap token overrides ───────────────────────────────────────────── */
 [data-bs-theme="dark"] {
-  --bs-body-bg:               var(--bg);
-  --bs-body-color:            var(--text);
-  --bs-secondary-color:       var(--muted);
-  --bs-link-color:            var(--accent);
-  --bs-link-hover-color:      var(--accent-bright);
-  --bs-border-color:          var(--border-color);
-  --bs-card-bg:               var(--surface2);
-  --bs-card-border-color:     var(--border-color);
-  --bs-table-bg:              transparent;
-  --bs-table-striped-bg:      var(--surface3);
-  --bs-table-hover-bg:        rgba(var(--accent-rgb), .08);
-  --bs-table-color:           var(--text);
-  --bs-modal-bg:              var(--surface2);
-  --bs-modal-border-color:    var(--border-accent);
-  --bs-border-radius:         1px;
-  --bs-border-radius-sm:      1px;
-  --bs-border-radius-lg:      2px;
-  --bs-border-radius-xl:      2px;
-  --bs-border-radius-xxl:     2px;
-  --bs-border-radius-pill:    1px;
   color-scheme: dark;
+
+  /* Body */
+  --bs-body-bg:                   var(--bg);
+  --bs-body-color:                var(--text);
+  --bs-body-font-family:          var(--font-stack);
+  --bs-body-font-size:            12px;
+  --bs-body-line-height:          1.4;
+
+  /* Emphasis & secondary */
+  --bs-emphasis-color:            var(--accent);
+  --bs-secondary-color:           var(--muted);
+  --bs-secondary-bg:              var(--surface);
+  --bs-tertiary-bg:               var(--surface2);
+  --bs-tertiary-color:            var(--muted);
+
+  /* Links */
+  --bs-link-color:                var(--accent);
+  --bs-link-hover-color:          var(--accent-bright);
+  --bs-link-decoration:           underline;
+
+  /* Borders */
+  --bs-border-color:              var(--border-color);
+  --bs-border-width:              1px;
+  --bs-border-radius:             1px;
+  --bs-border-radius-sm:          1px;
+  --bs-border-radius-lg:          2px;
+  --bs-border-radius-xl:          2px;
+  --bs-border-radius-xxl:         2px;
+  --bs-border-radius-pill:        1px;
+
+  /* Shadows — flat design */
+  --bs-box-shadow:                none;
+  --bs-box-shadow-sm:             none;
+  --bs-box-shadow-lg:             none;
+
+  /* Focus */
+  --bs-focus-ring-color:          rgba(var(--accent-rgb), .25);
+
+  /* Headings & code */
+  --bs-heading-color:             var(--accent);
+  --bs-code-color:                var(--accent-bright);
+
+  /* Card */
+  --bs-card-bg:                   var(--surface2);
+  --bs-card-border-color:         var(--border-color);
+
+  /* Table */
+  --bs-table-bg:                  transparent;
+  --bs-table-color:               var(--text);
+  --bs-table-striped-bg:          var(--surface3);
+  --bs-table-hover-bg:            rgba(var(--accent-rgb), .08);
+
+  /* Modal */
+  --bs-modal-bg:                  var(--surface2);
+  --bs-modal-border-color:        var(--border-accent);
+  --bs-modal-border-width:        1px;
+  --bs-modal-box-shadow:          none;
+  --bs-modal-padding:             10px;
+  --bs-modal-header-padding:      6px 10px;
+  --bs-modal-header-border-color: var(--border-color);
+  --bs-modal-header-border-width: 1px;
+
+  /* Theme colors — consumed by text-bg-* utility classes */
+  --bs-primary:                   var(--accent);
+  --bs-primary-rgb:               var(--accent-rgb);
+  --bs-warning:                   var(--warn);
+  --bs-warning-rgb:               212, 168, 48;
+  --bs-danger:                    var(--danger);
+  --bs-danger-rgb:                176, 64, 64;
+  --bs-success:                   var(--success);
+  --bs-success-rgb:               80, 160, 80;
+  --bs-info:                      #4878a8;
+  --bs-info-rgb:                  72, 120, 168;
+  --bs-secondary:                 var(--muted);
+  --bs-secondary-rgb:             122, 112, 96;
+
+  /* Form validation */
+  --bs-form-valid-color:          var(--success);
+  --bs-form-valid-border-color:   var(--success);
+  --bs-form-invalid-color:        var(--danger);
+  --bs-form-invalid-border-color: var(--danger);
 }
 
-/* Form controls */
+/* ── Form controls ───────────────────────────────────────────────────────── */
 .form-control, .form-select {
-  background-color: var(--bg);
-  color: var(--text);
-  border: 1px solid;
-  border-color: var(--bevel-dark) var(--bevel-light) var(--bevel-light) var(--bevel-dark);
-  font-family: var(--font-stack);
   font-size: 11px;
   padding: 3px 6px;
 }
 .form-control:focus, .form-select:focus {
-  background-color: var(--bg);
-  color: var(--text);
   border-color: var(--accent);
   box-shadow: none;
 }
 .form-control::placeholder { color: var(--muted); }
 
-/* Link buttons */
-.btn-link { color: var(--accent); text-decoration: underline; }
-.btn-link:hover { color: var(--accent-bright); }
-
-/* Warning button text contrast */
-.btn-warning, .btn-warning:hover { color: #1a0e00; }
-
-/* ── Global button style — 2000s bevel ──────────────────────────────────── */
+/* ── Buttons ─────────────────────────────────────────────────────────────── */
 .btn {
-  font-family: var(--font-stack);
-  font-size: 11px;
-  font-weight: bold;
-  padding: 3px 10px;
-  border: 1px solid;
-  border-color: var(--bevel-light) var(--bevel-dark) var(--bevel-dark) var(--bevel-light);
+  --bs-btn-font-family:        var(--font-stack);
+  --bs-btn-font-size:          11px;
+  --bs-btn-font-weight:        700;
+  --bs-btn-padding-x:          10px;
+  --bs-btn-padding-y:          3px;
+  --bs-btn-border-width:       1px;
+  --bs-btn-border-color:       var(--bevel-light);
   transition: none;
 }
 .btn-warning {
-  background: linear-gradient(180deg, #e8c040 0%, #b88018 100%);
-  border-color: #c09820 #7a5e0a #7a5e0a #c09820;
-}
-.btn-warning:hover {
-  background: linear-gradient(180deg, #f0d050 0%, #c89020 100%);
-  color: #1a0e00;
+  --bs-btn-bg:                 var(--warn);
+  --bs-btn-color:              #1a0e00;
+  --bs-btn-border-color:       var(--warn);
+  --bs-btn-hover-bg:           var(--accent-bright);
+  --bs-btn-hover-color:        #1a0e00;
+  --bs-btn-hover-border-color: var(--accent-bright);
+  --bs-btn-active-bg:          var(--accent-h);
+  --bs-btn-active-color:       #1a0e00;
+  --bs-btn-active-border-color:var(--accent-h);
 }
 .btn-danger {
-  background: linear-gradient(180deg, #c85050 0%, #882828 100%);
-  border-color: #a83838 #661818 #661818 #a83838;
-}
-.btn-danger:hover {
-  background: linear-gradient(180deg, #d86060 0%, #993030 100%);
+  --bs-btn-bg:                 var(--danger);
+  --bs-btn-color:              var(--text);
+  --bs-btn-border-color:       var(--danger);
+  --bs-btn-hover-bg:           #c85050;
+  --bs-btn-hover-color:        var(--text);
+  --bs-btn-hover-border-color: #c85050;
+  --bs-btn-active-bg:          #993030;
+  --bs-btn-active-color:       var(--text);
+  --bs-btn-active-border-color:#993030;
 }
 .btn-outline-secondary {
-  background: linear-gradient(180deg, var(--surface3) 0%, var(--surface) 100%);
-  border-color: var(--bevel-light) var(--bevel-dark) var(--bevel-dark) var(--bevel-light);
-  color: var(--text);
-}
-.btn-outline-secondary:hover {
-  background: linear-gradient(180deg, var(--surface2) 0%, var(--surface) 100%);
-  color: var(--text);
+  --bs-btn-bg:                 var(--surface2);
+  --bs-btn-color:              var(--text);
+  --bs-btn-border-color:       var(--bevel-light);
+  --bs-btn-hover-bg:           var(--surface3);
+  --bs-btn-hover-color:        var(--text);
+  --bs-btn-hover-border-color: var(--bevel-light);
 }
 .btn-sm {
-  font-size: 11px;
-  padding: 2px 8px;
-}
-.btn-link {
-  border: none;
-  padding: 2px 6px;
-  background: none;
+  --bs-btn-font-size:          11px;
+  --bs-btn-padding-x:          8px;
+  --bs-btn-padding-y:          2px;
 }
 
-/* Modal styling */
-.modal-content {
-  background: var(--surface2);
-  border: 2px solid;
-  border-color: var(--bevel-light) var(--bevel-dark) var(--bevel-dark) var(--bevel-light);
-  box-shadow: 4px 4px 0 rgba(0, 0, 0, .6);
-}
-.modal-header {
-  border-bottom: 1px solid var(--border-color);
-  padding: 6px 10px;
-  background: linear-gradient(180deg, var(--surface3) 0%, var(--surface2) 100%);
-}
+/* ── Modal ───────────────────────────────────────────────────────────────── */
 .modal-body h3 {
   font-family: var(--font-stack);
   font-size: 13px;
@@ -176,15 +206,6 @@ button.htmx-request::after {
   color: var(--accent);
   border-bottom: 1px solid var(--border-color);
   padding-bottom: 4px;
-}
-
-body {
-  font-family: var(--font-stack);
-  background: var(--bg);
-  color: var(--text);
-  min-height: 100vh;
-  font-size: 12px;
-  line-height: 1.4;
 }
 
 /* ── Typography ────────────────────────────────────────────────────────── */
@@ -755,30 +776,26 @@ body.edit-mode #edit-layout-btn {
 .subdomain-wrap { position: relative; }
 form:has([name="direct_only"]:checked) .subdomain-group { display: none !important; }
 
-/* ── Badge overrides ────────────────────────────────────────────────────── */
+/* ── Badge ───────────────────────────────────────────────────────────────── */
 .badge {
-  font-family: var(--font-stack);
   font-size: 10px;
-  font-weight: bold;
   padding: 1px 5px;
   border: 1px solid rgba(0, 0, 0, .3);
 }
 
-/* ── Code overrides ─────────────────────────────────────────────────────── */
+/* ── Code ────────────────────────────────────────────────────────────────── */
 code {
   background: var(--surface3);
   border: 1px solid var(--border-color);
   padding: 1px 4px;
   font-size: .85em;
-  color: var(--accent-bright);
   font-family: "Courier New", Courier, monospace;
 }
 
-/* ── Toast ──────────────────────────────────────────────────────────────── */
+/* ── Toast ───────────────────────────────────────────────────────────────── */
 .toast {
-  background: var(--surface2);
-  border: 1px solid var(--border-color);
-  box-shadow: 3px 3px 0 rgba(0, 0, 0, .5);
+  --bs-toast-bg:           var(--surface2);
+  --bs-toast-border-color: var(--border-color);
 }
 
 /* ── Animations ─────────────────────────────────────────────────────────── */
