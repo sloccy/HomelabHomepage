@@ -5,7 +5,7 @@ go 1.25.8
 require (
 	github.com/docker/docker v28.5.2+incompatible
 	github.com/docker/go-connections v0.7.0
-	github.com/go-acme/lego/v4 v4.35.1
+	github.com/go-acme/lego/v4 v4.35.2
 	github.com/miekg/dns v1.1.72
 	golang.org/x/sync v0.20.0
 )
