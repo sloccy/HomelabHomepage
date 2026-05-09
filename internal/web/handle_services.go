@@ -31,7 +31,7 @@ type createServiceRequest struct {
 func (s *Server) createService(w http.ResponseWriter, r *http.Request) {
 	const maxUpload = 5 << 20 // 5 MB
 	r.Body = http.MaxBytesReader(w, r.Body, maxUpload)
-	if err := r.ParseMultipartForm(maxUpload); err != nil {
+	if err := r.ParseMultipartForm(maxUpload); err != nil { //nolint:gosec // body bounded by MaxBytesReader above
 		if err := r.ParseForm(); err != nil {
 			errorResponse(w, http.StatusBadRequest, "invalid form data")
 			return
@@ -548,7 +548,7 @@ func (s *Server) uploadServiceIcon(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	r.Body = http.MaxBytesReader(w, r.Body, 512*1024)
-	if err := r.ParseMultipartForm(512 * 1024); err != nil {
+	if err := r.ParseMultipartForm(512 * 1024); err != nil { //nolint:gosec // body bounded by MaxBytesReader above
 		apiError(w, http.StatusBadRequest, "file too large or invalid")
 		return
 	}
