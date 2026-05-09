@@ -124,7 +124,7 @@ func main() {
 	})
 	httpMux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		target := "https://" + r.Host + r.URL.RequestURI()
-		http.Redirect(w, r, target, http.StatusMovedPermanently)
+		http.Redirect(w, r, target, http.StatusMovedPermanently) //nolint:gosec // intentional HTTP→HTTPS upgrade preserving original host (homelab: LAN access via raw IP / mDNS / cfg.Domain subdomains all valid)
 	})
 	httpSrv := &http.Server{
 		Addr:              ":80",
