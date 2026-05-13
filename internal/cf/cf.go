@@ -104,6 +104,26 @@ func (c *Client) FindRecord(ctx context.Context, name string) (recordID, ip stri
 	return recs[0].ID, recs[0].Content, nil
 }
 
+// EnsureARecord makes sure an unproxied A record for name → ip exists.
+// Creates it if missing, updates the content if changed, no-ops if already correct.
+func (c *Client) EnsureARecord(ctx context.Context, name, ip string) error {
+	if c.noop {
+		return nil
+	}
+	recordID, current, err := c.FindRecord(ctx, name)
+	if err != nil {
+		return err
+	}
+	if recordID == "" {
+		_, err := c.CreateRecord(ctx, name, ip)
+		return err
+	}
+	if current == ip {
+		return nil
+	}
+	return c.UpdateRecord(ctx, recordID, ip)
+}
+
 // createDNSRecord posts params to the DNS records endpoint and returns the new record ID.
 func (c *Client) createDNSRecord(ctx context.Context, params map[string]any) (string, error) {
 	result, err := c.api.do(ctx, http.MethodPost, "zones/"+c.zoneID+"/dns_records", params)

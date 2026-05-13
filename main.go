@@ -77,6 +77,15 @@ func main() {
 	} else if cfg.CFTunnelID != "" {
 		log.Println("WARNING: CF_TUNNEL_ID set but CF_ACCOUNT_ID missing — tunnel management disabled")
 	}
+	if cfg.Domain != "" && cfg.ServerIP != "" {
+		bootstrapCtx, cancelBootstrap := context.WithTimeout(context.Background(), 15*time.Second) //nolint:contextcheck // startup bootstrap outlives request context; no request context exists here
+		if err := cfClient.EnsureARecord(bootstrapCtx, "lantern."+cfg.Domain, cfg.ServerIP); err != nil {
+			log.Printf("dns: ensure lantern.%s → %s: %v", cfg.Domain, cfg.ServerIP, err)
+		} else {
+			log.Printf("dns: lantern.%s → %s ready", cfg.Domain, cfg.ServerIP)
+		}
+		cancelBootstrap()
+	}
 
 	// TLS certificate manager.
 	certMgr, err := certs.New(cfg)
