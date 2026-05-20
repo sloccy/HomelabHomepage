@@ -3,8 +3,8 @@ package discovery
 import (
 	"testing"
 
-	"github.com/docker/docker/api/types/container"
-	"github.com/docker/go-connections/nat"
+	"github.com/moby/moby/api/types/container"
+	"github.com/moby/moby/api/types/network"
 )
 
 func TestTraefikSubdomain(t *testing.T) {
@@ -112,22 +112,22 @@ func TestTraefikPort(t *testing.T) {
 func TestBestPort(t *testing.T) {
 	tests := []struct {
 		name  string
-		ports []container.Port
+		ports []container.PortSummary
 		want  int
 	}{
 		{
 			name:  "prefers 8080 over other ports",
-			ports: []container.Port{{Type: "tcp", PublicPort: 32400}, {Type: "tcp", PublicPort: 8080}},
+			ports: []container.PortSummary{{Type: "tcp", PublicPort: 32400}, {Type: "tcp", PublicPort: 8080}},
 			want:  8080,
 		},
 		{
 			name:  "falls back to first tcp port",
-			ports: []container.Port{{Type: "tcp", PublicPort: 32400}},
+			ports: []container.PortSummary{{Type: "tcp", PublicPort: 32400}},
 			want:  32400,
 		},
 		{
 			name:  "ignores udp ports",
-			ports: []container.Port{{Type: "udp", PublicPort: 9000}},
+			ports: []container.PortSummary{{Type: "udp", PublicPort: 9000}},
 			want:  0,
 		},
 		{
@@ -137,7 +137,7 @@ func TestBestPort(t *testing.T) {
 		},
 		{
 			name:  "prefers 80 over 9000",
-			ports: []container.Port{{Type: "tcp", PublicPort: 9000}, {Type: "tcp", PublicPort: 80}},
+			ports: []container.PortSummary{{Type: "tcp", PublicPort: 9000}, {Type: "tcp", PublicPort: 80}},
 			want:  80,
 		},
 	}
@@ -187,12 +187,12 @@ func TestPreserveScheme(t *testing.T) {
 	}
 }
 
-func TestPortsFromNat(t *testing.T) {
-	pm := nat.PortMap{
-		"8080/tcp": []nat.PortBinding{{HostIP: "0.0.0.0", HostPort: "8080"}},
-		"443/tcp":  []nat.PortBinding{{HostIP: "0.0.0.0", HostPort: "9443"}},
+func TestPortsFromNetwork(t *testing.T) {
+	pm := network.PortMap{
+		network.MustParsePort("8080/tcp"): []network.PortBinding{{HostPort: "8080"}},
+		network.MustParsePort("443/tcp"):  []network.PortBinding{{HostPort: "9443"}},
 	}
-	ports := portsFromNat(pm)
+	ports := portsFromNetwork(pm)
 	portSet := make(map[int]bool)
 	for _, p := range ports {
 		if p.Type == "tcp" {
@@ -200,6 +200,6 @@ func TestPortsFromNat(t *testing.T) {
 		}
 	}
 	if !portSet[8080] || !portSet[9443] {
-		t.Errorf("portsFromNat: expected 8080 and 9443, got %v", ports)
+		t.Errorf("portsFromNetwork: expected 8080 and 9443, got %v", ports)
 	}
 }

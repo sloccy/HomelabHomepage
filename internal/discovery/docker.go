@@ -9,11 +9,10 @@ import (
 	"strings"
 	"time"
 
-	"github.com/docker/docker/api/types/container"
-	dockerevents "github.com/docker/docker/api/types/events"
-	"github.com/docker/docker/api/types/filters"
-	"github.com/docker/docker/client"
-	"github.com/docker/go-connections/nat"
+	"github.com/moby/moby/api/types/container"
+	dockerevents "github.com/moby/moby/api/types/events"
+	"github.com/moby/moby/api/types/network"
+	"github.com/moby/moby/client"
 
 	"lantern/internal/store"
 	"lantern/internal/util"
@@ -50,7 +49,7 @@ const (
 //	traefik.http.routers.<name>.rule=Host(`plex.example.com`)
 //	traefik.http.services.<name>.loadbalancer.server.port=32400
 func (d *Discoverer) DockerWatch(ctx context.Context) {
-	dc, err := client.NewClientWithOpts(client.FromEnv, client.WithAPIVersionNegotiation())
+	dc, err := client.New(client.FromEnv)
 	if err != nil {
 		log.Printf("discovery: Docker client unavailable (%v) — skipping Docker discovery", err)
 		return
@@ -58,7 +57,7 @@ func (d *Discoverer) DockerWatch(ctx context.Context) {
 	defer func() { _ = dc.Close() }()
 
 	// Verify connectivity.
-	if _, err := dc.Ping(ctx); err != nil {
+	if _, err := dc.Ping(ctx, client.PingOptions{}); err != nil {
 		log.Printf("discovery: Docker socket unavailable (%v) — skipping Docker discovery", err)
 		return
 	}
@@ -94,18 +93,18 @@ func (d *Discoverer) DockerWatch(ctx context.Context) {
 
 // dockerEvents subscribes to container events and returns message/error channels.
 func dockerEvents(ctx context.Context, dc *client.Client) (msgs <-chan dockerevents.Message, errs <-chan error) {
-	f := filters.NewArgs()
-	f.Add("type", "container")
-	return dc.Events(ctx, dockerevents.ListOptions{Filters: f})
+	f := make(client.Filters).Add("type", "container")
+	res := dc.Events(ctx, client.EventsListOptions{Filters: f})
+	return res.Messages, res.Err
 }
 
 func (d *Discoverer) syncContainers(ctx context.Context, dc *client.Client) {
-	containers, err := dc.ContainerList(ctx, container.ListOptions{})
+	res, err := dc.ContainerList(ctx, client.ContainerListOptions{})
 	if err != nil {
 		log.Printf("discovery: list containers: %v", err)
 		return
 	}
-	for _, c := range containers {
+	for _, c := range res.Items {
 		if len(c.Names) == 0 {
 			continue
 		}
@@ -114,7 +113,7 @@ func (d *Discoverer) syncContainers(ctx context.Context, dc *client.Client) {
 			d.upsertContainerWithLabels(ctx, c.ID, name, c.Ports, c.Labels)
 		}
 	}
-	log.Printf("discovery: synced %d running containers", len(containers))
+	log.Printf("discovery: synced %d running containers", len(res.Items))
 }
 
 func (d *Discoverer) handleDockerEvent(ctx context.Context, dc *client.Client, msg dockerevents.Message) {
@@ -125,13 +124,14 @@ func (d *Discoverer) handleDockerEvent(ctx context.Context, dc *client.Client, m
 		case <-ctx.Done():
 			return
 		}
-		c, err := dc.ContainerInspect(ctx, msg.Actor.ID)
+		insp, err := dc.ContainerInspect(ctx, msg.Actor.ID, client.ContainerInspectOptions{})
 		if err != nil {
 			return
 		}
+		c := insp.Container
 		name := strings.TrimPrefix(c.Name, "/")
 		if name != "" {
-			d.upsertContainerWithLabels(ctx, c.ID, name, portsFromNat(c.NetworkSettings.Ports), c.Config.Labels)
+			d.upsertContainerWithLabels(ctx, c.ID, name, portsFromNetwork(c.NetworkSettings.Ports), c.Config.Labels)
 		}
 
 	case "die", "stop", "destroy", "kill":
@@ -157,7 +157,7 @@ func (d *Discoverer) detachContainer(id string) {
 
 // upsertContainerWithLabels resolves a container's configuration from Docker labels,
 // then creates or updates the service entry.
-func (d *Discoverer) upsertContainerWithLabels(ctx context.Context, id, name string, ports []container.Port, labels map[string]string) {
+func (d *Discoverer) upsertContainerWithLabels(ctx context.Context, id, name string, ports []container.PortSummary, labels map[string]string) {
 	if name == "" || name == "lantern" {
 		return
 	}
@@ -213,7 +213,7 @@ func (d *Discoverer) upsertContainerWithLabels(ctx context.Context, id, name str
 //  1. lantern.* labels
 //  2. Traefik v2/v3 labels
 //  3. Published ports (bestPort heuristic)
-func (d *Discoverer) resolveContainer(ctx context.Context, name string, ports []container.Port, labels map[string]string) *containerInfo {
+func (d *Discoverer) resolveContainer(ctx context.Context, name string, ports []container.PortSummary, labels map[string]string) *containerInfo {
 	info := &containerInfo{
 		name:      name,
 		subdomain: util.SanitiseSubdomain(name),
@@ -353,7 +353,7 @@ func traefikPort(labels map[string]string) int {
 // ── Port / target helpers ─────────────────────────────────────────────────────
 
 // bestPort picks the most useful published TCP port, preferring common web UI ports.
-func bestPort(ports []container.Port) int {
+func bestPort(ports []container.PortSummary) int {
 	preferred := []int{80, 8080, 3000, 5000, 9443, 9000, 8096, 8123, 443, 8443, 8000}
 	portSet := make(map[int]bool)
 	for _, p := range ports {
@@ -388,12 +388,12 @@ func splitTarget(target string) (ip string, port int) {
 	return s[:idx], port
 }
 
-// ── Port / nat helpers ────────────────────────────────────────────────────────
+// ── Port / network helpers ────────────────────────────────────────────────────
 
-// portsFromNat converts a nat.PortMap (from ContainerInspect) to the []types.Port
-// slice expected by upsertContainerWithLabels / bestPort.
-func portsFromNat(pm nat.PortMap) []container.Port {
-	ports := make([]container.Port, 0, len(pm))
+// portsFromNetwork converts a network.PortMap (from ContainerInspect) to the
+// []container.PortSummary slice expected by upsertContainerWithLabels / bestPort.
+func portsFromNetwork(pm network.PortMap) []container.PortSummary {
+	ports := make([]container.PortSummary, 0, len(pm))
 	for p, bindings := range pm {
 		priv, err := strconv.ParseUint(p.Port(), 10, 16)
 		if err != nil {
@@ -404,8 +404,8 @@ func portsFromNat(pm nat.PortMap) []container.Port {
 			if err != nil {
 				continue
 			}
-			ports = append(ports, container.Port{
-				Type:        p.Proto(),
+			ports = append(ports, container.PortSummary{
+				Type:        string(p.Proto()),
 				PrivatePort: uint16(priv),
 				PublicPort:  uint16(pub),
 			})
