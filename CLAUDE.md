@@ -54,6 +54,9 @@ These rules are enforced by `golangci-lint` (`.golangci.yml`). Follow them proac
 ### nolint directives
 - Every `//nolint` must include an explanation: `//nolint:gosec // reason here`
 
+### Dependencies
+- Docker SDK: use `github.com/moby/moby/client` and `github.com/moby/moby/api`, **not** `github.com/docker/docker` (deprecated upstream; last release `v28.5.2` has known unpatched CVEs against the archive API)
+
 ## Frontend standards
 
 - Bootstrap 5.3.8 vendored locally (embedded in binary) with dark theme — no Tailwind, no DaisyUI
