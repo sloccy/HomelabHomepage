@@ -56,7 +56,7 @@ These rules are enforced by `golangci-lint` (`.golangci.yml`). Follow them proac
 
 ## Frontend standards
 
-- Bootstrap 5.3.3 via CDN with dark theme — no Tailwind, no DaisyUI
+- Bootstrap 5.3.8 vendored locally (embedded in binary) with dark theme — no Tailwind, no DaisyUI
 - Prefer in order: Semantic HTML → Bootstrap classes → `style.css` rules → HTMX → Vanilla JS
 - Bootstrap utility classes work: `d-flex`, `gap-*`, `mb-*`, etc.
 
