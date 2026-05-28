@@ -70,14 +70,10 @@ jobs:
           fi
 
           # Dedupe: per module, keep only the highest semver fixed version.
-          # sort -V sorts semver-ish strings correctly; we reverse and pick the first per module.
-          FINAL=$(sort -u "$BUMPS_FILE" | awk -F'@' '
-            {
-              mod=$1; ver=$2
-              if (!(mod in seen) || ver > seen[mod]) seen[mod]=ver
-            }
-            END { for (m in seen) print m "@" seen[m] }
-          ')
+          # sort -k2,2V gives correct semver ordering (1.10 > 1.9); awk keeps the last (highest) per module.
+          FINAL=$(sort -u "$BUMPS_FILE" \
+            | sort -t '@' -k1,1 -k2,2V \
+            | awk -F'@' '{ latest[$1] = $0 } END { for (m in latest) print latest[m] }')
 
           echo "Bumping: $FINAL"
 

@@ -140,6 +140,21 @@ jobs:
           if-no-files-found: error
           retention-days: 1
 
+  # Stable aggregate gate for branch protection — depends on all PR-required jobs.
+  # Branch protection should require only this check by name ("CI"), not the individual jobs.
+  ci:
+    name: CI
+    needs: [lint, build]
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - name: Verify required jobs succeeded
+        run: |
+          if [ "${{ needs.lint.result }}" != "success" ] || [ "${{ needs.build.result }}" != "success" ]; then
+            echo "A required job did not succeed (lint=${{ needs.lint.result }}, build=${{ needs.build.result }})"
+            exit 1
+          fi
+
   # Combines per-arch digests into a multi-arch manifest list and pushes all tags.
   publish:
     name: Publish manifest
