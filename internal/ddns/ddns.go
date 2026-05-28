@@ -13,7 +13,7 @@ import (
 	"lantern/internal/store"
 )
 
-const ipifyURL = "https://api.ipify.org"
+var ipifyURL = "https://api.ipify.org"
 
 var ipifyClient = &http.Client{Timeout: 10 * time.Second}
 
