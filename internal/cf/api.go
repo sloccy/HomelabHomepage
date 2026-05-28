@@ -11,7 +11,7 @@ import (
 	"time"
 )
 
-const cfBaseURL = "https://api.cloudflare.com/client/v4"
+var cfBaseURL = "https://api.cloudflare.com/client/v4"
 
 // apiClient is a minimal Cloudflare v4 REST API client.
 type apiClient struct {
