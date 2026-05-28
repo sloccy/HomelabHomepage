@@ -147,6 +147,7 @@ jobs:
     needs: [lint, build]
     if: always()
     runs-on: ubuntu-latest
+    permissions: {}
     steps:
       - name: Verify required jobs succeeded
         run: |
