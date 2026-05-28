@@ -13,7 +13,7 @@ env:
 
 jobs:
   lint:
-    name: Lint & Test
+    name: Lint
     runs-on: ubuntu-latest
     permissions:
       contents: read
