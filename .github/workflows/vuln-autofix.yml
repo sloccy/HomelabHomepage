@@ -32,48 +32,29 @@ jobs:
           # Exit code 3 = vulnerabilities found; allow it so the script can decide.
           govulncheck -json ./... > /tmp/vuln.json || true
 
-          # Phase 1: collect OSV IDs that are *called* (symbol-level hit).
-          CALLED=$(jq -r '
+          # Collect module@fixed_version for all called (symbol-level) findings.
+          # finding.fixed_version is already the minimum fix >= the currently installed
+          # version — no OSV range parsing needed.
+          BUMPS_FILE=$(mktemp)
+          jq -r '
             select(.finding) |
             select(.finding.trace[0]?.function != null) |
-            .finding.osv
-          ' /tmp/vuln.json | sort -u)
+            select(.finding.fixed_version != null and .finding.fixed_version != "") |
+            ((.finding.trace[0]?.module // "") | if . == "" then "stdlib" else . end) + "@" + .finding.fixed_version
+          ' /tmp/vuln.json >> "$BUMPS_FILE"
 
-          if [ -z "$CALLED" ]; then
+          if [ ! -s "$BUMPS_FILE" ]; then
             echo "No called vulnerabilities found — nothing to do."
             echo "bumped=" >> "$GITHUB_OUTPUT"
             exit 0
           fi
 
-          echo "Called vuln OSV IDs: $CALLED"
-
-          # Phase 2: for each called OSV, find module@fixed_version.
-          # Multiple OSVs may fix the same module — collect all and pick the highest per module.
-          BUMPS_FILE=$(mktemp)
-          for osv_id in $CALLED; do
-            jq -r --arg id "$osv_id" '
-              select(.osv) |
-              select(.osv.id == $id) |
-              .osv.affected[]? |
-              select(.package.ecosystem == "Go") |
-              .package.name as $mod |
-              (.ranges[]?.events[]?.fixed // empty) as $fix |
-              select($fix != "" and ($fix | test("^[0-9]"))) |
-              "\($mod)@\($fix)"
-            ' /tmp/vuln.json >> "$BUMPS_FILE"
-          done
-
-          if [ ! -s "$BUMPS_FILE" ]; then
-            echo "Called vulns found but no fixed versions available — nothing to bump."
-            echo "bumped=" >> "$GITHUB_OUTPUT"
-            exit 0
-          fi
-
-          # Dedupe: per module, keep only the lowest semver fixed version.
-          # sort -k2,2V gives correct semver ordering (1.10 > 1.9); awk keeps the first (lowest) per module.
+          # Dedupe: per module keep the highest fixed version, so one bump covers all
+          # called vulns in that module.
+          # sort -k2,2V gives correct semver ordering; awk keeps the last (highest) per module.
           FINAL=$(sort -u "$BUMPS_FILE" \
             | sort -t '@' -k1,1 -k2,2V \
-            | awk -F'@' '!seen[$1]++')
+            | awk -F'@' '{ latest[$1] = $0 } END { for (m in latest) print latest[m] }')
 
           echo "Bumping: $FINAL"
 
@@ -81,7 +62,8 @@ jobs:
             module="${bump%%@*}"
             version="${bump##*@}"
             if [ "$module" = "stdlib" ]; then
-              go mod edit -go="${version}"
+              # fixed_version for stdlib is "goX.Y.Z"; go mod edit -go expects "X.Y.Z"
+              go mod edit -go="${version#go}"
             else
               go get "$bump"
             fi
