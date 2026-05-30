@@ -1,26 +1,25 @@
 version: 2
+# Security updates fire immediately regardless of schedule.
 # Transitive Go dep security bumps are handled by vuln-autofix — Dependabot does not bump transitives.
 updates:
   - package-ecosystem: gomod
     directory: /
     schedule:
-      interval: daily
+      interval: monthly
     open-pull-requests-limit: 10
 
   - package-ecosystem: npm
     directory: /
     schedule:
-      interval: daily
+      interval: monthly
     open-pull-requests-limit: 10
 
   - package-ecosystem: docker
     directory: /
     schedule:
-      interval: weekly
-      day: monday
+      interval: monthly
 
   - package-ecosystem: github-actions
     directory: /
     schedule:
-      interval: weekly
-      day: monday
+      interval: monthly
