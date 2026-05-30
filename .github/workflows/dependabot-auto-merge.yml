@@ -8,28 +8,6 @@ permissions:
   pull-requests: write
 
 jobs:
-  automerge:
-    runs-on: ubuntu-latest
-    if: github.actor == 'dependabot[bot]'
-    steps:
-      - name: Fetch Dependabot metadata
-        id: metadata
-        uses: dependabot/fetch-metadata@v3
-        with:
-          github-token: "${{ secrets.GITHUB_TOKEN }}"
-
-      - name: Auto-merge security updates (any semver level)
-        if: contains(github.event.pull_request.labels.*.name, 'security')
-        run: gh pr merge --auto --squash "$PR_URL"
-        env:
-          PR_URL: ${{ github.event.pull_request.html_url }}
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Auto-merge non-security patch updates
-        if: >-
-          steps.metadata.outputs.update-type == 'version-update:semver-patch' &&
-          !contains(github.event.pull_request.labels.*.name, 'security')
-        run: gh pr merge --auto --squash "$PR_URL"
-        env:
-          PR_URL: ${{ github.event.pull_request.html_url }}
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+  auto-merge:
+    uses: sloccy/shared-ci/.github/workflows/dependabot-auto-merge.yml@main
+    secrets: inherit

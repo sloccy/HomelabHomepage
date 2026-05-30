@@ -11,6 +11,6 @@ permissions:
 
 jobs:
   autofix:
-    uses: sloccy/go-vuln-autofix/.github/workflows/vuln-autofix.yml@main
+    uses: sloccy/shared-ci/.github/workflows/vuln-autofix.yml@main
     secrets:
       pr_token: ${{ secrets.WORKFLOW_TOKEN }}
