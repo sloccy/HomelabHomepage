@@ -78,9 +78,15 @@ jobs:
           echo "Bumping: $FINAL"
 
           for bump in $FINAL; do
-            go get "$bump"
+            module="${bump%%@*}"
+            version="${bump##*@}"
+            if [ "$module" = "stdlib" ]; then
+              go mod edit -go="${version}"
+            else
+              go get "$bump"
+            fi
           done
-          go mod tidy
+          GOTOOLCHAIN=auto go mod tidy
 
           # Store bump list for the PR body.
           echo "bumped<<EOF" >> "$GITHUB_OUTPUT"
@@ -89,6 +95,8 @@ jobs:
 
       - name: Verify no called vulns remain
         if: steps.scan.outputs.bumped != ''
+        env:
+          GOTOOLCHAIN: auto
         run: govulncheck ./...
 
       - name: Open PR
