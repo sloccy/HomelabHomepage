@@ -12,4 +12,5 @@ permissions:
 jobs:
   autofix:
     uses: sloccy/go-vuln-autofix/.github/workflows/vuln-autofix.yml@main
-    secrets: inherit
+    secrets:
+      pr_token: ${{ secrets.WORKFLOW_TOKEN }}
