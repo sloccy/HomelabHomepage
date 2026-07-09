@@ -1,6 +1,6 @@
 module lantern
 
-go 1.25.11
+go 1.25.12
 
 require (
 	github.com/go-acme/lego/v4 v4.35.2
