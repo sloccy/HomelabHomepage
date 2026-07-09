@@ -5,8 +5,8 @@ go 1.25.12
 require (
 	github.com/go-acme/lego/v4 v4.35.2
 	github.com/miekg/dns v1.1.72
-	github.com/moby/moby/api v1.54.2
-	github.com/moby/moby/client v0.4.1
+	github.com/moby/moby/api v1.55.0
+	github.com/moby/moby/client v0.5.0
 	golang.org/x/sync v0.20.0
 )
 
