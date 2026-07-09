@@ -7,7 +7,7 @@ require (
 	github.com/miekg/dns v1.1.72
 	github.com/moby/moby/api v1.54.2
 	github.com/moby/moby/client v0.4.1
-	golang.org/x/sync v0.20.0
+	golang.org/x/sync v0.21.0
 )
 
 require (
